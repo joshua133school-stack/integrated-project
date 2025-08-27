@@ -1,333 +1,123 @@
-<!doctype html>
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FFF‑lite — Form Follows Fun</title>
-  <meta name="description" content="A single‑file HTML5 demo inspired by cmiscm's FFF. Drag‑and‑drop to Netlify and launch." />
-  <style>
-    :root{
-      --bg:#0b0e16; --fg:#e6e7ee; --muted:#9aa0b3; --card:#121626; --accent:#6ae4ff;
-    }
-    *{box-sizing:border-box}
-    html,body{height:100%;}
-    body{margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:radial-gradient(1000px 700px at 20% 10%, #121831, #0b0e16 55%); color:var(--fg); overflow:hidden}
-    header{position:fixed; inset:0 auto auto 0; padding:18px 20px; letter-spacing:.04em; font-weight:600; opacity:.9}
-    header span{color:var(--muted); font-weight:500}
-    a{color:var(--accent); text-decoration:none}
-    .wheel{position:absolute; inset:0; display:grid; place-items:center;}
-    .ring{--size:min(82vmin,900px); width:var(--size); height:var(--size); border-radius:50%; position:relative; animation:spin 40s linear infinite;}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .tile{position:absolute; width:18vmin; height:24vmin; background:linear-gradient(180deg,#1a2038,#0f1427); border-radius:18px; box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06);
-      display:grid; place-items:center; padding:10px; cursor:pointer; transition:transform .2s ease, box-shadow .2s ease;}
-    .tile:hover{transform:translateY(-4px) scale(1.03); box-shadow:0 14px 36px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.1)}
-    .tile h3{margin:0; font-size:2.6vmin; text-align:center}
-    /* place 8 tiles around the ring */
-    .tile:nth-child(1){transform:rotate(0deg) translate(calc(var(--size)/2 - 11vmin)) rotate(0deg)}
-    .tile:nth-child(2){transform:rotate(45deg) translate(calc(var(--size)/2 - 11vmin)) rotate(-45deg)}
-    .tile:nth-child(3){transform:rotate(90deg) translate(calc(var(--size)/2 - 11vmin)) rotate(-90deg)}
-    .tile:nth-child(4){transform:rotate(135deg) translate(calc(var(--size)/2 - 11vmin)) rotate(-135deg)}
-    .tile:nth-child(5){transform:rotate(180deg) translate(calc(var(--size)/2 - 11vmin)) rotate(-180deg)}
-    .tile:nth-child(6){transform:rotate(225deg) translate(calc(var(--size)/2 - 11vmin)) rotate(-225deg)}
-    .tile:nth-child(7){transform:rotate(270deg) translate(calc(var(--size)/2 - 11vmin)) rotate(-270deg)}
-    .tile:nth-child(8){transform:rotate(315deg) translate(calc(var(--size)/2 - 11vmin)) rotate(-315deg)}
-    /* labels */
-    .badge{position:absolute; bottom:18px; left:50%; transform:translateX(-50%); font-size:12px; color:var(--muted); opacity:.9}
-    /* modal */
-    .modal{position:fixed; inset:0; display:none;}
-    .modal[open]{display:block}
-    .scrim{position:absolute; inset:0; background:rgba(3,5,9,.75); backdrop-filter:blur(6px)}
-    .panel{position:absolute; inset:6vh 6vw; background:var(--card); border-radius:22px; box-shadow:0 20px 60px rgba(0,0,0,.55); display:grid; grid-template-columns: 1fr 350px; overflow:hidden}
-    .panel header{position:static; padding:20px; grid-column:1/3}
-    .panel header h2{margin:.2rem 0 0 0}
-    .panel .content{position:relative}
-    .panel .sidebar{padding:18px 18px 24px 18px; border-left:1px solid rgba(255,255,255,.06); display:grid; gap:10px; align-content:start}
-    button{appearance:none; background:#1a2035; color:var(--fg); border:1px solid rgba(255,255,255,.08); padding:10px 14px; border-radius:12px; cursor:pointer}
-    button:hover{border-color:rgba(255,255,255,.18)}
-    .hint{font-size:12px; color:var(--muted)}
-    canvas{display:block; width:100%; height:100%}
-    .error{color:#ff9ea3; font-size:13px}
-    .pill{display:inline-block; padding:4px 8px; border:1px solid rgba(255,255,255,.14); border-radius:999px; font-size:12px; color:var(--muted)}
-    @media (max-width: 920px){ .panel{grid-template-columns:1fr; inset:2vh 3vw} .panel .sidebar{border-left:none; border-top:1px solid rgba(255,255,255,.06)} }
-  </style>
+
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <meta name="theme-color" content="#ffffff">
+    <title>Form Follows Function</title>
+
+    <meta name="google" value="notranslate">
+    <meta name="author" content="Jongmin Kim"/>
+    <meta name="copyright" content="Jongmin Kim"/>
+    <meta name="robots" content="index,follow">
+
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="FFF">
+
+    <meta property="fb:app_id" content="304280369692789"/>
+    <meta property="og:site_name" content="Form Follows Function" />
+    <meta property="og:type"        content="website" />
+    <meta property="og:title"       content="Form Follows Function" />
+    <meta property="og:url"         content="fff.cmiscm.com" />
+    <meta property="og:image"       content="https://fff.cmiscm.com/images/share.png" />
+    <meta property="og:description" content="FFF is a collection of interactive experiences. Each experience has its own unique design and functionality." />
+
+
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="shortcut icon" href="favicon.ico" type="image/x-icon" />
+    <link rel="image_src" href="https://fff.cmiscm.com/images/share.png" />
+
+    <link rel="apple-touch-icon-precomposed" href="images/touch-icon-iphone.png">
+    <link rel="apple-touch-icon-precomposed" sizes="76x76" href="images/touch-icon-ipad.png">
+    <link rel="apple-touch-icon-precomposed" sizes="120x120" href="images/touch-icon-iphone-retina.png">
+    <link rel="apple-touch-icon-precomposed" sizes="152x152" href="images/touch-icon-ipad-retina.png">
+    <link rel="apple-touch-icon-precomposed" sizes="114x114" href="images/apple-icon-114x114.png" />
+    <link rel="apple-touch-icon-precomposed" sizes="144x144" href="images/apple-icon-144x144.png" />
+
+    <meta name="description" content="FFF is a collection of interactive experiences. Each experience has its own unique design and functionality.">
+
+    <meta itemprop="name" content="Form Follows Function"/>
+    <meta itemprop="description" content="FFF is a collection of interactive experiences. Each experience has its own unique design and functionality."/>
+    <meta itemprop="image" content="https://fff.cmiscm.com/images/share.png"/>
+
+    <link rel="stylesheet" type="text/css" href="minify/minify.css?id=3">
+
+    <noscript>
+        Javascript has been disabled!
+        <meta http-equiv="refresh" content="0;url=error.html" />
+    </noscript>
 </head>
+
 <body>
-  <header>FFF‑lite <span>· HTML5 Canvas + CSS · Netlify‑ready</span></header>
-  <div class="wheel">
-    <div class="ring" id="ring">
-      <div class="tile" data-app="particles"><h3>Particles</h3></div>
-      <div class="tile" data-app="ribbons"><h3>Ribbons</h3></div>
-      <div class="tile" data-app="audio"><h3>Audio Viz</h3></div>
-      <div class="tile" data-app="text"><h3>Text Morph</h3></div>
-      <div class="tile" data-app="flow"><h3>Flow Field</h3></div>
-      <div class="tile" data-app="grid"><h3>Grid Warp</h3></div>
-      <div class="tile" data-app="dots"><h3>Halftone</h3></div>
-      <div class="tile" data-app="about"><h3>About</h3></div>
-      <div class="badge">Click a tile</div>
+    <div id="preloader"></div>
+    <div id="block"></div>
+
+    <div id="root">
+        <div id="container">
+            <div id="pantone" class="chand">
+                <div id="pantone-loading"></div>
+            </div>
+
+            <div id="contents">
+                <div id="detail-con">
+                    <div id="mask"></div>
+                    <div id="poster-con">
+                        <div id="poster-big"></div>
+                    </div>
+                </div>
+                <div id="load-con"></div>
+            </div>
+
+            <div id="header" class="header-black"><svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="44px" height="25px" viewBox="0 0 44 25" enable-background="new 0 0 44 25" xml:space="preserve"><path d="M16.868,6.126h-2.47l0.155-0.732c0.269-1.299,0.573-2.232,0.902-2.776c0.265-0.438,0.547-0.685,0.858-0.75 c0.076,0.12,0.143,0.23,0.199,0.332c0.085,0.157,0.199,0.323,0.34,0.498c0.136,0.166,0.294,0.302,0.469,0.404 c0.188,0.11,0.409,0.166,0.655,0.166c0.421,0,0.741-0.142,0.95-0.423c0.192-0.258,0.29-0.558,0.29-0.892 c0-0.409-0.167-0.752-0.498-1.02c-0.319-0.258-0.784-0.383-1.422-0.383c-0.527,0-1.082,0.127-1.649,0.377 c-0.562,0.249-1.072,0.595-1.515,1.03c-0.445,0.437-0.847,0.974-1.195,1.597c-0.35,0.625-0.608,1.333-0.769,2.107L12.07,6.126 h-1.878L9.873,7.515h1.913l-1.735,8.134c-0.254,1.156-0.556,2.054-0.897,2.666c-0.277,0.498-0.585,0.783-0.939,0.866l-0.211-0.346 c-0.123-0.204-0.23-0.36-0.332-0.483c-0.135-0.157-0.293-0.29-0.467-0.394c-0.192-0.114-0.414-0.172-0.66-0.172 c-0.398,0-0.71,0.141-0.929,0.417c-0.204,0.26-0.308,0.562-0.308,0.897c0,0.41,0.167,0.753,0.498,1.02 c0.319,0.258,0.784,0.383,1.42,0.383c1.102,0,2.179-0.486,3.204-1.444c1.016-0.949,1.69-2.187,2.005-3.676l1.678-7.868h2.434 L16.868,6.126z"/><path d="M26.368,6.126h-2.47l0.155-0.732c0.269-1.299,0.572-2.233,0.902-2.776c0.261-0.431,0.549-0.683,0.857-0.75 c0.076,0.12,0.143,0.23,0.198,0.331c0.086,0.157,0.199,0.323,0.34,0.498c0.135,0.165,0.293,0.301,0.47,0.404 c0.188,0.11,0.409,0.166,0.655,0.166c0.421,0,0.74-0.142,0.949-0.423c0.192-0.258,0.29-0.558,0.29-0.892 c0-0.409-0.168-0.752-0.498-1.02c-0.318-0.258-0.783-0.383-1.422-0.383c-0.527,0-1.082,0.127-1.648,0.377 c-0.563,0.249-1.073,0.595-1.515,1.03c-0.445,0.437-0.847,0.974-1.196,1.597c-0.35,0.625-0.608,1.333-0.769,2.107L21.57,6.126 h-1.878l-0.319,1.389h1.913l-1.735,8.134c-0.254,1.156-0.556,2.054-0.897,2.666c-0.277,0.498-0.585,0.783-0.939,0.866l-0.211-0.346 c-0.123-0.204-0.23-0.36-0.332-0.483c-0.135-0.157-0.293-0.29-0.467-0.394c-0.192-0.114-0.414-0.172-0.66-0.172 c-0.398,0-0.71,0.141-0.929,0.417c-0.204,0.26-0.308,0.562-0.308,0.897c0,0.41,0.167,0.753,0.498,1.02 c0.319,0.258,0.784,0.383,1.42,0.383c1.102,0,2.179-0.486,3.204-1.444c1.016-0.949,1.69-2.187,2.005-3.676l1.678-7.868h2.433 L26.368,6.126z"/><path d="M33.554,5.394c0.269-1.299,0.572-2.233,0.902-2.776c0.261-0.431,0.549-0.683,0.857-0.75c0.076,0.12,0.143,0.23,0.198,0.331 c0.086,0.157,0.199,0.323,0.34,0.498c0.135,0.165,0.293,0.301,0.47,0.404c0.188,0.11,0.409,0.166,0.655,0.166 c0.421,0,0.74-0.142,0.949-0.423c0.192-0.258,0.29-0.558,0.29-0.892c0-0.409-0.168-0.752-0.498-1.02 c-0.318-0.258-0.783-0.383-1.422-0.383c-0.527,0-1.082,0.127-1.648,0.377c-0.563,0.249-1.073,0.595-1.515,1.03 c-0.444,0.436-0.846,0.973-1.195,1.597c-0.35,0.623-0.608,1.332-0.769,2.107L31.07,6.126h-1.879l-0.318,1.389h1.912l-1.734,8.134 c-0.255,1.157-0.557,2.055-0.898,2.667c-0.276,0.498-0.585,0.782-0.938,0.865c-0.063-0.104-0.134-0.219-0.211-0.346 c-0.117-0.196-0.229-0.357-0.332-0.483c-0.135-0.157-0.292-0.29-0.467-0.394c-0.191-0.114-0.413-0.172-0.66-0.172 c-0.398,0-0.711,0.141-0.929,0.418c-0.204,0.259-0.308,0.561-0.308,0.896c0,0.409,0.168,0.753,0.498,1.02 c0.318,0.258,0.783,0.383,1.42,0.383c1.102,0,2.18-0.486,3.204-1.444c1.016-0.95,1.69-2.187,2.005-3.676l1.679-7.868h2.433 l0.322-1.389h-2.47L33.554,5.394z"/><path d="M38.688,16.925c-0.621-0.623-1.617-0.623-2.238,0c-0.312,0.311-0.469,0.688-0.469,1.119s0.158,0.806,0.471,1.111 c0.311,0.304,0.686,0.457,1.117,0.457s0.807-0.153,1.117-0.457c0.312-0.306,0.471-0.68,0.471-1.111S38.999,17.235,38.688,16.925z"/></svg></div>
+
+            <div id="about">
+                <div id="about-right" class="right-pos white">
+                    <div id="about-close-bt" class="buttons close-pos"></div>
+                </div>
+
+                <div id="about-contents">
+                    <h1>Form Follows Function</h1>
+                    <h2><span class="about-bold">Form Follows Function</span> project is a collection of entrancing and engrossing "interactive experiences", each experience has its own unique design and functionality. The award-winning project includes a spinning navigation wheel on the website, with each interactive experience represented by a poster. By clicking on a poster, an interactive experience opens up. Each one is as much a piece of art as it works beautifully on both desktop and tablet.</h2>
+                    <p>
+                        If you want to contact me check out my<br>
+                        <a href="http://cmiscm.com/" target="_blank"><span id="link-website" class="about-link">website</span></a> ・
+                        <a href="http://blog.cmiscm.com" target="_blank"><span id="link-facebook" class="about-link about-link-dot">blog</span></a> ・
+                        <a href="http://twitter.com/cmiscm" target="_blank"><span id="link-twitter" class="about-link about-link-dot">twitter</span></a> ・
+                        <a href="mailto:&#099;&#109;&#105;&#115;&#099;&#109;&#064;&#103;&#109;&#097;&#105;&#108;&#046;&#099;&#111;&#109;"><span id="link-email" class="about-link about-link-dot">e-mail</span></a>
+                    </p>
+                    <span class="copyright">
+                            Copyright © 2013-2018 Jongmin Kim. All rights reserved.
+                        </span>
+
+                    <div class="press">
+                        <a href="http://goo.gl/oA3JB2" class="chrome-ex" target="_blank">This is a Chrome Experiment</a><span> ・ </span><a href="http://goo.gl/ekvNQe" class="fast-com" target="_blank">Fast Company</a><span> ・ </span><a href="http://blog.cmiscm.com/?p=4105" class="ca-korea" target="_blank">Red Dot Award 2014</a>
+                    </div>
+                </div>
+            </div>
+            <div id="footer" class="footer-black"></div>
+        </div>
     </div>
-  </div>
 
-  <dialog class="modal" id="modal">
-    <div class="scrim" data-close></div>
-    <div class="panel">
-      <header>
-        <div class="pill" id="appTag">app</div>
-        <h2 id="appTitle">Demo</h2>
-      </header>
-      <div class="content" id="appArea"></div>
-      <aside class="sidebar">
-        <button data-close>← Back</button>
-        <div class="hint">Runs on any static host (<b>Netlify</b>, GitHub Pages, etc.). HTTPS unlocks microphone for <b>Audio Viz</b>.</div>
-        <div class="hint">Perf tips: use Chrome, enable hardware acceleration.</div>
-        <div class="error" id="appError" hidden></div>
-      </aside>
-    </div>
-  </dialog>
+    <div id="check"></div>
 
-<script>
-  // Utilities
-  const qs = s=>document.querySelector(s);
-  const elRing = qs('#ring');
-  const elModal = qs('#modal');
-  const elArea = qs('#appArea');
-  const elTitle = qs('#appTitle');
-  const elTag = qs('#appTag');
-  const elErr = qs('#appError');
-  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+    <script src="minify/minify.js?id=3"></script>
+    <script type="text/javascript">
+        $('document').ready(function(){Address.init("tablet")});
 
-  function openModal(name){
-    elTitle.textContent = titleMap[name]||name;
-    elTag.textContent = name;
-    elArea.innerHTML = '';
-    elErr.hidden = true; elErr.textContent='';
-    elModal.setAttribute('open','');
-    try{ apps[name](elArea); }
-    catch(e){ elErr.hidden=false; elErr.textContent = 'Error: '+e.message; console.error(e); }
-  }
-  function closeModal(){
-    elModal.removeAttribute('open');
-    // clean up
-    if(currentDispose) currentDispose();
-    currentDispose=null;
-  }
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+        (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+        m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+        })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
 
-  elRing.addEventListener('click', e=>{
-    const tile = e.target.closest('.tile');
-    if(!tile) return;
-    const app = tile.getAttribute('data-app');
-    openModal(app);
-  });
-
-  let currentDispose = null;
-  const titleMap = {particles:'Mouse‑attractor Particles', ribbons:'Bezier Ribbons', audio:'Audio Visualizer', text:'Text Morph', flow:'Perlin Flow Field', grid:'Grid Warp', dots:'Halftone Dots', about:'About this project'};
-
-  const apps = {
-    about(root){
-      const wrap = document.createElement('div');
-      wrap.style.padding='22px';
-      wrap.innerHTML = `<p><b>FFF‑lite</b> is a small, educational homage to cmiscm's <em>Form Follows Function</em>. It is built with <code>Canvas 2D</code>, <code>CSS</code>, and a touch of math — no build step, no frameworks.</p>
-      <p>Deploy by dragging this single HTML file to <a href="https://app.netlify.com/drop" target="_blank" rel="noreferrer">Netlify Drop</a>. That’s it.</p>
-      <ul><li>Single‑file: safe to host as a static site</li>
-      <li>HTTPS‑friendly: microphone access for <em>Audio Viz</em></li>
-      <li>Mobile‑aware: resizes on orientation / viewport changes</li></ul>
-      <p class="hint">Keyboard: press <kbd>Esc</kbd> or click ← Back to exit demos.</p>`;
-      root.appendChild(wrap);
-      currentDispose = ()=>{};
-    },
-
-    particles(root){
-      const {canvas, ctx, dispose} = makeCanvas(root);
-      currentDispose = dispose;
-      let W=canvas.width, H=canvas.height;
-      const P=[]; const N=300;
-      for(let i=0;i<N;i++) P.push({x:Math.random()*W,y:Math.random()*H,vx:0,vy:0});
-      let mx=W/2,my=H/2;
-      canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect(); mx=(e.clientX-r.left)*devicePixelRatio; my=(e.clientY-r.top)*devicePixelRatio;});
-      function step(){
-        ctx.clearRect(0,0,W,H);
-        for(const p of P){
-          const dx=mx-p.x, dy=my-p.y; const d=Math.hypot(dx,dy)+1e-3; const f=1200/(d*d);
-          p.vx += (dx/d)*f; p.vy += (dy/d)*f; // attraction
-          // friction + spring to center
-          p.vx*=0.92; p.vy*=0.92;
-          p.x+=p.vx; p.y+=p.vy;
-          // wrap
-          if(p.x<0)p.x+=W; if(p.x>W)p.x-=W; if(p.y<0)p.y+=H; if(p.y>H)p.y-=H;
-          ctx.beginPath(); ctx.arc(p.x,p.y,2.2,0,Math.PI*2); ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fill();
-        }
-        requestAnimationFrame(step);
-      }
-      step();
-    },
-
-    ribbons(root){
-      const {canvas, ctx, dispose} = makeCanvas(root);
-      currentDispose = dispose;
-      let W=canvas.width, H=canvas.height, t=0;
-      function step(){
-        t+=0.01; ctx.fillStyle='rgba(11,14,22,.25)'; ctx.fillRect(0,0,W,H);
-        for(let i=0;i<6;i++) drawRibbon(i);
-        requestAnimationFrame(step);
-      }
-      function drawRibbon(i){
-        const off=i*0.6; ctx.beginPath(); ctx.moveTo(0, H*0.5+Math.sin(t+off)*80);
-        for(let x=0;x<=W;x+=40){
-          const y=H*0.5+Math.sin(t+off + x*0.01)*120*Math.sin(t*0.7+off);
-          ctx.quadraticCurveTo(x-20, y-40, x, y);
-        }
-        ctx.lineWidth=2.5; ctx.strokeStyle='rgba(106,228,255,0.8)'; ctx.stroke();
-      }
-      step();
-    },
-
-    audio(root){
-      const {canvas, ctx, dispose} = makeCanvas(root);
-      currentDispose = dispose;
-      const msg = document.createElement('div');
-      msg.className='hint'; msg.style.position='absolute'; msg.style.left='18px'; msg.style.bottom='18px';
-      msg.textContent='Click anywhere to enable microphone (HTTPS required).'; root.appendChild(msg);
-      let W=canvas.width, H=canvas.height;
-      let analyser, data;
-      canvas.addEventListener('click', async ()=>{
-        try{
-          const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-          const ac = new (window.AudioContext||window.webkitAudioContext)();
-          const src = ac.createMediaStreamSource(stream);
-          analyser = ac.createAnalyser(); analyser.fftSize = 1024;
-          src.connect(analyser); data = new Uint8Array(analyser.frequencyBinCount); msg.remove();
-        }catch(err){ elErr.hidden=false; elErr.textContent='Mic error: '+err.message; }
-      }, {once:true});
-      function step(){
-        ctx.fillStyle='rgba(11,14,22,.2)'; ctx.fillRect(0,0,W,H);
-        if(analyser){ analyser.getByteFrequencyData(data);
-          const barW = Math.max(2, (W/data.length));
-          for(let i=0;i<data.length;i++){
-            const v = data[i]/255; const h = v*H;
-            ctx.fillStyle = 'rgba(106,228,255,'+(0.25+v*0.75)+')';
-            ctx.fillRect(i*barW, H-h, barW*0.9, h);
-          }
-        } else {
-          // idle animation
-          const t=performance.now()*0.002; const r=80+Math.sin(t)*30;
-          ctx.beginPath(); ctx.arc(W/2,H/2,r,0,Math.PI*2); ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.stroke();
-        }
-        requestAnimationFrame(step);
-      }
-      step();
-    },
-
-    text(root){
-      const {canvas, ctx, dispose} = makeCanvas(root);
-      currentDispose = dispose;
-      let W=canvas.width, H=canvas.height;
-      const words = ['FORM','FOLLOWS','FUN'];
-      let i=0, t=0; const pts=[];
-      function makePoints(txt){
-        const off = Math.min(W,H)*0.16; ctx.clearRect(0,0,W,H);
-        ctx.fillStyle='#fff'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font = `bold ${Math.min(W,H)*0.22}px ui-sans-serif`;
-        ctx.fillText(txt, W/2, H/2);
-        const {data} = ctx.getImageData(0,0,W,H);
-        pts.length=0;
-        for(let y=0;y<H;y+=6){
-          for(let x=0;x<W;x+=6){
-            const a = data[(y*W+x)*4+3];
-            if(a>160) pts.push({x,y,ox:Math.random()*W, oy:Math.random()*H});
-          }
-        }
-      }
-      makePoints(words[i]);
-      canvas.addEventListener('click',()=>{ i=(i+1)%words.length; makePoints(words[i]); });
-      function step(){
-        t+=0.02; ctx.clearRect(0,0,W,H);
-        for(const p of pts){
-          p.ox += (p.x-p.ox)*0.08; p.oy += (p.y-p.oy)*0.08;
-          ctx.fillStyle='rgba(255,255,255,.9)'; ctx.fillRect(p.ox, p.oy, 2, 2);
-        }
-        requestAnimationFrame(step);
-      }
-      step();
-    },
-
-    flow(root){
-      const {canvas, ctx, dispose} = makeCanvas(root);
-      currentDispose = dispose;
-      let W=canvas.width, H=canvas.height, z=0; const P=[]; const n=1500;
-      for(let i=0;i<n;i++) P.push({x:Math.random()*W,y:Math.random()*H});
-      function noise(x,y,z){ // Simple pseudo‑noise
-        return Math.sin(x*12.9898+y*78.233+z*37.719)*43758.5453 % 1;
-      }
-      function step(){
-        z+=0.002; ctx.fillStyle='rgba(11,14,22,.1)'; ctx.fillRect(0,0,W,H);
-        ctx.fillStyle='rgba(255,255,255,.8)';
-        for(const p of P){
-          const a = noise(p.x*0.003, p.y*0.003, z)*Math.PI*2;
-          p.x += Math.cos(a); p.y += Math.sin(a);
-          if(p.x<0)p.x=W; if(p.x>W)p.x=0; if(p.y<0)p.y=H; if(p.y>H)p.y=0;
-          ctx.fillRect(p.x,p.y,1.5,1.5);
-        }
-        requestAnimationFrame(step);
-      }
-      step();
-    },
-
-    grid(root){
-      const {canvas, ctx, dispose} = makeCanvas(root);
-      currentDispose = dispose;
-      let W=canvas.width, H=canvas.height, t=0;
-      function step(){
-        t+=0.02; ctx.clearRect(0,0,W,H);
-        for(let y=0;y<H;y+=20){
-          for(let x=0;x<W;x+=20){
-            const s = 16 + Math.sin((x+y)*0.05 + t)*8;
-            ctx.save(); ctx.translate(x+10,y+10); ctx.rotate(((x^y)&1?1:-1)*0.1*Math.sin(t+(x+y)*0.01));
-            ctx.strokeStyle='rgba(106,228,255,.5)'; ctx.strokeRect(-s/2,-s/2,s,s);
-            ctx.restore();
-          }
-        }
-        requestAnimationFrame(step);
-      }
-      step();
-    },
-
-    dots(root){
-      const {canvas, ctx, dispose} = makeCanvas(root);
-      currentDispose = dispose;
-      let W=canvas.width, H=canvas.height, t=0;
-      function step(){
-        t+=0.03; ctx.clearRect(0,0,W,H);
-        for(let y=0;y<H;y+=14){
-          for(let x=0;x<W;x+=14){
-            const v=(Math.sin(x*0.04+t)+Math.cos(y*0.04+t))*0.5+0.5;
-            const r= v*5+1.5; ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
-            ctx.fillStyle='rgba(255,255,255,.85)'; ctx.fill();
-          }
-        }
-        requestAnimationFrame(step);
-      }
-      step();
-    },
-  };
-
-  function makeCanvas(root){
-    const canvas=document.createElement('canvas');
-    const ctx=canvas.getContext('2d');
-    root.appendChild(canvas);
-    function fit(){
-      const dpr = Math.min(2, window.devicePixelRatio||1);
-      const r = root.getBoundingClientRect();
-      canvas.width = Math.max(1, r.width*dpr);
-      canvas.height = Math.max(1, (window.innerHeight*0.78)*dpr);
-      canvas.style.width = r.width+'px';
-      canvas.style.height = (window.innerHeight*0.78)+'px';
-    }
-    fit();
-    const ro = new ResizeObserver(fit); ro.observe(root);
-    window.addEventListener('orientationchange', fit);
-    return {canvas, ctx, dispose:()=>{ro.disconnect();}};
-  }
-
-  // Close with Escape
-  window.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
-</script>
+        ga('create', 'UA-15463832-11', 'auto');
+        ga('require', 'linkid', 'linkid.js');
+        ga('send', 'pageview');
+    </script>
 </body>
 </html>
+
