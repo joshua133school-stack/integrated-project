@@ -1,3 +1,46 @@
+
+//testzone
+
+window.TherapeuticVideo = function() {
+    var container, videoElement, isPlaying = false;
+    
+    return {
+        init: function(parentElement) {
+            console.log("TherapeuticVideo init called successfully!");
+            container = parentElement;
+            this.addStyles();
+            return true;
+        },
+        
+        start: function() {
+            console.log("TherapeuticVideo start called successfully!");
+            container.innerHTML = `
+                <div class="therapeutic-video-experience">
+                    <div class="video-intro-screen">
+                        <img src="data/poster/soup_intro.jpg" 
+                             class="intro-image" 
+                             alt="Click to start therapy session">
+                        <div class="intro-overlay">
+                            <h2>Therapeutic Session</h2>
+                            <p>Click to begin your guided therapy experience</p>
+                            <div class="start-button">Start Session</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this.setupEventListeners();
+        },
+        
+        // ... rest of your methods
+    };
+};
+
+// Also create a direct reference for the config system
+var TherapeuticVideo = window.TherapeuticVideo;
+
+
+
+
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
 $jscomp.polyfill("Array.prototype.find",function(d){return d?d:function(d,g){return $jscomp.findInternal(this,d,g).v}},"es6","es3");$jscomp.polyfill("Object.getOwnPropertySymbols",function(d){return d?d:function(){return[]}},"es6","es5");$jscomp.arrayIteratorImpl=function(d){var m=0;return function(){return m<d.length?{done:!1,value:d[m++]}:{done:!0}}};$jscomp.arrayIterator=function(d){return{next:$jscomp.arrayIteratorImpl(d)}};$jscomp.SYMBOL_PREFIX="jscomp_symbol_";
@@ -1489,41 +1532,3 @@ g.svgTxt='<polygon fill="#FFFFFF" points="565.612,732.012 565.612,730.106 558.40
 return g}();
 
 
-//testzone
-
-window.TherapeuticVideo = function() {
-    var container, videoElement, isPlaying = false;
-    
-    return {
-        init: function(parentElement) {
-            console.log("TherapeuticVideo init called successfully!");
-            container = parentElement;
-            this.addStyles();
-            return true;
-        },
-        
-        start: function() {
-            console.log("TherapeuticVideo start called successfully!");
-            container.innerHTML = `
-                <div class="therapeutic-video-experience">
-                    <div class="video-intro-screen">
-                        <img src="data/poster/soup_intro.jpg" 
-                             class="intro-image" 
-                             alt="Click to start therapy session">
-                        <div class="intro-overlay">
-                            <h2>Therapeutic Session</h2>
-                            <p>Click to begin your guided therapy experience</p>
-                            <div class="start-button">Start Session</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            this.setupEventListeners();
-        },
-        
-        // ... rest of your methods
-    };
-};
-
-// Also create a direct reference for the config system
-var TherapeuticVideo = window.TherapeuticVideo;
