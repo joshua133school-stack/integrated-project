@@ -1541,7 +1541,7 @@ const TherapeuticVideoSystem = {
         imageContainer.className = 'therapeutic-image-container';
         imageContainer.innerHTML = `
             <div class="therapeutic-content">
-                <img src="data/therapeutic/${experienceId}.jpg" 
+                <img src="data/poster/${experienceId}.jpg" 
                      alt="Click to start therapy session"
                      class="therapeutic-trigger-image"
                      data-experience="${experienceId}">
@@ -1657,7 +1657,7 @@ const TherapeuticVideoSystem = {
         container.innerHTML = `
             <div class="therapeutic-video-player">
                 <video class="therapeutic-video" controls preload="metadata" autoplay>
-                    <source src="data/therapeutic/videos/${experienceId}.mp4" type="video/mp4">
+                    <source src="data/poster/videos/${experienceId}.mp4" type="video/mp4">
                     Your browser does not support the video tag.
                 </video>
                 <div class="video-controls-bar">
