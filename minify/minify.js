@@ -1491,23 +1491,19 @@ return g}();
 
 //testzone
 
-var TherapeuticVideo = TherapeuticVideo || function() {
+window.TherapeuticVideo = function() {
     var container, videoElement, isPlaying = false;
     
     return {
         init: function(parentElement) {
-            // Store reference but don't build UI yet
+            console.log("TherapeuticVideo init called successfully!");
             container = parentElement;
-            
-            // Add the essential styles immediately
             this.addStyles();
-            
-            // Return true to indicate successful initialization
             return true;
         },
         
         start: function() {
-            // NOW build the UI - this is called after transition completes
+            console.log("TherapeuticVideo start called successfully!");
             container.innerHTML = `
                 <div class="therapeutic-video-experience">
                     <div class="video-intro-screen">
@@ -1522,37 +1518,12 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     </div>
                 </div>
             `;
-            
             this.setupEventListeners();
         },
         
-        // Add these required methods that the system expects:
-        resize: function() {
-            // Handle window resize if needed
-        },
-        
-        pause: function() {
-            if (videoElement && isPlaying) {
-                videoElement.pause();
-            }
-        },
-        
-        resume: function() {
-            if (videoElement && !videoElement.paused) {
-                videoElement.play();
-            }
-        },
-        
-        dispose: function() {
-            if (videoElement) {
-                videoElement.pause();
-                videoElement.src = '';
-            }
-            isPlaying = false;
-            container = null;
-            videoElement = null;
-        },
-        
-        // ... rest of your methods stay the same
+        // ... rest of your methods
     };
-}();
+};
+
+// Also create a direct reference for the config system
+var TherapeuticVideo = window.TherapeuticVideo;
