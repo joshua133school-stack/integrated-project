@@ -1609,6 +1609,309 @@ interpolate:function(c){return k.interpolate(this._end,this._start,c)},createNex
 CMUtiles.randomFloat(.25+u,.65+u);d[k]=new g(p.x,p.y,u,m,CMUtiles.randomFloat(3,5),a,f)}return d},update:function(){var d=this._complete;if(!d){var a=this._current,b=this._latest;this._length<=this._currentLength&&(a=this._end,d=this._complete=!0);var e=this._depth*this._depth*.2,g="CM"+e,k=c[g];k||(k=c[g]={lineWidth:e,lines:[]});k.lines.push([[b.x,b.y],[a.x,a.y]]);d||(b.set(a),a.offset(this._v),this._currentLength+=this._speed)}}};k.create=function(c,a){return CMUtiles.isObject(c)?new k(c.x,c.y):
 new k(c,a)};k.add=function(c,a){return new k(c.x+a.x,c.y+a.y)};k.subtract=function(c,a){return new k(c.x-a.x,c.y-a.y)};k.interpolate=function(c,a,b){return new k(c.x+(a.x-c.x)*b,c.y+(a.y-c.y)*b)};k.prototype={add:function(c){return k.add(this,c)},subtract:function(c){return k.subtract(this,c)},length:function(){return Math.sqrt(this.x*this.x+this.y*this.y)},set:function(c,a){CMUtiles.isObject(c)&&(a=c.y,c=c.x);this.x=c||0;this.y=a||0;return this},offset:function(c,a){CMUtiles.isObject(c)&&(a=c.y,
 c=c.x);this.x+=c||0;this.y+=a||0;return this},normalize:function(c){if(null===c||"undefined"===c)c=1;var a=this.length();0<a&&(this.x=this.x/a*c,this.y=this.y/a*c);return this},clone:function(){return k.create(this)}};d.TreeClass=m})(window);
+
+
+//testcode
+var WaveInCircle=WaveInCircle||function(){
+    var container, videoElement, isPlaying = false;
+    
+    function addTherapyStyles(){
+        if (!document.querySelector('#wave-therapy-styles')) {
+            var style = document.createElement('style');
+            style.id = 'wave-therapy-styles';
+            style.textContent = `
+                .wave-therapy-container {
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(135deg, #2196F3 0%, #00BCD4 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: 'Roboto', sans-serif;
+                }
+                
+                .wave-therapy-intro {
+                    position: relative;
+                    cursor: pointer;
+                    max-width: 70%;
+                    text-align: center;
+                }
+                
+                .wave-therapy-image {
+                    width: 100%;
+                    max-width: 500px;
+                    border-radius: 20px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                    transition: transform 0.3s ease;
+                }
+                
+                .wave-therapy-image:hover {
+                    transform: scale(1.05);
+                }
+                
+                .wave-therapy-overlay {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+                    color: white;
+                    padding: 25px;
+                    border-radius: 0 0 20px 20px;
+                }
+                
+                .wave-therapy-overlay h2 {
+                    margin: 0 0 10px 0;
+                    font-size: 24px;
+                }
+                
+                .wave-therapy-overlay p {
+                    margin: 0;
+                    opacity: 0.9;
+                    font-size: 16px;
+                }
+                
+                .wave-video-player {
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.95);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 30px;
+                    box-sizing: border-box;
+                }
+                
+                .wave-therapeutic-video {
+                    width: 90%;
+                    max-width: 900px;
+                    height: auto;
+                    border-radius: 15px;
+                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+                    margin-bottom: 25px;
+                }
+                
+                .wave-video-controls {
+                    display: flex;
+                    gap: 15px;
+                    margin-bottom: 15px;
+                }
+                
+                .wave-control-btn {
+                    padding: 12px 24px;
+                    background: #2196F3;
+                    color: white;
+                    border: none;
+                    border-radius: 25px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.3s ease;
+                }
+                
+                .wave-control-btn:hover {
+                    background: #1976D2;
+                    transform: translateY(-2px);
+                }
+                
+                .wave-exit-btn {
+                    background: #f44336;
+                }
+                
+                .wave-exit-btn:hover {
+                    background: #d32f2f;
+                }
+                
+                .wave-session-info {
+                    color: white;
+                    text-align: center;
+                    font-size: 16px;
+                }
+                
+                .wave-completion-screen {
+                    background: rgba(255,255,255,0.95);
+                    padding: 40px;
+                    border-radius: 20px;
+                    text-align: center;
+                    color: #333;
+                    max-width: 500px;
+                }
+                
+                .wave-completion-screen h2 {
+                    color: #2196F3;
+                    margin-bottom: 15px;
+                    font-size: 28px;
+                }
+                
+                .wave-completion-controls {
+                    margin-top: 30px;
+                    display: flex;
+                    justify-content: center;
+                    gap: 15px;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    function setupIntroEvents(){
+        container.querySelector('.wave-therapy-intro').addEventListener('click', () => {
+            showTherapyVideo();
+        });
+    }
+    
+    function showTherapyVideo(){
+        container.innerHTML = `
+            <div class="wave-video-player">
+                <video class="wave-therapeutic-video" controls preload="metadata">
+                    <source src="data/poster/videos/wavecircle.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                <div class="wave-video-controls">
+                    <button class="wave-control-btn" id="wave-restart-btn">↻ Restart Session</button>
+                    <button class="wave-control-btn" id="wave-pause-btn">⏸ Pause</button>
+                    <button class="wave-control-btn wave-exit-btn" id="wave-exit-btn">← Exit Session</button>
+                </div>
+                <div class="wave-session-info">
+                    <div>Water Therapy Session</div>
+                </div>
+            </div>
+        `;
+        
+        setupVideoControls();
+        startVideo();
+    }
+    
+    function setupVideoControls(){
+        videoElement = container.querySelector('.wave-therapeutic-video');
+        var restartBtn = container.querySelector('#wave-restart-btn');
+        var pauseBtn = container.querySelector('#wave-pause-btn');
+        var exitBtn = container.querySelector('#wave-exit-btn');
+        
+        restartBtn.addEventListener('click', () => {
+            videoElement.currentTime = 0;
+            videoElement.play();
+            isPlaying = true;
+            pauseBtn.textContent = '⏸ Pause';
+        });
+        
+        pauseBtn.addEventListener('click', () => {
+            if (isPlaying) {
+                videoElement.pause();
+                pauseBtn.textContent = '▶ Resume';
+                isPlaying = false;
+            } else {
+                videoElement.play();
+                pauseBtn.textContent = '⏸ Pause';
+                isPlaying = true;
+            }
+        });
+        
+        exitBtn.addEventListener('click', () => {
+            exitToMenu();
+        });
+        
+        videoElement.addEventListener('ended', () => {
+            showCompletionScreen();
+        });
+        
+        videoElement.addEventListener('play', () => {
+            isPlaying = true;
+            pauseBtn.textContent = '⏸ Pause';
+        });
+        
+        videoElement.addEventListener('pause', () => {
+            isPlaying = false;
+            pauseBtn.textContent = '▶ Resume';
+        });
+    }
+    
+    function startVideo(){
+        videoElement.play();
+        isPlaying = true;
+    }
+    
+    function showCompletionScreen(){
+        container.innerHTML = `
+            <div class="wave-therapy-container">
+                <div class="wave-completion-screen">
+                    <h2>Session Complete</h2>
+                    <p>You've successfully completed your water therapy session. 
+                    Take a moment to notice how you feel and remember the techniques you practiced.</p>
+                    <div class="wave-completion-controls">
+                        <button class="wave-control-btn" id="wave-replay-btn">↻ Watch Again</button>
+                        <button class="wave-control-btn" id="wave-menu-btn">← Return to Menu</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.querySelector('#wave-replay-btn').addEventListener('click', () => {
+            showTherapyVideo();
+        });
+        
+        container.querySelector('#wave-menu-btn').addEventListener('click', () => {
+            exitToMenu();
+        });
+    }
+    
+    function exitToMenu(){
+        var closeButton = document.querySelector('#close-bt');
+        if (closeButton) {
+            closeButton.click();
+        }
+    }
+    
+    return{
+        init:function(a){
+            container = a;
+            a.innerHTML = `
+                <div class="wave-therapy-container">
+                    <div class="wave-therapy-intro">
+                        <img src="data/poster/wavecircle_therapy.jpg" 
+                             class="wave-therapy-image" 
+                             alt="Water Therapy Session">
+                        <div class="wave-therapy-overlay">
+                            <h2>Water Therapy</h2>
+                            <p>Click to begin your guided water meditation session</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            addTherapyStyles();
+        },
+        
+        start:function(){
+            setupIntroEvents();
+        },
+        
+        dispose:function(){
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.src = '';
+            }
+            isPlaying = false;
+            container = null;
+            videoElement = null;
+        },
+        
+        pause:function(){
+            if (videoElement && isPlaying) {
+                videoElement.pause();
+            }
+        },
+        
+        resume:function(){
+            if (videoElement && videoElement.paused) {
+                videoElement.play();
+            }
+        }
+    };
+}();
+
+/*
 var WaveInCircle=WaveInCircle||function(){function d(){StageController.addDown("waveinacircle",p);StageController.addMove("waveinacircle",u);StageController.addUp("waveinacircle",y)}function m(){StageController.removeDown("waveinacircle",p);StageController.removeMove("waveinacircle",u);StageController.removeUp("waveinacircle",y)}function g(){var a=StageController.stageHeight;O=StageController.stageWidth-466>>1;K=a-466>>1;V.style[CMDetect.cssHead]="translate("+O+"px, "+(710<a?K:K-25)+"px)"}function k(){W.style.display=
 "block";TweenLite.set(W,{css:{opacity:0,x:O+300,y:K+60}});U=TweenLite.to(W,.2,{css:{opacity:1},onComplete:q})}function q(){U=TweenLite.to(W,.6,{delay:1,css:{x:O+240,y:K+420},onUpdate:f,onComplete:c})}function c(){U=TweenLite.to(W,.6,{css:{x:O+120,y:K+60},onUpdate:f,onComplete:a})}function f(){var a=W.getBoundingClientRect();v(a.left/StageController.ratio,a.top/StageController.ratio)}function a(){G=D=0;U=null;TweenLite.to(W,.2,{css:{opacity:0},onComplete:b})}function b(){CMUtiles.removeDom(W);d()}
 function e(){0!=T&&(T=0,J.removeClass("blue-out").addClass("blue-over"),N.removeClass("rainbow-over").addClass("rainbow-out"),TweenLite.to(R,.8,{r:189,g:100,b:46}),TweenLite.to(P,.8,{r:196,g:100,b:39}),TweenLite.to(Q,.8,{r:207,g:100,b:31}))}function h(){1!=T&&(T=1,J.removeClass("blue-over").addClass("blue-out"),N.removeClass("rainbow-out").addClass("rainbow-over"),TweenLite.to(R,.8,{r:0,g:100,b:50}),TweenLite.to(P,.8,{r:60,g:100,b:50}),TweenLite.to(Q,.8,{r:180,g:100,b:50}))}function l(){0!=T&&(TweenLite.killTweensOf(J),
@@ -1619,7 +1922,7 @@ a;S+=1;if(600<S){S=0;a=K+CMUtiles.randomInteger(0,100);var b=O+CMUtiles.randomIn
 466);H.lineTo(0,a[0].y);H.fill()}var B,A,E,D=0,G=0,F,H,I=!1,M=!1,O,K,L,W,V,R,P,Q,U,S,Y={left:0,top:0},J,N,T=0;return{init:function(a){a.innerHTML='<div class="contents-data"><div id="wavecircle"><canvas id="wavecircle-world" class="chand-updown"></canvas><div id="wavecircle-btcon"><div id="wavecircle-bt-blue" class="wavecircle-bt"><p></p></div><div id="wavecircle-bt-rainbow" class="wavecircle-bt"><p></p><ul><li></li><li></li><li></li><li></li><li></li></ul></div></div></div><div id="wavecircle-guide" class="contents-guide"><div class="guide-mouse"></div><div class="guide-tooltip">press & move</div></div></div>';
 I=!1;B=[];A=[];E=[];var b;for(b=0;8>b;b++){var c={};c.x=466/7*b;c.y=466;c.vy=40*Math.random()-20;B[b]=c;c={};c.x=466/7*b;c.y=466;c.vy=40*Math.random()-20;A[b]=c;c={};c.x=466/7*b;c.y=466;c.vy=40*Math.random()-20;E[b]=c}R={r:189,g:100,b:46};P={r:196,g:100,b:39};Q={r:207,g:100,b:31};F=document.getElementById("wavecircle-world");F.width=466;F.height=466;H=F.getContext("2d");J=$("#wavecircle-bt-blue");N=$("#wavecircle-bt-rainbow");T=0;J.removeClass("blue-out").addClass("blue-over");N.removeClass("rainbow-over").addClass("rainbow-out");
 V=document.getElementById("wavecircle");V.appendChild(CMDetect.circleMask);W=document.getElementById("wavecircle-guide");U=null;a.getElementsByClassName("contents-data");StageController.addResize("WaveInCircle",g)},start:function(){S=0;L=-1;requestAnimationFrame(z);U=TweenLite.delayedCall(3.2,k);CMDetect.isTouch?(J.on("click",e),N.on("click",h)):(J.on("click",e).on("mouseenter",l).on("mouseleave",r),N.on("click",h).on("mouseenter",n).on("mouseleave",r))},dispose:function(){StageController.removeResize("WaveInCircle");
-CMUtiles.removeDom(CMDetect.circleMask);null!=W&&TweenLite.killTweensOf(W);W=null;null!=U&&TweenLite.killTweensOf(U);U=null;J.off();N.off();N=J=null;I=!0;m();M=!1;V=H=F=null},pause:function(){I=!0;m();M=!1;D=G=0;null!=U&&U.pause()},resume:function(){I=!1;L=-1;requestAnimationFrame(z);null==U?d():U.resume()},resize:g}}(),RainingMen=RainingMen||function(){function d(){v=StageController.stageWidth;z=StageController.stageHeight;w=v>>1;var a;for(a=0;60>a;a++){var b=y[a];b.resize(v,z)}}function m(){E.style.display=
+CMUtiles.removeDom(CMDetect.circleMask);null!=W&&TweenLite.killTweensOf(W);W=null;null!=U&&TweenLite.killTweensOf(U);U=null;J.off();N.off();N=J=null;I=!0;m();M=!1;V=H=F=null},pause:function(){I=!0;m();M=!1;D=G=0;null!=U&&U.pause()},resume:function(){I=!1;L=-1;requestAnimationFrame(z);null==U?d():U.resume()},resize:g}}(),*/ var RainingMen=RainingMen||function(){function d(){v=StageController.stageWidth;z=StageController.stageHeight;w=v>>1;var a;for(a=0;60>a;a++){var b=y[a];b.resize(v,z)}}function m(){E.style.display=
 "block";TweenLite.to(E,0,{css:{opacity:0,x:w+100,y:z>>1}});A=TweenLite.to(E,.2,{css:{opacity:1},onComplete:g})}function g(){C=w+100;A=TweenLite.to(E,1,{delay:.5,css:{x:w-200},onUpdate:k,onComplete:q})}function k(){var a=E.getBoundingClientRect();n(a.left/StageController.ratio,0)}function q(){x=!1;A=null;TweenLite.to(E,.2,{css:{opacity:0},onComplete:c})}function c(){CMUtiles.removeDom(E);a()}function f(){if(!r){requestAnimationFrame(f);var a;for(a=0;60>a;a++){var b=y[a];b.loop()}B+=1;if(1200<B)for(a=
 B=0;60>a;a++)b=y[a],b.move(10)}}function a(){StageController.addDown("rainmen",e);StageController.addMove("rainmen",h);StageController.addUp("rainmen",l)}function b(){StageController.removeDown("rainmen",e);StageController.removeMove("rainmen",h);StageController.removeUp("rainmen",l)}function e(a,b){x=!0;C=a;B=0}function h(a,b){x&&n(a)}function l(){x=!1}function n(a){a-=C;var b;for(b=0;60>b;b++){var c=y[b];c.move(a)}}var r=!1,p,u=CMDetect.isIE&&11>CMDetect.ieVersion,y,v,z,w,x,C,B=0,A,E,D,G=null;return{init:function(a){a.innerHTML=
 '<div id="rainmen-home" class="contents-data chand-leftright"><div id="rainmen"></div><div id="rainmen-guide" class="contents-guide"><div class="guide-mouse"></div><div class="guide-tooltip">press & move</div></div></div>';x=r=!1;v=StageController.stageWidth;z=StageController.stageHeight;D=document.getElementById("rainmen-home");p=document.getElementById("rainmen");E=document.getElementById("rainmen-guide");null==G&&(G=document.createElement("img"),G.src="contents/rainingmen/rain.png");y=[];for(a=
