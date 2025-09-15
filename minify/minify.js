@@ -1496,7 +1496,18 @@ var TherapeuticVideo = TherapeuticVideo || function() {
     
     return {
         init: function(parentElement) {
+            // Store reference but don't build UI yet
             container = parentElement;
+            
+            // Add the essential styles immediately
+            this.addStyles();
+            
+            // Return true to indicate successful initialization
+            return true;
+        },
+        
+        start: function() {
+            // NOW build the UI - this is called after transition completes
             container.innerHTML = `
                 <div class="therapeutic-video-experience">
                     <div class="video-intro-screen">
@@ -1512,272 +1523,23 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                 </div>
             `;
             
-            this.addStyles();
             this.setupEventListeners();
         },
         
-        start: function() {
-            // Experience is ready to use
-            console.log("Therapeutic video experience started");
+        // Add these required methods that the system expects:
+        resize: function() {
+            // Handle window resize if needed
         },
         
-        setupEventListeners: function() {
-            const introImage = container.querySelector('.intro-image');
-            const startButton = container.querySelector('.start-button');
-            
-            [introImage, startButton].forEach(element => {
-                element.addEventListener('click', () => {
-                    this.showVideoPlayer();
-                });
-            });
-        },
-        
-        showVideoPlayer: function() {
-            container.innerHTML = `
-                <div class="therapeutic-video-experience">
-                    <div class="video-player-container">
-                        <video class="therapeutic-video" controls preload="metadata">
-                            <source src="data/poster/videos/soup.mp4" type="video/mp4">
-                            Your browser does not support the video tag.
-                        </video>
-                        <div class="video-controls">
-                            <button class="control-btn" id="restart-btn">↻ Restart</button>
-                            <button class="control-btn" id="pause-btn">⏸ Pause</button>
-                            <button class="control-btn exit-btn" id="exit-btn">← Exit</button>
-                        </div>
-                        <div class="progress-info">
-                            <div class="session-timer">Session: <span id="timer">00:00</span></div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            this.setupVideoControls();
-            this.startVideo();
-        },
-        
-        setupVideoControls: function() {
-            videoElement = container.querySelector('.therapeutic-video');
-            const restartBtn = container.querySelector('#restart-btn');
-            const pauseBtn = container.querySelector('#pause-btn');
-            const exitBtn = container.querySelector('#exit-btn');
-            const timer = container.querySelector('#timer');
-            
-            // Restart functionality
-            restartBtn.addEventListener('click', () => {
-                videoElement.currentTime = 0;
-                videoElement.play();
-                isPlaying = true;
-                pauseBtn.textContent = '⏸ Pause';
-            });
-            
-            // Pause/Play toggle
-            pauseBtn.addEventListener('click', () => {
-                if (isPlaying) {
-                    videoElement.pause();
-                    pauseBtn.textContent = '▶ Play';
-                    isPlaying = false;
-                } else {
-                    videoElement.play();
-                    pauseBtn.textContent = '⏸ Pause';
-                    isPlaying = true;
-                }
-            });
-            
-            // Exit to main menu
-            exitBtn.addEventListener('click', () => {
-                this.exitToMenu();
-            });
-            
-            // Update timer
-            videoElement.addEventListener('timeupdate', () => {
-                const minutes = Math.floor(videoElement.currentTime / 60);
-                const seconds = Math.floor(videoElement.currentTime % 60);
-                timer.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-            });
-            
-            // Handle video end
-            videoElement.addEventListener('ended', () => {
-                this.showCompletionScreen();
-            });
-        },
-        
-        startVideo: function() {
-            videoElement.play();
-            isPlaying = true;
-        },
-        
-        showCompletionScreen: function() {
-            container.innerHTML = `
-                <div class="therapeutic-video-experience">
-                    <div class="completion-screen">
-                        <h2>Session Complete</h2>
-                        <p>You've successfully completed your therapeutic session.</p>
-                        <div class="completion-controls">
-                            <button class="control-btn" id="replay-btn">↻ Watch Again</button>
-                            <button class="control-btn" id="menu-btn">← Return to Menu</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            container.querySelector('#replay-btn').addEventListener('click', () => {
-                this.showVideoPlayer();
-            });
-            
-            container.querySelector('#menu-btn').addEventListener('click', () => {
-                this.exitToMenu();
-            });
-        },
-        
-        exitToMenu: function() {
-            // Trigger the existing close mechanism
-            const closeButton = document.getElementById('close-bt');
-            if (closeButton) {
-                closeButton.click();
+        pause: function() {
+            if (videoElement && isPlaying) {
+                videoElement.pause();
             }
         },
         
-        addStyles: function() {
-            if (!document.querySelector('#therapeutic-video-styles')) {
-                const style = document.createElement('style');
-                style.id = 'therapeutic-video-styles';
-                style.textContent = `
-                    .therapeutic-video-experience {
-                        width: 100%;
-                        height: 100%;
-                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-family: 'Roboto', sans-serif;
-                    }
-                    
-                    .video-intro-screen {
-                        position: relative;
-                        max-width: 600px;
-                        cursor: pointer;
-                        text-align: center;
-                    }
-                    
-                    .intro-image {
-                        width: 100%;
-                        border-radius: 20px;
-                        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-                        transition: transform 0.3s ease;
-                    }
-                    
-                    .intro-image:hover {
-                        transform: scale(1.05);
-                    }
-                    
-                    .intro-overlay {
-                        position: absolute;
-                        bottom: 0;
-                        left: 0;
-                        right: 0;
-                        background: linear-gradient(transparent, rgba(0,0,0,0.9));
-                        color: white;
-                        padding: 30px;
-                        border-radius: 0 0 20px 20px;
-                    }
-                    
-                    .intro-overlay h2 {
-                        margin: 0 0 10px 0;
-                        font-size: 24px;
-                    }
-                    
-                    .intro-overlay p {
-                        margin: 0 0 20px 0;
-                        opacity: 0.9;
-                    }
-                    
-                    .start-button {
-                        background: #4CAF50;
-                        color: white;
-                        padding: 12px 24px;
-                        border-radius: 25px;
-                        display: inline-block;
-                        font-weight: bold;
-                        transition: background 0.3s ease;
-                    }
-                    
-                    .start-button:hover {
-                        background: #45a049;
-                    }
-                    
-                    .video-player-container {
-                        background: rgba(0,0,0,0.9);
-                        padding: 30px;
-                        border-radius: 20px;
-                        text-align: center;
-                        max-width: 90vw;
-                    }
-                    
-                    .therapeutic-video {
-                        width: 100%;
-                        max-width: 800px;
-                        height: auto;
-                        border-radius: 10px;
-                        margin-bottom: 20px;
-                    }
-                    
-                    .video-controls {
-                        display: flex;
-                        justify-content: center;
-                        gap: 15px;
-                        margin-bottom: 15px;
-                    }
-                    
-                    .control-btn {
-                        padding: 10px 20px;
-                        background: #4CAF50;
-                        color: white;
-                        border: none;
-                        border-radius: 25px;
-                        cursor: pointer;
-                        font-size: 14px;
-                        transition: background 0.3s ease;
-                    }
-                    
-                    .control-btn:hover {
-                        background: #45a049;
-                    }
-                    
-                    .exit-btn {
-                        background: #f44336;
-                    }
-                    
-                    .exit-btn:hover {
-                        background: #da190b;
-                    }
-                    
-                    .progress-info {
-                        color: white;
-                        font-size: 16px;
-                    }
-                    
-                    .completion-screen {
-                        background: rgba(255,255,255,0.95);
-                        padding: 40px;
-                        border-radius: 20px;
-                        text-align: center;
-                        color: #333;
-                    }
-                    
-                    .completion-screen h2 {
-                        color: #4CAF50;
-                        margin-bottom: 15px;
-                    }
-                    
-                    .completion-controls {
-                        margin-top: 30px;
-                        display: flex;
-                        justify-content: center;
-                        gap: 15px;
-                    }
-                `;
-                document.head.appendChild(style);
+        resume: function() {
+            if (videoElement && !videoElement.paused) {
+                videoElement.play();
             }
         },
         
@@ -1791,16 +1553,6 @@ var TherapeuticVideo = TherapeuticVideo || function() {
             videoElement = null;
         },
         
-        pause: function() {
-            if (videoElement && isPlaying) {
-                videoElement.pause();
-            }
-        },
-        
-        resume: function() {
-            if (videoElement && !isPlaying) {
-                videoElement.play();
-            }
-        }
+        // ... rest of your methods stay the same
     };
 }();
