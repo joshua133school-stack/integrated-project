@@ -1,3 +1,221 @@
+
+//testzone
+
+var TherapeuticVideo = TherapeuticVideo || function() {
+    var container, videoElement, isPlaying = false;
+    
+    // Define private methods here
+    function setupEventListeners() {
+        const introImage = container.querySelector('.intro-image');
+        const startButton = container.querySelector('.start-button');
+        
+        [introImage, startButton].forEach(element => {
+            element.addEventListener('click', () => {
+                showVideoPlayer();
+            });
+        });
+    }
+    
+    function showVideoPlayer() {
+        container.innerHTML = `
+            <div class="therapeutic-video-experience">
+                <div class="video-player-container">
+                    <video class="therapeutic-video" controls preload="metadata">
+                        <source src="data/poster/videos/soup.mp4" type="video/mp4">
+                        Your browser does not support the video tag.
+                    </video>
+                    <div class="video-controls">
+                        <button class="control-btn" id="restart-btn">↻ Restart</button>
+                        <button class="control-btn" id="pause-btn">⏸ Pause</button>
+                        <button class="control-btn exit-btn" id="exit-btn">← Exit</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        setupVideoControls();
+        startVideo();
+    }
+    
+    function setupVideoControls() {
+        videoElement = container.querySelector('.therapeutic-video');
+        const restartBtn = container.querySelector('#restart-btn');
+        const pauseBtn = container.querySelector('#pause-btn');
+        const exitBtn = container.querySelector('#exit-btn');
+        
+        restartBtn.addEventListener('click', () => {
+            videoElement.currentTime = 0;
+            videoElement.play();
+        });
+        
+        pauseBtn.addEventListener('click', () => {
+            if (videoElement.paused) {
+                videoElement.play();
+                pauseBtn.textContent = '⏸ Pause';
+            } else {
+                videoElement.pause();
+                pauseBtn.textContent = '▶ Play';
+            }
+        });
+        
+        exitBtn.addEventListener('click', () => {
+            // Close the experience
+            const closeButton = document.querySelector('#close-bt');
+            if (closeButton) {
+                closeButton.click();
+            }
+        });
+    }
+    
+    function startVideo() {
+        videoElement.play();
+        isPlaying = true;
+    }
+    
+    function addStyles() {
+        if (!document.querySelector('#therapeutic-video-styles')) {
+            const style = document.createElement('style');
+            style.id = 'therapeutic-video-styles';
+            style.textContent = `
+                .therapeutic-video-experience {
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-family: 'Roboto', sans-serif;
+                }
+                
+                .video-intro-screen {
+                    position: relative;
+                    max-width: 600px;
+                    cursor: pointer;
+                    text-align: center;
+                }
+                
+                .intro-image {
+                    width: 100%;
+                    border-radius: 20px;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                    transition: transform 0.3s ease;
+                }
+                
+                .intro-image:hover {
+                    transform: scale(1.05);
+                }
+                
+                .intro-overlay {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+                    color: white;
+                    padding: 30px;
+                    border-radius: 0 0 20px 20px;
+                }
+                
+                .start-button {
+                    background: #4CAF50;
+                    color: white;
+                    padding: 12px 24px;
+                    border-radius: 25px;
+                    display: inline-block;
+                    font-weight: bold;
+                    cursor: pointer;
+                }
+                
+                .video-player-container {
+                    background: rgba(0,0,0,0.9);
+                    padding: 30px;
+                    border-radius: 20px;
+                    text-align: center;
+                    max-width: 90vw;
+                }
+                
+                .therapeutic-video {
+                    width: 100%;
+                    max-width: 800px;
+                    height: auto;
+                    border-radius: 10px;
+                    margin-bottom: 20px;
+                }
+                
+                .video-controls {
+                    display: flex;
+                    justify-content: center;
+                    gap: 15px;
+                }
+                
+                .control-btn {
+                    padding: 10px 20px;
+                    background: #4CAF50;
+                    color: white;
+                    border: none;
+                    border-radius: 25px;
+                    cursor: pointer;
+                    font-size: 14px;
+                }
+                
+                .exit-btn {
+                    background: #f44336;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    // Return the public interface that matches the expected pattern
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            container.innerHTML = `
+                <div class="therapeutic-video-experience">
+                    <div class="video-intro-screen">
+                        <img src="data/poster/soup_intro.jpg" 
+                             class="intro-image" 
+                             alt="Click to start therapy session">
+                        <div class="intro-overlay">
+                            <h2>Therapeutic Session</h2>
+                            <p>Click to begin your guided therapy experience</p>
+                            <div class="start-button">Start Session</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            addStyles();
+        },
+        
+        start: function() {
+            setupEventListeners();
+        },
+        
+        dispose: function() {
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.src = '';
+            }
+            container = null;
+            videoElement = null;
+        },
+        
+        pause: function() {
+            if (videoElement && !videoElement.paused) {
+                videoElement.pause();
+            }
+        },
+        
+        resume: function() {
+            if (videoElement && videoElement.paused) {
+                videoElement.play();
+            }
+        }
+    };
+}();
+
+
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
 $jscomp.polyfill("Array.prototype.find",function(d){return d?d:function(d,g){return $jscomp.findInternal(this,d,g).v}},"es6","es3");$jscomp.polyfill("Object.getOwnPropertySymbols",function(d){return d?d:function(){return[]}},"es6","es5");$jscomp.arrayIteratorImpl=function(d){var m=0;return function(){return m<d.length?{done:!1,value:d[m++]}:{done:!0}}};$jscomp.arrayIterator=function(d){return{next:$jscomp.arrayIteratorImpl(d)}};$jscomp.SYMBOL_PREFIX="jscomp_symbol_";
@@ -1391,309 +1609,6 @@ interpolate:function(c){return k.interpolate(this._end,this._start,c)},createNex
 CMUtiles.randomFloat(.25+u,.65+u);d[k]=new g(p.x,p.y,u,m,CMUtiles.randomFloat(3,5),a,f)}return d},update:function(){var d=this._complete;if(!d){var a=this._current,b=this._latest;this._length<=this._currentLength&&(a=this._end,d=this._complete=!0);var e=this._depth*this._depth*.2,g="CM"+e,k=c[g];k||(k=c[g]={lineWidth:e,lines:[]});k.lines.push([[b.x,b.y],[a.x,a.y]]);d||(b.set(a),a.offset(this._v),this._currentLength+=this._speed)}}};k.create=function(c,a){return CMUtiles.isObject(c)?new k(c.x,c.y):
 new k(c,a)};k.add=function(c,a){return new k(c.x+a.x,c.y+a.y)};k.subtract=function(c,a){return new k(c.x-a.x,c.y-a.y)};k.interpolate=function(c,a,b){return new k(c.x+(a.x-c.x)*b,c.y+(a.y-c.y)*b)};k.prototype={add:function(c){return k.add(this,c)},subtract:function(c){return k.subtract(this,c)},length:function(){return Math.sqrt(this.x*this.x+this.y*this.y)},set:function(c,a){CMUtiles.isObject(c)&&(a=c.y,c=c.x);this.x=c||0;this.y=a||0;return this},offset:function(c,a){CMUtiles.isObject(c)&&(a=c.y,
 c=c.x);this.x+=c||0;this.y+=a||0;return this},normalize:function(c){if(null===c||"undefined"===c)c=1;var a=this.length();0<a&&(this.x=this.x/a*c,this.y=this.y/a*c);return this},clone:function(){return k.create(this)}};d.TreeClass=m})(window);
-
-
-//testcode
-var WaveInCircle=WaveInCircle||function(){
-    var container, videoElement, isPlaying = false;
-    
-    function addTherapyStyles(){
-        if (!document.querySelector('#wave-therapy-styles')) {
-            var style = document.createElement('style');
-            style.id = 'wave-therapy-styles';
-            style.textContent = `
-                .wave-therapy-container {
-                    width: 100%;
-                    height: 100%;
-                    background: linear-gradient(135deg, #2196F3 0%, #00BCD4 100%);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-family: 'Roboto', sans-serif;
-                }
-                
-                .wave-therapy-intro {
-                    position: relative;
-                    cursor: pointer;
-                    max-width: 70%;
-                    text-align: center;
-                }
-                
-                .wave-therapy-image {
-                    width: 100%;
-                    max-width: 500px;
-                    border-radius: 20px;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-                    transition: transform 0.3s ease;
-                }
-                
-                .wave-therapy-image:hover {
-                    transform: scale(1.05);
-                }
-                
-                .wave-therapy-overlay {
-                    position: absolute;
-                    bottom: 0;
-                    left: 0;
-                    right: 0;
-                    background: linear-gradient(transparent, rgba(0,0,0,0.9));
-                    color: white;
-                    padding: 25px;
-                    border-radius: 0 0 20px 20px;
-                }
-                
-                .wave-therapy-overlay h2 {
-                    margin: 0 0 10px 0;
-                    font-size: 24px;
-                }
-                
-                .wave-therapy-overlay p {
-                    margin: 0;
-                    opacity: 0.9;
-                    font-size: 16px;
-                }
-                
-                .wave-video-player {
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0,0,0,0.95);
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    padding: 30px;
-                    box-sizing: border-box;
-                }
-                
-                .wave-therapeutic-video {
-                    width: 90%;
-                    max-width: 900px;
-                    height: auto;
-                    border-radius: 15px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-                    margin-bottom: 25px;
-                }
-                
-                .wave-video-controls {
-                    display: flex;
-                    gap: 15px;
-                    margin-bottom: 15px;
-                }
-                
-                .wave-control-btn {
-                    padding: 12px 24px;
-                    background: #2196F3;
-                    color: white;
-                    border: none;
-                    border-radius: 25px;
-                    cursor: pointer;
-                    font-size: 14px;
-                    font-weight: 500;
-                    transition: all 0.3s ease;
-                }
-                
-                .wave-control-btn:hover {
-                    background: #1976D2;
-                    transform: translateY(-2px);
-                }
-                
-                .wave-exit-btn {
-                    background: #f44336;
-                }
-                
-                .wave-exit-btn:hover {
-                    background: #d32f2f;
-                }
-                
-                .wave-session-info {
-                    color: white;
-                    text-align: center;
-                    font-size: 16px;
-                }
-                
-                .wave-completion-screen {
-                    background: rgba(255,255,255,0.95);
-                    padding: 40px;
-                    border-radius: 20px;
-                    text-align: center;
-                    color: #333;
-                    max-width: 500px;
-                }
-                
-                .wave-completion-screen h2 {
-                    color: #2196F3;
-                    margin-bottom: 15px;
-                    font-size: 28px;
-                }
-                
-                .wave-completion-controls {
-                    margin-top: 30px;
-                    display: flex;
-                    justify-content: center;
-                    gap: 15px;
-                }
-            `;
-            document.head.appendChild(style);
-        }
-    }
-    
-    function setupIntroEvents(){
-        container.querySelector('.wave-therapy-intro').addEventListener('click', () => {
-            showTherapyVideo();
-        });
-    }
-    
-    function showTherapyVideo(){
-        container.innerHTML = `
-            <div class="wave-video-player">
-                <video class="wave-therapeutic-video" controls preload="metadata">
-                    <source src="data/poster/videos/wavecircle.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-                <div class="wave-video-controls">
-                    <button class="wave-control-btn" id="wave-restart-btn">↻ Restart Session</button>
-                    <button class="wave-control-btn" id="wave-pause-btn">⏸ Pause</button>
-                    <button class="wave-control-btn wave-exit-btn" id="wave-exit-btn">← Exit Session</button>
-                </div>
-                <div class="wave-session-info">
-                    <div>Water Therapy Session</div>
-                </div>
-            </div>
-        `;
-        
-        setupVideoControls();
-        startVideo();
-    }
-    
-    function setupVideoControls(){
-        videoElement = container.querySelector('.wave-therapeutic-video');
-        var restartBtn = container.querySelector('#wave-restart-btn');
-        var pauseBtn = container.querySelector('#wave-pause-btn');
-        var exitBtn = container.querySelector('#wave-exit-btn');
-        
-        restartBtn.addEventListener('click', () => {
-            videoElement.currentTime = 0;
-            videoElement.play();
-            isPlaying = true;
-            pauseBtn.textContent = '⏸ Pause';
-        });
-        
-        pauseBtn.addEventListener('click', () => {
-            if (isPlaying) {
-                videoElement.pause();
-                pauseBtn.textContent = '▶ Resume';
-                isPlaying = false;
-            } else {
-                videoElement.play();
-                pauseBtn.textContent = '⏸ Pause';
-                isPlaying = true;
-            }
-        });
-        
-        exitBtn.addEventListener('click', () => {
-            exitToMenu();
-        });
-        
-        videoElement.addEventListener('ended', () => {
-            showCompletionScreen();
-        });
-        
-        videoElement.addEventListener('play', () => {
-            isPlaying = true;
-            pauseBtn.textContent = '⏸ Pause';
-        });
-        
-        videoElement.addEventListener('pause', () => {
-            isPlaying = false;
-            pauseBtn.textContent = '▶ Resume';
-        });
-    }
-    
-    function startVideo(){
-        videoElement.play();
-        isPlaying = true;
-    }
-    
-    function showCompletionScreen(){
-        container.innerHTML = `
-            <div class="wave-therapy-container">
-                <div class="wave-completion-screen">
-                    <h2>Session Complete</h2>
-                    <p>You've successfully completed your water therapy session. 
-                    Take a moment to notice how you feel and remember the techniques you practiced.</p>
-                    <div class="wave-completion-controls">
-                        <button class="wave-control-btn" id="wave-replay-btn">↻ Watch Again</button>
-                        <button class="wave-control-btn" id="wave-menu-btn">← Return to Menu</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        container.querySelector('#wave-replay-btn').addEventListener('click', () => {
-            showTherapyVideo();
-        });
-        
-        container.querySelector('#wave-menu-btn').addEventListener('click', () => {
-            exitToMenu();
-        });
-    }
-    
-    function exitToMenu(){
-        var closeButton = document.querySelector('#close-bt');
-        if (closeButton) {
-            closeButton.click();
-        }
-    }
-    
-    return{
-        init:function(a){
-            container = a;
-            a.innerHTML = `
-                <div class="wave-therapy-container">
-                    <div class="wave-therapy-intro">
-                        <img src="data/poster/wavecircle_therapy.jpg" 
-                             class="wave-therapy-image" 
-                             alt="Water Therapy Session">
-                        <div class="wave-therapy-overlay">
-                            <h2>Water Therapy</h2>
-                            <p>Click to begin your guided water meditation session</p>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            addTherapyStyles();
-        },
-        
-        start:function(){
-            setupIntroEvents();
-        },
-        
-        dispose:function(){
-            if (videoElement) {
-                videoElement.pause();
-                videoElement.src = '';
-            }
-            isPlaying = false;
-            container = null;
-            videoElement = null;
-        },
-        
-        pause:function(){
-            if (videoElement && isPlaying) {
-                videoElement.pause();
-            }
-        },
-        
-        resume:function(){
-            if (videoElement && videoElement.paused) {
-                videoElement.play();
-            }
-        }
-    };
-}();
-
-/*
 var WaveInCircle=WaveInCircle||function(){function d(){StageController.addDown("waveinacircle",p);StageController.addMove("waveinacircle",u);StageController.addUp("waveinacircle",y)}function m(){StageController.removeDown("waveinacircle",p);StageController.removeMove("waveinacircle",u);StageController.removeUp("waveinacircle",y)}function g(){var a=StageController.stageHeight;O=StageController.stageWidth-466>>1;K=a-466>>1;V.style[CMDetect.cssHead]="translate("+O+"px, "+(710<a?K:K-25)+"px)"}function k(){W.style.display=
 "block";TweenLite.set(W,{css:{opacity:0,x:O+300,y:K+60}});U=TweenLite.to(W,.2,{css:{opacity:1},onComplete:q})}function q(){U=TweenLite.to(W,.6,{delay:1,css:{x:O+240,y:K+420},onUpdate:f,onComplete:c})}function c(){U=TweenLite.to(W,.6,{css:{x:O+120,y:K+60},onUpdate:f,onComplete:a})}function f(){var a=W.getBoundingClientRect();v(a.left/StageController.ratio,a.top/StageController.ratio)}function a(){G=D=0;U=null;TweenLite.to(W,.2,{css:{opacity:0},onComplete:b})}function b(){CMUtiles.removeDom(W);d()}
 function e(){0!=T&&(T=0,J.removeClass("blue-out").addClass("blue-over"),N.removeClass("rainbow-over").addClass("rainbow-out"),TweenLite.to(R,.8,{r:189,g:100,b:46}),TweenLite.to(P,.8,{r:196,g:100,b:39}),TweenLite.to(Q,.8,{r:207,g:100,b:31}))}function h(){1!=T&&(T=1,J.removeClass("blue-over").addClass("blue-out"),N.removeClass("rainbow-out").addClass("rainbow-over"),TweenLite.to(R,.8,{r:0,g:100,b:50}),TweenLite.to(P,.8,{r:60,g:100,b:50}),TweenLite.to(Q,.8,{r:180,g:100,b:50}))}function l(){0!=T&&(TweenLite.killTweensOf(J),
@@ -1704,7 +1619,7 @@ a;S+=1;if(600<S){S=0;a=K+CMUtiles.randomInteger(0,100);var b=O+CMUtiles.randomIn
 466);H.lineTo(0,a[0].y);H.fill()}var B,A,E,D=0,G=0,F,H,I=!1,M=!1,O,K,L,W,V,R,P,Q,U,S,Y={left:0,top:0},J,N,T=0;return{init:function(a){a.innerHTML='<div class="contents-data"><div id="wavecircle"><canvas id="wavecircle-world" class="chand-updown"></canvas><div id="wavecircle-btcon"><div id="wavecircle-bt-blue" class="wavecircle-bt"><p></p></div><div id="wavecircle-bt-rainbow" class="wavecircle-bt"><p></p><ul><li></li><li></li><li></li><li></li><li></li></ul></div></div></div><div id="wavecircle-guide" class="contents-guide"><div class="guide-mouse"></div><div class="guide-tooltip">press & move</div></div></div>';
 I=!1;B=[];A=[];E=[];var b;for(b=0;8>b;b++){var c={};c.x=466/7*b;c.y=466;c.vy=40*Math.random()-20;B[b]=c;c={};c.x=466/7*b;c.y=466;c.vy=40*Math.random()-20;A[b]=c;c={};c.x=466/7*b;c.y=466;c.vy=40*Math.random()-20;E[b]=c}R={r:189,g:100,b:46};P={r:196,g:100,b:39};Q={r:207,g:100,b:31};F=document.getElementById("wavecircle-world");F.width=466;F.height=466;H=F.getContext("2d");J=$("#wavecircle-bt-blue");N=$("#wavecircle-bt-rainbow");T=0;J.removeClass("blue-out").addClass("blue-over");N.removeClass("rainbow-over").addClass("rainbow-out");
 V=document.getElementById("wavecircle");V.appendChild(CMDetect.circleMask);W=document.getElementById("wavecircle-guide");U=null;a.getElementsByClassName("contents-data");StageController.addResize("WaveInCircle",g)},start:function(){S=0;L=-1;requestAnimationFrame(z);U=TweenLite.delayedCall(3.2,k);CMDetect.isTouch?(J.on("click",e),N.on("click",h)):(J.on("click",e).on("mouseenter",l).on("mouseleave",r),N.on("click",h).on("mouseenter",n).on("mouseleave",r))},dispose:function(){StageController.removeResize("WaveInCircle");
-CMUtiles.removeDom(CMDetect.circleMask);null!=W&&TweenLite.killTweensOf(W);W=null;null!=U&&TweenLite.killTweensOf(U);U=null;J.off();N.off();N=J=null;I=!0;m();M=!1;V=H=F=null},pause:function(){I=!0;m();M=!1;D=G=0;null!=U&&U.pause()},resume:function(){I=!1;L=-1;requestAnimationFrame(z);null==U?d():U.resume()},resize:g}}(),*/ var RainingMen=RainingMen||function(){function d(){v=StageController.stageWidth;z=StageController.stageHeight;w=v>>1;var a;for(a=0;60>a;a++){var b=y[a];b.resize(v,z)}}function m(){E.style.display=
+CMUtiles.removeDom(CMDetect.circleMask);null!=W&&TweenLite.killTweensOf(W);W=null;null!=U&&TweenLite.killTweensOf(U);U=null;J.off();N.off();N=J=null;I=!0;m();M=!1;V=H=F=null},pause:function(){I=!0;m();M=!1;D=G=0;null!=U&&U.pause()},resume:function(){I=!1;L=-1;requestAnimationFrame(z);null==U?d():U.resume()},resize:g}}(),RainingMen=RainingMen||function(){function d(){v=StageController.stageWidth;z=StageController.stageHeight;w=v>>1;var a;for(a=0;60>a;a++){var b=y[a];b.resize(v,z)}}function m(){E.style.display=
 "block";TweenLite.to(E,0,{css:{opacity:0,x:w+100,y:z>>1}});A=TweenLite.to(E,.2,{css:{opacity:1},onComplete:g})}function g(){C=w+100;A=TweenLite.to(E,1,{delay:.5,css:{x:w-200},onUpdate:k,onComplete:q})}function k(){var a=E.getBoundingClientRect();n(a.left/StageController.ratio,0)}function q(){x=!1;A=null;TweenLite.to(E,.2,{css:{opacity:0},onComplete:c})}function c(){CMUtiles.removeDom(E);a()}function f(){if(!r){requestAnimationFrame(f);var a;for(a=0;60>a;a++){var b=y[a];b.loop()}B+=1;if(1200<B)for(a=
 B=0;60>a;a++)b=y[a],b.move(10)}}function a(){StageController.addDown("rainmen",e);StageController.addMove("rainmen",h);StageController.addUp("rainmen",l)}function b(){StageController.removeDown("rainmen",e);StageController.removeMove("rainmen",h);StageController.removeUp("rainmen",l)}function e(a,b){x=!0;C=a;B=0}function h(a,b){x&&n(a)}function l(){x=!1}function n(a){a-=C;var b;for(b=0;60>b;b++){var c=y[b];c.move(a)}}var r=!1,p,u=CMDetect.isIE&&11>CMDetect.ieVersion,y,v,z,w,x,C,B=0,A,E,D,G=null;return{init:function(a){a.innerHTML=
 '<div id="rainmen-home" class="contents-data chand-leftright"><div id="rainmen"></div><div id="rainmen-guide" class="contents-guide"><div class="guide-mouse"></div><div class="guide-tooltip">press & move</div></div></div>';x=r=!1;v=StageController.stageWidth;z=StageController.stageHeight;D=document.getElementById("rainmen-home");p=document.getElementById("rainmen");E=document.getElementById("rainmen-guide");null==G&&(G=document.createElement("img"),G.src="contents/rainingmen/rain.png");y=[];for(a=
@@ -1790,5 +1705,4 @@ title:"Bokeh",date:"november, twelve",img:"data/poster/bokeh",itemcolor:"#d94034
 a.push('<img src="images/guide@2x.png">');CMDetect.isDevice||a.push('<img src="images/cinema.png">');return a};g.convertIdToOrder=function(a){if(""==a)return 0;var b,c=g.total;for(b=0;b<c;b++)if(a==g.configArr[b].poster.id)return b;return 0};g.convertSaverIdToOrder=function(a){if(""==a)return 0;var b,c=g.screensaverTotal;for(b=0;b<c;b++)if(a==g.screensaverArr[b].item.id)return b;return 0};g.svgHeader='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 700 986" enable-background="new 0 0 700 986" xml:space="preserve">';
 g.svgTxt='<polygon fill="#FFFFFF" points="565.612,732.012 565.612,730.106 558.402,730.106 558.402,739.992 560.744,739.992 560.744,736.002 565.228,736.002 565.228,734.083 560.744,734.083 560.744,732.012 "/><polygon fill="#FFFFFF" points="557.301,732.012 557.301,730.106 550.092,730.106 550.092,739.992 552.433,739.992 552.433,736.002 556.914,736.002 556.914,734.083 552.433,734.083 552.433,732.012 "/><rect x="578.526" y="734.672" fill="#FFFFFF" width="3.977" height="2.002"/><polygon fill="#FFFFFF" points="566.716,739.992 569.057,739.992 569.057,736.002 573.538,736.002 573.538,734.083 569.057,734.083 569.057,732.012 573.925,732.012 573.925,730.106 566.716,730.106 "/><polygon fill="#FFFFFF" points="594.434,756.992 596.775,756.992 596.775,753.001 601.256,753.001 601.256,751.083 596.775,751.083 596.775,749.011 601.643,749.011 601.643,747.106 594.434,747.106 "/><path fill="#FFFFFF" d="M607.054,746.799c-3.391,0-4.642,2.954-4.642,5.21c0,2.714,1.57,5.277,4.669,5.277 c3.021,0,4.734-2.521,4.734-5.167C611.815,749.767,610.475,746.799,607.054,746.799z M607.095,755.187 c-1.689,0-2.368-1.624-2.368-3.208c0-1.33,0.545-3.107,2.327-3.107c1.663,0,2.409,1.43,2.409,3.221 C609.463,753.479,608.837,755.187,607.095,755.187z"/><polygon fill="#FFFFFF" points="613.293,747.106 613.293,756.992 619.304,756.992 619.304,754.906 615.634,754.906 615.634,747.106 "/><polygon fill="#FFFFFF" points="626.513,754.906 622.842,754.906 622.842,747.106 620.5,747.106 620.5,756.992 626.513,756.992 "/><path fill="#FFFFFF" d="M575.057,753.044c1.022-0.377,1.927-1.052,1.927-2.729c0-2.828-2.208-3.208-3.604-3.208h-4.442v9.886h2.368 v-3.529h1.461l1.876,3.529h2.581L575.057,753.044z M573.233,751.631h-1.941v-2.689h1.954c0.412,0,1.396,0.029,1.396,1.316 C574.643,750.565,574.577,751.631,573.233,751.631z"/><polygon fill="#FFFFFF" points="647.991,747.106 646.623,753.911 644.867,747.106 642.777,747.106 641.076,753.911 639.691,747.106 637.339,747.106 639.719,756.992 642.14,756.992 643.843,750.665 645.533,756.992 647.953,756.992 650.333,747.106 "/><path fill="#FFFFFF" d="M583.566,754.023l-1.77-6.917h-3.431v9.886h2.289c0,0-0.014-6.006-0.055-7.393l1.943,7.393h2.033 l1.957-7.393c-0.054,1.932-0.055,7.393-0.054,7.393h2.262v-9.886h-3.432L583.566,754.023z"/><path fill="#FFFFFF" d="M627.363,752.009c0,2.714,1.57,5.277,4.669,5.277c3.021,0,4.734-2.521,4.734-5.167 c0-2.353-1.343-5.32-4.762-5.32C628.614,746.799,627.363,749.753,627.363,752.009z M632.005,748.871c1.663,0,2.407,1.43,2.407,3.221 c0,1.387-0.624,3.095-2.366,3.095c-1.689,0-2.368-1.624-2.368-3.208C629.678,750.648,630.223,748.871,632.005,748.871z"/><polygon fill="#FFFFFF" points="557.301,749.011 557.301,747.106 550.092,747.106 550.092,756.992 552.433,756.992 552.433,753.001  556.914,753.001 556.914,751.083 552.433,751.083 552.433,749.011 "/><path fill="#FFFFFF" d="M655.572,750.93l-1.036-0.154c-0.799-0.127-1.197-0.378-1.197-0.909c0-0.464,0.439-1.05,1.396-1.05 c1.011,0,1.782,0.488,2.461,1.23l1.729-1.301c-0.919-0.925-2.154-1.877-4.138-1.877c-2.421,0-3.789,1.359-3.789,3.305 c0,1.735,1.344,2.547,2.992,2.787l1.077,0.153c0.837,0.111,1.636,0.308,1.636,1.007c0,0.826-1.038,1.149-1.729,1.149 c-1.011,0-2.088-0.448-2.715-1.247l-1.782,1.19c0.959,1.176,2.088,2.002,4.284,2.002c2.686,0,4.27-1.357,4.27-3.443 C659.031,752.078,658.02,751.294,655.572,750.93z"/><path fill="#FFFFFF" d="M562.739,757.286c3.02,0,4.736-2.521,4.736-5.167c0-2.353-1.344-5.32-4.762-5.32 c-3.393,0-4.644,2.954-4.644,5.21C558.07,754.723,559.64,757.286,562.739,757.286z M562.714,748.871c1.663,0,2.407,1.43,2.407,3.221 c0,1.387-0.627,3.095-2.368,3.095c-1.69,0-2.366-1.624-2.366-3.208C560.387,750.648,560.932,748.871,562.714,748.871z"/><path fill="#FFFFFF" d="M598.436,769.008c0,2.715,1.569,5.278,4.669,5.278c3.02,0,4.734-2.521,4.734-5.167 c0-2.353-1.342-5.32-4.762-5.32C599.687,763.799,598.436,766.753,598.436,769.008z M603.077,765.871c1.663,0,2.409,1.43,2.409,3.221 c0,1.387-0.627,3.095-2.368,3.095c-1.69,0-2.369-1.624-2.369-3.208C600.749,767.648,601.295,765.871,603.077,765.871z"/><path fill="#FFFFFF" d="M562.313,774.216c2.541,0,4.045-1.651,4.045-4.131v-5.979h-2.354v6.302c0,1.134-0.412,1.765-1.611,1.765 c-1.049,0-1.688-0.323-1.688-1.64v-6.427h-2.368v6.148C558.337,772.985,560.105,774.216,562.313,774.216z"/><rect x="594.605" y="764.106" fill="#FFFFFF" width="2.342" height="9.885"/><polygon fill="#FFFFFF" points="557.301,766.011 557.301,764.106 550.092,764.106 550.092,773.991 552.433,773.991 552.433,770.001 556.914,770.001 556.914,768.083 552.433,768.083 552.433,766.011 "/><path fill="#FFFFFF" d="M585.962,771.738l-1.851-0.995c-0.318,0.574-0.81,1.471-2.033,1.471c-1.265,0-2.314-1.077-2.314-3.249 c0-1.651,0.799-3.135,2.314-3.135c0.957,0,1.796,0.769,1.995,1.511l1.861-0.979c-0.665-1.483-2.234-2.562-3.963-2.562 c-2.66,0-4.549,2.312-4.549,5.236c0,3.346,2.009,5.251,4.494,5.251C583.874,774.286,585.218,773.109,585.962,771.738z"/><polygon fill="#FFFFFF" points="593.583,764.106 586.333,764.106 586.333,766.054 588.78,766.054 588.78,773.991 591.149,773.991 591.149,766.054 593.583,766.054 "/><polygon fill="#FFFFFF" points="609.303,764.106 609.303,773.991 611.562,773.991 611.562,768.083 614.888,773.991 617.19,773.991 617.19,764.106 614.942,764.106 614.942,770.128 611.604,764.106 "/><polygon fill="#FFFFFF" points="575.986,764.106 573.74,764.106 573.74,770.128 570.4,764.106 568.101,764.106 568.101,773.991  570.36,773.991 570.36,768.083 573.686,773.991 575.986,773.991 "/><path fill="#FFFFFF" d="M554.374,814.83c0.959,0,1.796,0.769,1.995,1.511l1.861-0.979c-0.665-1.484-2.234-2.562-3.963-2.562 c-2.66,0-4.549,2.312-4.549,5.236c0,3.346,2.008,5.25,4.496,5.25c1.955,0,3.299-1.176,4.043-2.547l-1.848-0.995 c-0.319,0.574-0.812,1.471-2.036,1.471c-1.263,0-2.314-1.077-2.314-3.249C552.06,816.313,552.858,814.83,554.374,814.83z"/><polygon fill="#FFFFFF" points="591.746,821.046 586.733,821.046 586.733,818.693 591.029,818.693 591.029,816.818 586.733,816.818 586.733,815.026 591.335,815.026 591.335,813.108 584.393,813.108 584.393,822.991 591.746,822.991 "/><polygon fill="#FFFFFF" points="575.986,820.905 572.314,820.905 572.314,813.108 569.976,813.108 569.976,822.991 575.986,822.991 "/><path fill="#FFFFFF" d="M563.764,823.285c3.02,0,4.734-2.52,4.734-5.166c0-2.351-1.344-5.32-4.762-5.32 c-3.391,0-4.642,2.954-4.642,5.209C559.095,820.725,560.665,823.285,563.764,823.285z M563.736,814.87 c1.663,0,2.409,1.43,2.409,3.222c0,1.387-0.626,3.095-2.368,3.095c-1.689,0-2.368-1.624-2.368-3.208 C561.409,816.648,561.954,814.87,563.736,814.87z"/><polygon fill="#FFFFFF" points="583.195,820.905 579.524,820.905 579.524,813.108 577.183,813.108 577.183,822.991 583.195,822.991 "/><path fill="#FFFFFF" d="M552.152,804.41h3.459l0.466,1.581h2.5l-3.459-9.885h-2.445l-3.486,9.885h2.5L552.152,804.41z M553.855,798.459l1.224,4.174h-2.382L553.855,798.459z"/><path fill="#FFFFFF" d="M642.365,812.799c-3.391,0-4.642,2.954-4.642,5.209c0,2.717,1.57,5.277,4.669,5.277 c3.021,0,4.734-2.52,4.734-5.166C647.127,815.769,645.784,812.799,642.365,812.799z M642.406,821.187 c-1.689,0-2.368-1.624-2.368-3.208c0-1.33,0.545-3.108,2.327-3.108c1.663,0,2.407,1.43,2.407,3.222 C644.772,819.479,644.148,821.187,642.406,821.187z"/><polygon fill="#FFFFFF" points="648.589,822.991 650.93,822.991 650.93,819.001 655.414,819.001 655.414,817.083 650.93,817.083 650.93,815.011 655.798,815.011 655.798,813.108 648.589,813.108 "/><rect x="609.779" y="813.108" fill="#FFFFFF" width="2.342" height="9.883"/><path fill="#FFFFFF" d="M601.137,820.738l-1.849-0.995c-0.319,0.574-0.812,1.471-2.036,1.471c-1.262,0-2.313-1.077-2.313-3.249 c0-1.651,0.798-3.135,2.313-3.135c0.959,0,1.797,0.769,1.995,1.511l1.862-0.979c-0.665-1.484-2.232-2.562-3.964-2.562 c-2.66,0-4.549,2.312-4.549,5.236c0,3.346,2.009,5.25,4.497,5.25C599.049,823.285,600.393,822.109,601.137,820.738z"/><polygon fill="#FFFFFF" points="606.323,822.991 606.323,815.054 608.758,815.054 608.758,813.108 601.508,813.108 601.508,815.054 603.955,815.054 603.955,822.991 "/><polygon fill="#FFFFFF" points="626.739,817.083 630.064,822.991 632.365,822.991 632.365,813.108 630.116,813.108 630.116,819.128 626.777,813.108 624.477,813.108 624.477,822.991 626.739,822.991 "/><path fill="#FFFFFF" d="M623.016,818.119c0-2.351-1.344-5.32-4.762-5.32c-3.394,0-4.642,2.954-4.642,5.209 c0,2.717,1.569,5.277,4.669,5.277C621.299,823.285,623.016,820.766,623.016,818.119z M615.926,817.979 c0-1.33,0.545-3.108,2.328-3.108c1.662,0,2.406,1.43,2.406,3.222c0,1.387-0.624,3.095-2.368,3.095 C616.604,821.187,615.926,819.562,615.926,817.979z"/><polygon fill="#FFFFFF" points="578.793,838.046 573.778,838.046 573.778,835.693 578.074,835.693 578.074,833.818 573.778,833.818 573.778,832.026 578.379,832.026 578.379,830.108 571.437,830.108 571.437,839.991 578.793,839.991 "/><polygon fill="#FFFFFF" points="567.967,832.054 570.4,832.054 570.4,830.108 563.15,830.108 563.15,832.054 565.599,832.054 565.599,839.991 567.967,839.991 "/><rect x="550.092" y="830.108" fill="#FFFFFF" width="2.341" height="9.883"/><polygon fill="#FFFFFF" points="554.254,830.108 554.254,839.991 556.516,839.991 556.516,834.083 559.841,839.991 562.142,839.991 562.142,830.108 559.894,830.108 559.894,836.128 556.555,830.108 "/><path fill="#FFFFFF" d="M586.134,836.044c1.024-0.378,1.93-1.05,1.93-2.73c0-2.827-2.208-3.205-3.605-3.205h-4.443v9.883h2.368 v-3.526h1.464l1.876,3.526h2.581L586.134,836.044z M584.312,834.63h-1.942v-2.689h1.954c0.414,0,1.398,0.029,1.398,1.316 C585.723,833.564,585.654,834.63,584.312,834.63z"/><polygon fill="#FFFFFF" points="609.834,839.991 612.203,839.991 612.203,832.054 614.637,832.054 614.637,830.108 607.387,830.108 607.387,832.054 609.834,832.054 "/><polygon fill="#FFFFFF" points="623.359,837.137 621.418,830.108 618.917,830.108 622.136,839.991 624.531,839.991 627.789,830.108 625.289,830.108 "/><polygon fill="#FFFFFF" points="636.062,838.046 631.049,838.046 631.049,835.693 635.344,835.693 635.344,833.818 631.049,833.818 631.049,832.026 635.649,832.026 635.649,830.108 628.707,830.108 628.707,839.991 636.062,839.991 "/><rect x="615.659" y="830.108" fill="#FFFFFF" width="2.341" height="9.883"/><path fill="#FFFFFF" d="M594.461,830.108h-2.448l-3.485,9.883h2.502l0.464-1.581h3.458l0.467,1.581h2.499L594.461,830.108z M592.038,836.632l1.158-4.174l1.224,4.174H592.038z"/><path fill="#FFFFFF" d="M602.971,840.285c1.957,0,3.301-1.176,4.045-2.547l-1.849-0.995c-0.321,0.574-0.812,1.47-2.035,1.47 c-1.265,0-2.314-1.076-2.314-3.248c0-1.651,0.799-3.136,2.314-3.136c0.956,0,1.796,0.77,1.995,1.512l1.861-0.979 c-0.665-1.484-2.234-2.563-3.963-2.563c-2.66,0-4.55,2.312-4.55,5.237C598.476,838.383,600.484,840.285,602.971,840.285z"/><polygon fill="#FFFFFF" points="558.258,847.107 555.903,847.107 555.903,850.678 552.472,850.678 552.472,847.107 550.105,847.107 550.105,856.991 552.472,856.991 552.472,852.776 555.903,852.776 555.903,856.991 558.258,856.991 "/><polygon fill="#FFFFFF" points="564.083,856.991 564.083,849.054 566.517,849.054 566.517,847.107 559.269,847.107 559.269,849.054  561.717,849.054 561.717,856.991 "/><path fill="#FFFFFF" d="M577.93,847.107h-3.432l-1.742,6.916l-1.77-6.916h-3.432v9.884h2.287c0,0-0.014-6.006-0.054-7.393 l1.943,7.393h2.033l1.957-7.393c-0.055,1.934-0.055,7.393-0.055,7.393h2.263V847.107z"/><polygon fill="#FFFFFF" points="585.763,854.905 582.092,854.905 582.092,847.107 579.75,847.107 579.75,856.991 585.763,856.991 "/><path fill="#FFFFFF" d="M596.788,853.702c0-1.722-0.973-3.138-2.714-3.138c-0.812,0-1.225,0.337-1.423,0.491l0.212-1.735h3.405 l0.133-1.794h-5.187l-0.545,4.973l1.848,0.32c0.093-0.28,0.28-0.741,0.945-0.741c0.611,0,1.143,0.475,1.143,1.638 c0,0.518-0.065,1.765-1.117,1.765c-0.785,0-1.063-0.615-1.063-1.555l-2.115,0.084c0,1.624,0.878,3.165,3.086,3.165 C595.803,857.175,596.788,855.354,596.788,853.702z"/><rect x="596.097" y="864.107" fill="#FFFFFF" width="2.339" height="9.884"/><path fill="#FFFFFF" d="M622.828,872.213c-1.263,0-2.314-1.076-2.314-3.248c0-1.651,0.799-3.136,2.314-3.136 c0.959,0,1.796,0.77,1.995,1.511l1.861-0.979c-0.665-1.484-2.232-2.562-3.963-2.562c-2.66,0-4.55,2.31-4.55,5.235 c0,3.348,2.009,5.25,4.498,5.25c1.954,0,3.298-1.174,4.042-2.547l-1.849-0.993C624.545,871.317,624.052,872.213,622.828,872.213z"/><polygon fill="#FFFFFF" points="630.236,869.693 634.532,869.693 634.532,867.817 630.236,867.817 630.236,866.026 634.838,866.026  634.838,864.107 627.895,864.107 627.895,873.991 635.251,873.991 635.251,872.046 630.236,872.046 "/><polygon fill="#FFFFFF" points="557.459,872.046 552.446,872.046 552.446,869.693 556.742,869.693 556.742,867.817 552.446,867.817  552.446,866.026 557.048,866.026 557.048,864.107 550.105,864.107 550.105,873.991 557.459,873.991 "/><path fill="#FFFFFF" d="M576.983,867.48c0-2.267-1.169-3.373-3.391-3.373h-4.655v9.884h2.354v-3.232h1.902 C574.896,870.759,576.983,869.987,576.983,867.48z M572.835,868.924h-1.543v-2.997h1.502c0.733,0,1.849,0.016,1.849,1.443 C574.643,868.657,573.898,868.924,572.835,868.924z"/><polygon fill="#FFFFFF" points="564.35,868.63 567.449,864.107 564.721,864.107 562.886,867.089 561.076,864.107 558.296,864.107  561.423,868.63 557.792,873.991 560.479,873.991 562.913,870.254 565.32,873.991 568.021,873.991 "/><path fill="#FFFFFF" d="M640.796,867.929l-1.036-0.154c-0.799-0.124-1.196-0.378-1.196-0.909c0-0.461,0.438-1.05,1.396-1.05 c1.011,0,1.782,0.489,2.461,1.233l1.729-1.304c-0.919-0.925-2.153-1.875-4.138-1.875c-2.42,0-3.789,1.357-3.789,3.303 c0,1.737,1.344,2.55,2.993,2.787l1.076,0.153c0.837,0.113,1.636,0.308,1.636,1.01c0,0.825-1.038,1.146-1.729,1.146 c-1.011,0-2.088-0.448-2.714-1.246l-1.783,1.189c0.96,1.177,2.088,2.002,4.285,2.002c2.685,0,4.269-1.357,4.269-3.443 C644.255,869.078,643.243,868.293,640.796,867.929z"/><polygon fill="#FFFFFF" points="585.455,872.046 580.442,872.046 580.442,869.693 584.738,869.693 584.738,867.817 580.442,867.817  580.442,866.026 585.044,866.026 585.044,864.107 578.102,864.107 578.102,873.991 585.455,873.991 "/><path fill="#FFFFFF" d="M589.048,870.465h1.461l1.875,3.526h2.581l-2.167-3.947c1.025-0.378,1.928-1.05,1.928-2.73 c0-2.828-2.208-3.206-3.604-3.206h-4.443v9.884h2.369V870.465z M589.034,865.942h1.954c0.412,0,1.396,0.027,1.396,1.314 c0,0.31-0.065,1.373-1.409,1.373h-1.94V865.942z"/><polygon fill="#FFFFFF" points="607.626,872.046 602.613,872.046 602.613,869.693 606.909,869.693 606.909,867.817 602.613,867.817  602.613,866.026 607.215,866.026 607.215,864.107 600.272,864.107 600.272,873.991 607.626,873.991 "/><polygon fill="#FFFFFF" points="611.11,868.085 614.436,873.991 616.738,873.991 616.738,864.107 614.489,864.107 614.489,870.127  611.15,864.107 608.851,864.107 608.851,873.991 611.11,873.991 "/><rect x="597.08" y="900.91" fill="#FFFFFF" width="1.5" height="1.67"/><path fill="#FFFFFF" d="M601.944,901.53c-0.808,0-1.103-0.912-1.103-1.57c0-0.631,0.276-1.572,1.055-1.572 c0.57,0,0.837,0.441,0.971,0.73l1.083-0.648c-0.694-1.161-1.674-1.261-2.119-1.261c-1.122,0-2.491,0.711-2.491,2.801 c0,1.959,1.304,2.739,2.462,2.739c0.76,0,1.645-0.368,2.205-1.4l-1.102-0.599C602.799,901.08,602.514,901.53,601.944,901.53z"/><path fill="#FFFFFF" d="M585.938,901.53c-0.808,0-1.102-0.912-1.102-1.57c0-0.631,0.273-1.572,1.054-1.572 c0.57,0,0.837,0.441,0.968,0.73l1.084-0.648c-0.692-1.161-1.672-1.261-2.117-1.261c-1.122,0-2.491,0.711-2.491,2.801 c0,1.959,1.301,2.739,2.462,2.739c0.76,0,1.645-0.368,2.205-1.4l-1.104-0.599C586.792,901.08,586.507,901.53,585.938,901.53z"/><path fill="#FFFFFF" d="M594.488,897.219c-0.742,0-1.197,0.371-1.473,0.61c-0.306-0.38-0.722-0.61-1.387-0.61 c-0.857,0-1.273,0.52-1.398,0.681v-0.541h-1.454v5.222h1.445v-3.021c0-0.441,0.074-1.081,0.73-1.081 c0.457,0,0.713,0.251,0.713,0.981v3.12h1.454v-3.131c0-0.629,0.229-0.979,0.751-0.979s0.686,0.4,0.686,1.099v3.012h1.452v-3.83 C596.008,897.719,595.399,897.219,594.488,897.219z"/><path fill="#FFFFFF" d="M607.065,897.198c-1.855,0-2.615,1.421-2.615,2.741c0,2.062,1.369,2.801,2.663,2.801 c1.662,0,2.669-1.081,2.669-2.771C609.782,898.718,609.146,897.198,607.065,897.198z M607.131,901.51 c-0.855,0-1.206-0.69-1.206-1.561c0-1.091,0.579-1.529,1.132-1.529c0.796,0,1.244,0.488,1.244,1.599 C608.301,900.8,607.938,901.51,607.131,901.51z"/><path fill="#FFFFFF" d="M580.418,901.539c-0.532,0-1.084-0.319-1.446-0.72l-0.92,0.88c0.359,0.41,1.169,1.012,2.404,1.012 c1.036,0,2.346-0.521,2.346-1.821c0-0.97-0.713-1.43-1.785-1.64l-0.353-0.07c-0.579-0.12-0.808-0.201-0.808-0.45 c0-0.29,0.371-0.4,0.686-0.4c0.464,0,0.938,0.24,1.263,0.521l0.902-0.88c-0.598-0.479-1.357-0.78-2.203-0.78 c-1.398,0-2.102,0.859-2.102,1.75c0,0.799,0.486,1.34,1.662,1.55l0.448,0.079c0.531,0.091,0.789,0.172,0.789,0.462 C581.302,901.36,580.901,901.539,580.418,901.539z"/><rect x="559.717" y="900.91" fill="#FFFFFF" width="1.502" height="1.67"/><path fill="#FFFFFF" d="M616.433,897.219c-0.742,0-1.196,0.371-1.473,0.61c-0.306-0.38-0.722-0.61-1.387-0.61 c-0.857,0-1.273,0.52-1.397,0.681v-0.541h-1.455v5.222h1.445v-3.021c0-0.441,0.075-1.081,0.731-1.081 c0.456,0,0.712,0.251,0.712,0.981v3.12h1.455v-3.131c0-0.629,0.229-0.979,0.751-0.979s0.686,0.4,0.686,1.099v3.012h1.452v-3.83 C617.953,897.719,617.345,897.219,616.433,897.219z"/><rect x="575.952" y="895.518" fill="#FFFFFF" width="1.454" height="1.191"/><path fill="#FFFFFF" d="M566.644,901.349l-1.102-0.599c-0.104,0.33-0.392,0.78-0.962,0.78c-0.808,0-1.102-0.912-1.102-1.57 c0-0.631,0.276-1.572,1.055-1.572c0.569,0,0.837,0.441,0.97,0.73l1.084-0.648c-0.694-1.161-1.674-1.261-2.12-1.261 c-1.121,0-2.49,0.711-2.49,2.801c0,1.959,1.303,2.739,2.461,2.739C565.198,902.749,566.082,902.381,566.644,901.349z"/><rect x="575.952" y="897.358" fill="#FFFFFF" width="1.454" height="5.222"/><path fill="#FFFFFF" d="M554.892,902.58v-4.16h0.969v-0.941h-0.978v-0.31c0-0.38,0.047-0.509,0.653-0.509h0.268v-1.161 c-0.057-0.011-0.532-0.09-0.874-0.09c-0.856,0-1.492,0.42-1.492,1.318v0.751h-0.778v0.941h0.778v4.16H554.892z"/><path fill="#FFFFFF" d="M571.765,902.58v-3.131c0-0.629,0.227-0.979,0.749-0.979c0.525,0,0.686,0.4,0.686,1.099v3.012h1.454v-3.83 c0-1.031-0.608-1.531-1.52-1.531c-0.742,0-1.199,0.371-1.476,0.61c-0.303-0.38-0.722-0.61-1.387-0.61 c-0.854,0-1.273,0.52-1.397,0.681v-0.541h-1.452v5.222h1.443v-3.021c0-0.441,0.076-1.081,0.732-1.081 c0.455,0,0.713,0.251,0.713,0.981v3.12H571.765z"/><path fill="#FFFFFF" d="M558.244,897.169c0-0.38,0.048-0.509,0.656-0.509h0.267v-1.161c-0.057-0.011-0.534-0.09-0.875-0.09 c-0.855,0-1.491,0.42-1.491,1.318v0.751h-0.78v0.941h0.78v4.16h1.452v-4.16h0.971v-0.941h-0.979V897.169z"/><path fill="#FFFFFF" d="M550.073,902.58h1.455v-4.16h0.97v-0.941h-0.979v-0.31c0-0.38,0.048-0.509,0.656-0.509h0.267v-1.161 c-0.059-0.011-0.533-0.09-0.875-0.09c-0.855,0-1.493,0.42-1.493,1.318v0.751h-0.778v0.941h0.778V902.58z"/><path fill="#FFFFFF" d="M555.881,926.198c-1.855,0-2.615,1.421-2.615,2.742c0,2.061,1.368,2.8,2.662,2.8 c1.663,0,2.669-1.081,2.669-2.771C558.597,927.719,557.961,926.198,555.881,926.198z M555.946,930.51 c-0.855,0-1.206-0.689-1.206-1.561c0-1.091,0.579-1.529,1.129-1.529c0.799,0,1.246,0.488,1.246,1.6 C557.115,929.8,556.754,930.51,555.946,930.51z"/><path fill="#FFFFFF" d="M563.983,931.58v-3.751c0-1.061-0.532-1.602-1.538-1.602c-0.695,0-1.161,0.292-1.398,0.591v-0.459h-1.481 v5.221h1.464v-2.92c0-0.702,0.095-1.201,0.769-1.201c0.591,0,0.722,0.411,0.722,0.899v3.222H563.983z"/><path fill="#FFFFFF" d="M552.345,929.879v-5.361h-1.681v5.002c0,0.511-0.19,0.631-0.979,0.631h-0.333v1.43h1.122 C551.7,931.58,552.345,931.221,552.345,929.879z"/><rect x="579.542" y="924.518" fill="#FFFFFF" width="1.455" height="1.19"/><path fill="#FFFFFF" d="M568.362,926.839c-0.267-0.27-0.655-0.57-1.377-0.57c-1.188,0-2.055,0.991-2.055,2.552 c0,2.029,1.247,2.52,2.055,2.52c0.665,0,0.968-0.219,1.301-0.45v0.711c0,0.59-0.321,0.83-0.864,0.83c-0.761,0-0.902-0.5-0.902-0.851 h-1.512v0.16c0,1.141,0.932,1.711,2.271,1.711c1.615,0,2.461-0.641,2.461-2.002v-5.09h-1.378V926.839z M567.374,930.171 c-0.798,0-0.932-0.672-0.932-1.412c0-0.33,0.047-1.339,0.894-1.339c0.854,0,0.95,0.729,0.95,1.389 C568.286,929.341,568.238,930.171,567.374,930.171z"/><rect x="579.542" y="926.359" fill="#FFFFFF" width="1.455" height="5.221"/><path fill="#FFFFFF" d="M576.724,926.219c-0.742,0-1.197,0.371-1.473,0.611c-0.306-0.381-0.722-0.611-1.387-0.611 c-0.857,0-1.273,0.521-1.398,0.681v-0.54h-1.454v5.221h1.445v-3.02c0-0.441,0.074-1.082,0.73-1.082c0.457,0,0.713,0.252,0.713,0.979 v3.122h1.454v-3.131c0-0.631,0.229-0.979,0.751-0.979c0.523,0,0.686,0.4,0.686,1.1v3.011h1.452v-3.832 C578.243,926.719,577.635,926.219,576.724,926.219z"/><path fill="#FFFFFF" d="M585.206,926.228c-0.694,0-1.16,0.292-1.397,0.591v-0.459h-1.481v5.221h1.463v-2.92 c0-0.702,0.096-1.201,0.77-1.201c0.591,0,0.722,0.411,0.722,0.899v3.222h1.464v-3.751 C586.745,926.769,586.213,926.228,585.206,926.228z"/><polygon fill="#FFFFFF" points="555.976,938.518 553.953,938.518 551.442,941.4 551.442,938.518 549.848,938.518 549.848,945.58  551.442,945.58 551.442,943.511 552.479,942.38 554.266,945.58 556.156,945.58 553.6,941.14 "/><rect x="556.582" y="940.359" fill="#FFFFFF" width="1.454" height="5.221"/><rect x="556.582" y="938.518" fill="#FFFFFF" width="1.454" height="1.19"/><path fill="#FFFFFF" d="M565.049,940.219c-0.742,0-1.199,0.369-1.473,0.611c-0.306-0.38-0.724-0.611-1.389-0.611 c-0.855,0-1.273,0.521-1.396,0.682v-0.541h-1.454v5.221h1.443v-3.02c0-0.441,0.077-1.081,0.732-1.081 c0.457,0,0.713,0.251,0.713,0.979v3.121h1.454v-3.131c0-0.631,0.229-0.979,0.752-0.979c0.522,0,0.683,0.398,0.683,1.1v3.011h1.454 v-3.832C566.568,940.719,565.96,940.219,565.049,940.219z"/>';
 return g}();
-
 
