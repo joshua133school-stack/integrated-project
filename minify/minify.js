@@ -1,6 +1,8 @@
 
 //testzone
 
+//testzone
+
 var TherapeuticVideo = TherapeuticVideo || function() {
     var container, videoElement, isPlaying = false;
     
@@ -73,22 +75,30 @@ var TherapeuticVideo = TherapeuticVideo || function() {
     }
     
     function addStyles() {
+        if (!document.querySelector('#therapeutic-video-styles')) {
+            const style = document.createElement('style');
+            style.id = 'therapeutic-video-styles';
+            style.textContent = `
+                .therapeutic-video-experience {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                    overflow: hidden;
+                    font-family: 'Roboto', sans-serif;
+                }
+                
                 .video-intro-screen {
                     position: relative;
-                    max-width: 600px;
+                    width: 100%;
+                    height: 100%;
                     cursor: pointer;
-                    text-align: center;
                 }
                 
                 .intro-image {
                     width: 100%;
-                    border-radius: 20px;
-                    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
-                    transition: transform 0.3s ease;
-                }
-                
-                .intro-image:hover {
-                    transform: scale(1.05);
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
                 }
                 
                 .intro-overlay {
@@ -96,20 +106,38 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     bottom: 0;
                     left: 0;
                     right: 0;
-                    background: linear-gradient(transparent, rgba(0,0,0,0.9));
+                    background: linear-gradient(transparent, rgba(0,0,0,0.8));
                     color: white;
-                    padding: 30px;
-                    border-radius: 0 0 20px 20px;
+                    padding: 40px;
+                    text-align: center;
+                }
+                
+                .intro-overlay h2 {
+                    margin: 0 0 15px 0;
+                    font-size: 32px;
+                    font-weight: bold;
+                }
+                
+                .intro-overlay p {
+                    margin: 0 0 20px 0;
+                    font-size: 18px;
+                    opacity: 0.9;
                 }
                 
                 .start-button {
                     background: #4CAF50;
                     color: white;
-                    padding: 12px 24px;
+                    padding: 15px 30px;
                     border-radius: 25px;
                     display: inline-block;
                     font-weight: bold;
                     cursor: pointer;
+                    font-size: 16px;
+                    transition: background 0.3s ease;
+                }
+                
+                .start-button:hover {
+                    background: #45a049;
                 }
                 
                 .video-player-container {
