@@ -1,27 +1,36 @@
 var TherapeuticVideo = TherapeuticVideo || function() {
     var container, videoElement, isPlaying = false;
-
+    
+    // Define private methods here
     function setupEventListeners() {
-        const introImage = container.querySelector('.intro-image');
-        const startButton = container.querySelector('.start-button');
+        const introScreen = container.querySelector('.video-intro-screen');
         
-        [introImage, startButton].forEach(element => {
-            element.addEventListener('click', () => {
-                showVideoPlayer();
-            });
+        introScreen.addEventListener('click', () => {
+            playVideoFullscreen();
         });
     }
     
-    function showVideoPlayer() {
-        container.innerHTML = `
-            <div class="therapeutic-video-experience">
-                <div class="video-player-container">
-                    <video class="therapeutic-video" preload="metadata">
-                        <source src="data/poster/videos/soup.mp4" type="video/mp4">
-                        Your browser does not support the video tag.
-                    </video>
-                </div>
-            </div>
+    function showIntroFullscreen() {
+        const introScreen = container.querySelector('.video-intro-screen');
+        
+        // Request fullscreen for the intro screen
+        if (introScreen.requestFullscreen) {
+            introScreen.requestFullscreen();
+        } else if (introScreen.webkitRequestFullscreen) { // Safari
+            introScreen.webkitRequestFullscreen();
+        } else if (introScreen.msRequestFullscreen) { // IE11
+            introScreen.msRequestFullscreen();
+        }
+    }
+    
+    function playVideoFullscreen() {
+        // Replace the intro content with video
+        const introScreen = container.querySelector('.video-intro-screen');
+        introScreen.innerHTML = `
+            <video class="therapeutic-video" preload="metadata">
+                <source src="data/poster/videos/soup.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
         `;
         
         setupVideo();
@@ -48,7 +57,7 @@ var TherapeuticVideo = TherapeuticVideo || function() {
             }
         });
         
-        // Handle ESC key to exit
+        // Handle ESC key or fullscreen exit
         document.addEventListener('fullscreenchange', () => {
             if (!document.fullscreenElement && videoElement) {
                 videoElement.pause();
@@ -62,15 +71,16 @@ var TherapeuticVideo = TherapeuticVideo || function() {
     }
     
     function startVideo() {
-        // Request fullscreen for the video container
-        const videoContainer = container.querySelector('.video-player-container');
-        
-        if (videoContainer.requestFullscreen) {
-            videoContainer.requestFullscreen();
-        } else if (videoContainer.webkitRequestFullscreen) { // Safari
-            videoContainer.webkitRequestFullscreen();
-        } else if (videoContainer.msRequestFullscreen) { // IE11
-            videoContainer.msRequestFullscreen();
+        // If not already in fullscreen, request it
+        if (!document.fullscreenElement) {
+            const introScreen = container.querySelector('.video-intro-screen');
+            if (introScreen.requestFullscreen) {
+                introScreen.requestFullscreen();
+            } else if (introScreen.webkitRequestFullscreen) {
+                introScreen.webkitRequestFullscreen();
+            } else if (introScreen.msRequestFullscreen) {
+                introScreen.msRequestFullscreen();
+            }
         }
         
         // Start playing the video
@@ -102,16 +112,51 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                 }
                 
                 .video-intro-screen {
+                    width: 100%;
+                    height: 100%;
                     position: relative;
                     cursor: pointer;
-                    max-width: 800px;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    background: #000;
+                }
+                
+                .video-intro-screen:fullscreen {
+                    background: #000;
+                }
+                
+                .video-intro-screen:-webkit-full-screen {
+                    background: #000;
+                }
+                
+                .intro-content {
+                    position: relative;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
                 }
                 
                 .intro-image {
-                    width: 100%;
+                    max-width: 100%;
+                    max-height: 100%;
+                    width: auto;
                     height: auto;
-                    border-radius: 10px;
-                    opacity: 0.9;
+                    object-fit: contain;
+                }
+                
+                .video-intro-screen:fullscreen .intro-image {
+                    width: 100vw;
+                    height: 100vh;
+                    object-fit: contain;
+                }
+                
+                .video-intro-screen:-webkit-full-screen .intro-image {
+                    width: 100vw;
+                    height: 100vh;
+                    object-fit: contain;
                 }
                 
                 .intro-overlay {
@@ -123,6 +168,7 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     border-radius: 20px;
                     padding: 40px;
                     text-align: center;
+                    color: white;
                 }
                 
                 .intro-overlay h2 {
@@ -144,7 +190,6 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     border-radius: 25px;
                     display: inline-block;
                     font-weight: bold;
-                    cursor: pointer;
                     font-size: 16px;
                     transition: background 0.3s ease;
                 }
@@ -153,37 +198,22 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     background: #45a049;
                 }
                 
-                .video-player-container {
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    background: #000;
-                }
-                
-                .video-player-container:fullscreen {
-                    background: #000;
-                }
-                
-                .video-player-container:-webkit-full-screen {
-                    background: #000;
-                }
-                
                 .therapeutic-video {
                     width: 100%;
                     height: 100%;
                     object-fit: contain;
                 }
                 
-                .video-player-container:fullscreen .therapeutic-video {
+                .video-intro-screen:fullscreen .therapeutic-video {
                     width: 100vw;
                     height: 100vh;
+                    object-fit: contain;
                 }
                 
-                .video-player-container:-webkit-full-screen .therapeutic-video {
+                .video-intro-screen:-webkit-full-screen .therapeutic-video {
                     width: 100vw;
                     height: 100vh;
+                    object-fit: contain;
                 }
             `;
             document.head.appendChild(style);
@@ -197,13 +227,15 @@ var TherapeuticVideo = TherapeuticVideo || function() {
             container.innerHTML = `
                 <div class="therapeutic-video-experience">
                     <div class="video-intro-screen">
-                        <img src="data/poster/soup_intro.png" 
-                             class="intro-image" 
-                             alt="Click to start therapy session">
-                        <div class="intro-overlay">
-                            <h2>Therapeutic Session</h2>
-                            <p>Click to begin your guided therapy experience</p>
-                            <div class="start-button">Start Session</div>
+                        <div class="intro-content">
+                            <img src="data/poster/soup_intro.png" 
+                                 class="intro-image" 
+                                 alt="Click to start therapy session">
+                            <div class="intro-overlay">
+                                <h2>Therapeutic Session</h2>
+                                <p>Click to begin your guided therapy experience</p>
+                                <div class="start-button">Start Session</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -214,6 +246,8 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         
         start: function() {
             setupEventListeners();
+            // Immediately show intro in fullscreen
+            showIntroFullscreen();
         },
         
         dispose: function() {
