@@ -130,15 +130,6 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     background: #000;
                 }
                 
-                .intro-content {
-                    position: relative;
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                }
-                
                 .intro-image {
                     max-width: 100%;
                     max-height: 100%;
@@ -157,45 +148,6 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     width: 100vw;
                     height: 100vh;
                     object-fit: contain;
-                }
-                
-                .intro-overlay {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
-                    background: rgba(0,0,0,0.7);
-                    border-radius: 20px;
-                    padding: 40px;
-                    text-align: center;
-                    color: white;
-                }
-                
-                .intro-overlay h2 {
-                    margin: 0 0 15px 0;
-                    font-size: 32px;
-                    font-weight: bold;
-                }
-                
-                .intro-overlay p {
-                    margin: 0 0 20px 0;
-                    font-size: 18px;
-                    opacity: 0.9;
-                }
-                
-                .start-button {
-                    background: #4CAF50;
-                    color: white;
-                    padding: 15px 30px;
-                    border-radius: 25px;
-                    display: inline-block;
-                    font-weight: bold;
-                    font-size: 16px;
-                    transition: background 0.3s ease;
-                }
-                
-                .start-button:hover {
-                    background: #45a049;
                 }
                 
                 .therapeutic-video {
@@ -227,16 +179,9 @@ var TherapeuticVideo = TherapeuticVideo || function() {
             container.innerHTML = `
                 <div class="therapeutic-video-experience">
                     <div class="video-intro-screen">
-                        <div class="intro-content">
-                            <img src="data/poster/soup_intro.png" 
-                                 class="intro-image" 
-                                 alt="Click to start therapy session">
-                            <div class="intro-overlay">
-                                <h2>Therapeutic Session</h2>
-                                <p>Click to begin your guided therapy experience</p>
-                                <div class="start-button">Start Session</div>
-                            </div>
-                        </div>
+                        <img src="data/poster/soup_intro.png" 
+                             class="intro-image" 
+                             alt="Click to start therapy session">
                     </div>
                 </div>
             `;
