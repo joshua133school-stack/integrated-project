@@ -6,35 +6,21 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         const introScreen = container.querySelector('.video-intro-screen');
         
         introScreen.addEventListener('click', () => {
-            playVideoFullscreen();
+            playVideo();
         });
     }
     
-    function showIntroFullscreen() {
-        const introScreen = container.querySelector('.video-intro-screen');
-        
-        // Request fullscreen for the intro screen
-        if (introScreen.requestFullscreen) {
-            introScreen.requestFullscreen();
-        } else if (introScreen.webkitRequestFullscreen) { // Safari
-            introScreen.webkitRequestFullscreen();
-        } else if (introScreen.msRequestFullscreen) { // IE11
-            introScreen.msRequestFullscreen();
-        }
-    }
-    
-    function playVideoFullscreen() {
+    function playVideo() {
         // Replace the intro content with video
         const introScreen = container.querySelector('.video-intro-screen');
         introScreen.innerHTML = `
-            <video class="therapeutic-video" preload="metadata">
+            <video class="therapeutic-video" controls autoplay>
                 <source src="data/poster/videos/soup.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         `;
         
         setupVideo();
-        startVideo();
     }
     
     function setupVideo() {
@@ -42,58 +28,20 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         
         // Add event listener for when video ends
         videoElement.addEventListener('ended', () => {
-            exitFullscreen();
             // Close the experience
             const closeButton = document.querySelector('#close-bt');
             if (closeButton) {
                 closeButton.click();
             }
         });
-        
-        // Add click listener to exit fullscreen
-        videoElement.addEventListener('click', () => {
-            if (document.fullscreenElement) {
-                exitFullscreen();
-            }
-        });
-        
-        // Handle ESC key or fullscreen exit
-        document.addEventListener('fullscreenchange', () => {
-            if (!document.fullscreenElement && videoElement) {
-                videoElement.pause();
-                // Close the experience
-                const closeButton = document.querySelector('#close-bt');
-                if (closeButton) {
-                    closeButton.click();
-                }
-            }
-        });
-    }
-    
-    function startVideo() {
-        // If not already in fullscreen, request it
-        if (!document.fullscreenElement) {
-            const introScreen = container.querySelector('.video-intro-screen');
-            if (introScreen.requestFullscreen) {
-                introScreen.requestFullscreen();
-            } else if (introScreen.webkitRequestFullscreen) {
-                introScreen.webkitRequestFullscreen();
-            } else if (introScreen.msRequestFullscreen) {
-                introScreen.msRequestFullscreen();
-            }
-        }
-        
-        // Start playing the video
-        videoElement.play();
-        isPlaying = true;
     }
     
     function exitFullscreen() {
         if (document.exitFullscreen) {
             document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) { // Safari
+        } else if (document.webkitExitFullscreen) {
             document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) { // IE11
+        } else if (document.msExitFullscreen) {
             document.msExitFullscreen();
         }
     }
@@ -109,6 +57,7 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     display: flex;
                     justify-content: center;
                     align-items: center;
+                    background: #000;
                 }
                 
                 .video-intro-screen {
@@ -122,49 +71,15 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     background: #000;
                 }
                 
-                .video-intro-screen:fullscreen {
-                    background: #000;
-                }
-                
-                .video-intro-screen:-webkit-full-screen {
-                    background: #000;
-                }
-                
                 .intro-image {
-                    max-width: 100%;
-                    max-height: 100%;
-                    width: auto;
-                    height: auto;
-                    object-fit: contain;
-                }
-                
-                .video-intro-screen:fullscreen .intro-image {
-                    width: 100vw;
-                    height: 100vh;
-                    object-fit: contain;
-                }
-                
-                .video-intro-screen:-webkit-full-screen .intro-image {
-                    width: 100vw;
-                    height: 100vh;
+                    width: 100%;
+                    height: 100%;
                     object-fit: contain;
                 }
                 
                 .therapeutic-video {
                     width: 100%;
                     height: 100%;
-                    object-fit: contain;
-                }
-                
-                .video-intro-screen:fullscreen .therapeutic-video {
-                    width: 100vw;
-                    height: 100vh;
-                    object-fit: contain;
-                }
-                
-                .video-intro-screen:-webkit-full-screen .therapeutic-video {
-                    width: 100vw;
-                    height: 100vh;
                     object-fit: contain;
                 }
             `;
@@ -191,8 +106,7 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         
         start: function() {
             setupEventListeners();
-            // Immediately show intro in fullscreen
-            showIntroFullscreen();
+            // Don't call showIntroFullscreen() anymore
         },
         
         dispose: function() {
@@ -200,7 +114,6 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                 videoElement.pause();
                 videoElement.src = '';
             }
-            exitFullscreen();
             container = null;
             videoElement = null;
         },
@@ -218,7 +131,6 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         }
     };
 }();
-
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
 $jscomp.polyfill("Array.prototype.find",function(d){return d?d:function(d,g){return $jscomp.findInternal(this,d,g).v}},"es6","es3");$jscomp.polyfill("Object.getOwnPropertySymbols",function(d){return d?d:function(){return[]}},"es6","es5");$jscomp.arrayIteratorImpl=function(d){var m=0;return function(){return m<d.length?{done:!1,value:d[m++]}:{done:!0}}};$jscomp.arrayIterator=function(d){return{next:$jscomp.arrayIteratorImpl(d)}};$jscomp.SYMBOL_PREFIX="jscomp_symbol_";
