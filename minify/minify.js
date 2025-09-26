@@ -1,4 +1,3 @@
-
 var TherapeuticVideo = TherapeuticVideo || function() {
     var container, videoElement, isPlaying = false;
     
@@ -16,7 +15,7 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         const introScreen = container.querySelector('.video-intro-screen');
         introScreen.innerHTML = `
             <video class="therapeutic-video" controls autoplay>
-                <source src="data/videos/plane1.mp4" type="video/mp4">
+                <source src="data/poster/videos/soup.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         `;
@@ -132,7 +131,6 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         }
     };
 }();
-
 
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
