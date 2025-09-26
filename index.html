@@ -38,18 +38,28 @@
     <link rel="apple-touch-icon-precomposed" sizes="114x114" href="images/apple-icon-114x114.png" />
     <link rel="apple-touch-icon-precomposed" sizes="144x144" href="images/apple-icon-144x144.png" />
 
-    <meta name="deion" content="Oasis is a collection of interactive experiences for phobia symptom reduction. Each experience has its own unique design and functionality intended for a specific phobia.">
+    <meta name="description" content="Oasis is a collection of interactive experiences for phobia symptom reduction. Each experience has its own unique design and functionality intended for a specific phobia.">
 
     <meta itemprop="name" content="Form Follows Function"/>
-    <meta itemprop="deion" content="Oasis is a collection of interactive experiences for phobia symptom reduction. Each experience has its own unique design and functionality intended for a specific phobia."/>
+    <meta itemprop="description" content="Oasis is a collection of interactive experiences for phobia symptom reduction. Each experience has its own unique design and functionality intended for a specific phobia."/>
     <meta itemprop="image" content="https://fff.cmiscm.com/images/share.png"/>
 
     <link rel="stylesheet" type="text/css" href="minify/minify.css?id=3">
 
-    <no>
-        Java has been disabled!
+    <style>
+#header.header-white text {
+    fill: #fff !important;
+}
+#header.header-black text {
+    fill: #222 !important;
+}
+</style>
+    
+
+    <noscript>
+        Javascript has been disabled!
         <meta http-equiv="refresh" content="0;url=error.html" />
-    </no>
+    </noscript>
 </head>
 
 <body>
@@ -109,18 +119,19 @@
     <script src="minify/minify.js?id=3"></script>
 
 <script>
+// Preload critical images on startup
 window.addEventListener('load', function() {
     // List all your important images
     [
-        'data/images/plane1.png',
         'data/poster/planehd_c.png',
-        'data/poster/plane_c.png',
+        'data/poster/planehd.png',
         'data/poster/injectionhd_c.png',
-         'data/poster/injectionhd.png',
+        'data/poster/injectionhd.png',
         'data/poster/thunderhd_c.png',
-         'data/poster/thunderhd.png',
+        'data/poster/thunderhd.png',
         'data/poster/darknesshd_c.png',
         'data/poster/darknesshd.png',
+         'data/images/plane1.png',
         // Add more images here as needed
     ].forEach(src => {
         const img = new Image();
@@ -128,7 +139,6 @@ window.addEventListener('load', function() {
     });
 });
 </script>
-    
     
     <script type="text/javascript">
         $('document').ready(function(){Address.init("tablet")});
@@ -144,4 +154,3 @@ window.addEventListener('load', function() {
     </script>
 </body>
 </html>
-
