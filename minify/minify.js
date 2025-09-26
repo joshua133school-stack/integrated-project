@@ -15,7 +15,7 @@ var TherapeuticVideo = TherapeuticVideo || function() {
         const introScreen = container.querySelector('.video-intro-screen');
         introScreen.innerHTML = `
             <video class="therapeutic-video" controls autoplay>
-                <source src="data/poster/videos/soup.mp4" type="video/mp4">
+                <source src="data/videos/plane1.mp4" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
         `;
