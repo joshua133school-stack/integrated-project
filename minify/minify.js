@@ -357,7 +357,7 @@ var TherapeuticVideo = TherapeuticVideo || function() {
             container.innerHTML = `
                 <div class="therapeutic-video-experience">
                     <div class="video-intro-screen">
-                        <img src="data/poster/soup_intro.png" 
+                        <img src="data/images/plane1.webp" 
                              class="intro-image" 
                              alt="Click to start therapy session">
                     </div>
