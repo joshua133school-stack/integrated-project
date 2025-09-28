@@ -1,3 +1,15 @@
+var ShareButtons = {
+    init: function() { return document.createElement('div'); },
+    show: function() {},
+    hide: function() {},
+    remove: function() {}
+};
+var ShareTooltip = {
+    init: function() {},
+    show: function() {},
+    hide: function() {}
+};
+
 //TESTZONE
 
 var FearOfOceans = FearOfOceans || function() {
