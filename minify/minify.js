@@ -1,3 +1,138 @@
+var TherapeuticVideo = TherapeuticVideo || function() {
+    var container, videoElement, isPlaying = false;
+    
+    // Define private methods here
+    function setupEventListeners() {
+        const introScreen = container.querySelector('.video-intro-screen');
+        
+        introScreen.addEventListener('click', () => {
+            playVideo();
+        });
+    }
+    
+    function playVideo() {
+        // Replace the intro content with video
+        const introScreen = container.querySelector('.video-intro-screen');
+        introScreen.innerHTML = `
+            <video class="therapeutic-video" controls autoplay>
+                <source src="data/videos/plane1.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        `;
+        
+        setupVideo();
+    }
+    
+    function setupVideo() {
+        videoElement = container.querySelector('.therapeutic-video');
+        
+        // Add event listener for when video ends
+        videoElement.addEventListener('ended', () => {
+            // Close the experience
+            const closeButton = document.querySelector('#close-bt');
+            if (closeButton) {
+                closeButton.click();
+            }
+        });
+    }
+    
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+    }
+    
+    function addStyles() {
+        if (!document.getElementById('therapeutic-video-styles')) {
+            const style = document.createElement('style');
+            style.id = 'therapeutic-video-styles';
+            style.innerHTML = `
+                .therapeutic-video-experience {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    background: #000;
+                }
+                
+                .video-intro-screen {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                    cursor: pointer;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    background: #000;
+                }
+                
+                .intro-image {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+                
+                .therapeutic-video {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    // Return the public interface that matches the expected pattern
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            container.innerHTML = `
+                <div class="therapeutic-video-experience">
+                    <div class="video-intro-screen">
+                        <img src="data/images/plane1.png" 
+                             class="intro-image" 
+                             alt="Click to start therapy session">
+                    </div>
+                </div>
+            `;
+            
+            addStyles();
+        },
+        
+        start: function() {
+            setupEventListeners();
+            // Don't call showIntroFullscreen() anymore
+        },
+        
+        dispose: function() {
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.src = '';
+            }
+            container = null;
+            videoElement = null;
+        },
+        
+        pause: function() {
+            if (videoElement && !videoElement.paused) {
+                videoElement.pause();
+            }
+        },
+        
+        resume: function() {
+            if (videoElement && videoElement.paused) {
+                videoElement.play();
+            }
+        }
+    };
+}();
+
+
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
 $jscomp.polyfill("Array.prototype.find",function(d){return d?d:function(d,g){return $jscomp.findInternal(this,d,g).v}},"es6","es3");$jscomp.polyfill("Object.getOwnPropertySymbols",function(d){return d?d:function(){return[]}},"es6","es5");$jscomp.arrayIteratorImpl=function(d){var m=0;return function(){return m<d.length?{done:!1,value:d[m++]}:{done:!0}}};$jscomp.arrayIterator=function(d){return{next:$jscomp.arrayIteratorImpl(d)}};$jscomp.SYMBOL_PREFIX="jscomp_symbol_";
