@@ -1,31 +1,38 @@
-var TherapeuticVideo = TherapeuticVideo || function() {
+var airplane = airplane || function() {
     var container, videoElement, isPlaying = false;
-    
+
     // Define private methods here
     function setupEventListeners() {
-        const introScreen = container.querySelector('.video-intro-screen');
-        
+        const introScreen = container.querySelector('.airplane-intro-screen');
+
         introScreen.addEventListener('click', () => {
             playVideo();
         });
     }
-    
+
     function playVideo() {
-        // Replace the intro content with video
-        const introScreen = container.querySelector('.video-intro-screen');
-        introScreen.innerHTML = `
-            <video class="therapeutic-video" controls autoplay>
-                <source src="data/videos/plane1.mp4" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-        `;
-        
-        setupVideo();
+        // Replace the intro content with video - more direct transition
+        const introScreen = container.querySelector('.airplane-intro-screen');
+
+        // Fade out intro with quick animation
+        introScreen.style.transition = 'opacity 0.3s ease-out';
+        introScreen.style.opacity = '0';
+
+        setTimeout(() => {
+            introScreen.innerHTML = `
+                <video class="airplane-video" controls autoplay>
+                    <source src="data/videos/plane1.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+            `;
+            introScreen.style.opacity = '1';
+            setupVideo();
+        }, 300);
     }
-    
+
     function setupVideo() {
-        videoElement = container.querySelector('.therapeutic-video');
-        
+        videoElement = container.querySelector('.airplane-video');
+
         // Add event listener for when video ends
         videoElement.addEventListener('ended', () => {
             // Close the experience
@@ -35,23 +42,13 @@ var TherapeuticVideo = TherapeuticVideo || function() {
             }
         });
     }
-    
-    function exitFullscreen() {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        } else if (document.msExitFullscreen) {
-            document.msExitFullscreen();
-        }
-    }
-    
+
     function addStyles() {
-        if (!document.getElementById('therapeutic-video-styles')) {
+        if (!document.getElementById('airplane-styles')) {
             const style = document.createElement('style');
-            style.id = 'therapeutic-video-styles';
+            style.id = 'airplane-styles';
             style.innerHTML = `
-                .therapeutic-video-experience {
+                .airplane-experience {
                     width: 100%;
                     height: 100%;
                     display: flex;
@@ -59,8 +56,8 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     align-items: center;
                     background: #000;
                 }
-                
-                .video-intro-screen {
+
+                .airplane-intro-screen {
                     width: 100%;
                     height: 100%;
                     position: relative;
@@ -69,46 +66,112 @@ var TherapeuticVideo = TherapeuticVideo || function() {
                     justify-content: center;
                     align-items: center;
                     background: #000;
+                    animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
                 }
-                
-                .intro-image {
+
+                @keyframes popIn {
+                    0% {
+                        transform: scale(0.3);
+                        opacity: 0;
+                    }
+                    50% {
+                        transform: scale(1.05);
+                    }
+                    100% {
+                        transform: scale(1);
+                        opacity: 1;
+                    }
+                }
+
+                .airplane-intro-image {
+                    width: 90%;
+                    height: 90%;
+                    object-fit: contain;
+                    transition: transform 0.3s ease;
+                }
+
+                .airplane-intro-screen:hover .airplane-intro-image {
+                    transform: scale(1.05);
+                }
+
+                .airplane-play-overlay {
+                    position: absolute;
+                    width: 120px;
+                    height: 120px;
+                    background: rgba(255, 255, 255, 0.9);
+                    border-radius: 50%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    pointer-events: none;
+                    animation: pulse 2s ease-in-out infinite;
+                    box-shadow: 0 0 40px rgba(255, 255, 255, 0.5);
+                }
+
+                @keyframes pulse {
+                    0%, 100% {
+                        transform: scale(1);
+                        opacity: 0.8;
+                    }
+                    50% {
+                        transform: scale(1.1);
+                        opacity: 1;
+                    }
+                }
+
+                .airplane-play-triangle {
+                    width: 0;
+                    height: 0;
+                    border-left: 40px solid #000;
+                    border-top: 25px solid transparent;
+                    border-bottom: 25px solid transparent;
+                    margin-left: 10px;
+                }
+
+                .airplane-video {
                     width: 100%;
                     height: 100%;
                     object-fit: contain;
+                    animation: fadeIn 0.3s ease-in;
                 }
-                
-                .therapeutic-video {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: contain;
+
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                    }
+                    to {
+                        opacity: 1;
+                    }
                 }
             `;
             document.head.appendChild(style);
         }
     }
-    
+
     // Return the public interface that matches the expected pattern
     return {
         init: function(parentElement) {
             container = parentElement;
             container.innerHTML = `
-                <div class="therapeutic-video-experience">
-                    <div class="video-intro-screen">
-                        <img src="data/images/plane1.png" 
-                             class="intro-image" 
-                             alt="Click to start therapy session">
+                <div class="airplane-experience">
+                    <div class="airplane-intro-screen">
+                        <img src="data/images/plane1.png"
+                             class="airplane-intro-image"
+                             alt="Click to watch airplane therapy video">
+                        <div class="airplane-play-overlay">
+                            <div class="airplane-play-triangle"></div>
+                        </div>
                     </div>
                 </div>
             `;
-            
+
             addStyles();
         },
-        
+
         start: function() {
             setupEventListeners();
-            // Don't call showIntroFullscreen() anymore
         },
-        
+
         dispose: function() {
             if (videoElement) {
                 videoElement.pause();
@@ -117,13 +180,13 @@ var TherapeuticVideo = TherapeuticVideo || function() {
             container = null;
             videoElement = null;
         },
-        
+
         pause: function() {
             if (videoElement && !videoElement.paused) {
                 videoElement.pause();
             }
         },
-        
+
         resume: function() {
             if (videoElement && videoElement.paused) {
                 videoElement.play();
@@ -1604,7 +1667,7 @@ ea=B=!1;Q=!0;ha={lines:12,length:3,width:3,radius:6,color:"#fff",speed:1,trail:6
 Y.appendChild(CMDetect.circleMask);N=document.getElementById("triangulation-guide");da=[];H=[];var b;for(b=0;7>b;b++){a=$("#triangulation-bt-"+(b+1));var c=a[0].getElementsByTagName("p")[0];da[b]=a;H[b]=c}U=0;v();StageController.addResize("Triangulation",k)},start:function(){d(0)},dispose:function(){StageController.removeResize("Triangulation");TweenLite.killTweensOf(O);r();B=!0;null!=N&&TweenLite.killTweensOf(N);N=null;null!=T&&TweenLite.killTweensOf(T);J=Y=S=G=D=E=A=L=K=T=null;da=[]},pause:function(){B=
 !0;TweenLite.killTweensOf(O);r();null!=T&&T.pause()},resume:function(){B=!1;null==T?n():T.resume()},resize:k}}(),ConfigModel=ConfigModel||function(){function d(a,b,c,d){var e=ConfigModel.configArr[b].poster.browser,f=ConfigModel.configArr[b].poster.preload;CircleAniamtion.ready();-1!=e.indexOf(CMDetect.browserName)||CMDetect.isDevice?(e=ConfigModel.configArr[b].poster.classfn,m(f)):(e=BrowserError,CircleAniamtion.loaded());Contents.init(a,b,c,d,e)}function m(a){var b=[],c,d=a.length;if(0!=d){for(c=
 0;c<d;c++)b[c]='<img src="'+a[c]+'">';a=b.join("");q.innerHTML=a;var f=$(q).imagesLoaded();f.always(function(){q.innerHTML="";f=null;CircleAniamtion.loaded()})}else CircleAniamtion.loaded()}var g={configArr:null,screensaverArr:null,total:0,screensaverTotal:0,isWhite:0,imgArr:null,screensaverID:null,sectionID:null},k,q,c=[{item:{id:"sheeps",mac:"data/screensaver/fffsheeps_mac_1.0.zip",win:"data/screensaver/fffsheeps_win_1.0.zip"}},{item:{id:"scream",mac:"data/screensaver/fffscream_mac_1.0.zip",win:"data/screensaver/fffscream_win_1.0.zip"}},
-{item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"sheeps",classfn:ColorPixelated,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+{item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"plane",classfn:airplane,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"scream",classfn:ColorPixelated,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:["contents/scream/screammonk.jpg"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:ColorPixelated,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#0074b0",preload:[],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"planttrees",classfn:PlantTrees,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
