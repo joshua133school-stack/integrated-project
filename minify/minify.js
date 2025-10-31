@@ -277,6 +277,548 @@ var airplane = airplane || function() {
     };
 }();
 
+var injection = injection || function() {
+    var container, currentStep = 0, mosaicRemoved = false;
+
+    const steps = ['mosaic', 'gallery', 'simulation', 'actual-size'];
+
+    function setupEventListeners() {
+        const removeMosaicBtn = container.querySelector('#remove-mosaic-btn');
+        const nextBtn = container.querySelector('#injection-next-btn');
+        const prevBtn = container.querySelector('#injection-prev-btn');
+        const startSimBtn = container.querySelector('#start-simulation-btn');
+
+        if (removeMosaicBtn) {
+            removeMosaicBtn.addEventListener('click', removeMosaic);
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', nextStep);
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', prevStep);
+        }
+
+        if (startSimBtn) {
+            startSimBtn.addEventListener('click', startSimulation);
+        }
+    }
+
+    function removeMosaic() {
+        if (mosaicRemoved) return;
+
+        const mosaic = container.querySelector('.injection-mosaic');
+        const image = container.querySelector('.injection-needle-image');
+        const btn = container.querySelector('#remove-mosaic-btn');
+
+        mosaicRemoved = true;
+        mosaic.style.transition = 'opacity 1s ease-out';
+        mosaic.style.opacity = '0';
+
+        setTimeout(() => {
+            mosaic.style.display = 'none';
+            btn.textContent = 'Mosaic Removed ✓';
+            btn.style.background = '#4CAF50';
+            btn.disabled = true;
+        }, 1000);
+    }
+
+    function nextStep() {
+        if (currentStep < steps.length - 1) {
+            currentStep++;
+            showStep(currentStep);
+        }
+    }
+
+    function prevStep() {
+        if (currentStep > 0) {
+            currentStep--;
+            showStep(currentStep);
+        }
+    }
+
+    function showStep(stepIndex) {
+        const allSteps = container.querySelectorAll('.injection-step');
+        allSteps.forEach((step, index) => {
+            step.style.display = index === stepIndex ? 'flex' : 'none';
+        });
+
+        const prevBtn = container.querySelector('#injection-prev-btn');
+        const nextBtn = container.querySelector('#injection-next-btn');
+
+        if (prevBtn) prevBtn.style.display = stepIndex > 0 ? 'block' : 'none';
+        if (nextBtn) nextBtn.style.display = stepIndex < steps.length - 1 ? 'block' : 'none';
+
+        updateProgress(stepIndex);
+    }
+
+    function updateProgress(stepIndex) {
+        const dots = container.querySelectorAll('.injection-progress-dot');
+        dots.forEach((dot, index) => {
+            dot.classList.toggle('active', index === stepIndex);
+        });
+    }
+
+    function startSimulation() {
+        const btn = container.querySelector('#start-simulation-btn');
+        const needle = container.querySelector('.injection-sim-needle');
+        const skin = container.querySelector('.injection-sim-skin');
+
+        btn.disabled = true;
+        btn.textContent = 'Injecting...';
+
+        // Animate needle going in
+        needle.style.transition = 'transform 2s ease-in-out';
+        needle.style.transform = 'translateX(0) rotate(-45deg)';
+
+        setTimeout(() => {
+            // Show injection effect
+            skin.classList.add('injecting');
+
+            setTimeout(() => {
+                // Needle comes back out
+                needle.style.transform = 'translateX(-200px) rotate(-45deg)';
+
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.textContent = 'Start Injection Simulation';
+                    needle.style.transition = 'none';
+                    needle.style.transform = 'translateX(-200px) rotate(-45deg)';
+                    skin.classList.remove('injecting');
+                }, 1000);
+            }, 1000);
+        }, 2000);
+    }
+
+    function addStyles() {
+        if (!document.getElementById('injection-styles')) {
+            const style = document.createElement('style');
+            style.id = 'injection-styles';
+            style.innerHTML = `
+                .injection-experience {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    position: relative;
+                }
+
+                .injection-step {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    width: 90%;
+                    max-width: 800px;
+                    animation: fadeIn 0.5s ease-in;
+                }
+
+                .injection-mosaic-container {
+                    position: relative;
+                    width: 600px;
+                    height: 400px;
+                    margin: 20px 0;
+                }
+
+                .injection-needle-image {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                }
+
+                .injection-mosaic {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    backdrop-filter: blur(20px);
+                    background: rgba(255, 255, 255, 0.1);
+                    display: grid;
+                    grid-template-columns: repeat(20, 1fr);
+                    grid-template-rows: repeat(13, 1fr);
+                    gap: 2px;
+                }
+
+                .injection-mosaic-tile {
+                    background: rgba(255, 255, 255, 0.3);
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                }
+
+                .injection-btn {
+                    padding: 15px 40px;
+                    font-size: 18px;
+                    font-weight: bold;
+                    border: none;
+                    border-radius: 30px;
+                    background: linear-gradient(135deg, #667eea, #764ba2);
+                    color: white;
+                    cursor: pointer;
+                    margin: 20px;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                    transition: all 0.3s ease;
+                }
+
+                .injection-btn:hover:not(:disabled) {
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+                }
+
+                .injection-btn:disabled {
+                    opacity: 0.6;
+                    cursor: not-allowed;
+                }
+
+                .injection-gallery {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 20px;
+                    margin: 20px 0;
+                }
+
+                .injection-gallery-item {
+                    width: 250px;
+                    height: 250px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 15px;
+                    padding: 10px;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                    transition: transform 0.3s ease;
+                }
+
+                .injection-gallery-item:hover {
+                    transform: scale(1.05);
+                }
+
+                .injection-gallery-img {
+                    width: 100%;
+                    height: 80%;
+                    background: #555;
+                    border-radius: 10px;
+                    margin-bottom: 10px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 48px;
+                }
+
+                .injection-gallery-label {
+                    text-align: center;
+                    font-size: 14px;
+                }
+
+                .injection-simulation-container {
+                    position: relative;
+                    width: 600px;
+                    height: 400px;
+                    background: rgba(255, 255, 255, 0.1);
+                    border-radius: 20px;
+                    overflow: hidden;
+                    margin: 20px 0;
+                }
+
+                .injection-sim-skin {
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(180deg, #f5d5c8 0%, #e8c4b8 100%);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    position: relative;
+                }
+
+                .injection-sim-skin.injecting::after {
+                    content: '';
+                    position: absolute;
+                    width: 20px;
+                    height: 20px;
+                    background: rgba(255, 0, 0, 0.3);
+                    border-radius: 50%;
+                    animation: pulse-injection 0.5s ease-out;
+                }
+
+                @keyframes pulse-injection {
+                    0% {
+                        width: 20px;
+                        height: 20px;
+                        opacity: 1;
+                    }
+                    100% {
+                        width: 60px;
+                        height: 60px;
+                        opacity: 0;
+                    }
+                }
+
+                .injection-sim-needle {
+                    position: absolute;
+                    left: -200px;
+                    width: 250px;
+                    height: 20px;
+                    background: linear-gradient(90deg, #ccc 0%, #999 80%, #666 95%, #333 100%);
+                    transform: rotate(-45deg);
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                }
+
+                .injection-sim-needle::after {
+                    content: '';
+                    position: absolute;
+                    right: -20px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 20px solid #333;
+                    border-top: 10px solid transparent;
+                    border-bottom: 10px solid transparent;
+                }
+
+                .injection-actual-size {
+                    background: rgba(255, 255, 255, 0.1);
+                    padding: 40px;
+                    border-radius: 20px;
+                    text-align: center;
+                }
+
+                .injection-needle-real {
+                    margin: 30px auto;
+                    height: 1px;
+                    background: #333;
+                    position: relative;
+                }
+
+                .injection-needle-25g {
+                    width: 0.5mm;
+                }
+
+                .injection-needle-23g {
+                    width: 0.6mm;
+                }
+
+                .injection-needle-21g {
+                    width: 0.8mm;
+                }
+
+                .injection-needle-label {
+                    font-size: 14px;
+                    margin: 10px 0;
+                    opacity: 0.9;
+                }
+
+                .injection-comparison {
+                    margin-top: 30px;
+                    font-size: 18px;
+                    line-height: 1.8;
+                }
+
+                .injection-navigation {
+                    position: absolute;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 20px;
+                }
+
+                .injection-nav-btn {
+                    padding: 10px 30px;
+                    font-size: 16px;
+                    border: none;
+                    border-radius: 25px;
+                    background: rgba(255, 255, 255, 0.2);
+                    color: white;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+
+                .injection-nav-btn:hover {
+                    background: rgba(255, 255, 255, 0.3);
+                }
+
+                .injection-progress {
+                    position: absolute;
+                    top: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 10px;
+                }
+
+                .injection-progress-dot {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: rgba(255, 255, 255, 0.3);
+                    transition: all 0.3s ease;
+                }
+
+                .injection-progress-dot.active {
+                    background: white;
+                    transform: scale(1.3);
+                }
+
+                .injection-title {
+                    font-size: 32px;
+                    font-weight: bold;
+                    margin-bottom: 20px;
+                    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                }
+
+                .injection-subtitle {
+                    font-size: 18px;
+                    opacity: 0.9;
+                    margin-bottom: 30px;
+                }
+
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                        transform: translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    function createMosaicTiles() {
+        let tiles = '';
+        for (let i = 0; i < 260; i++) {
+            tiles += '<div class="injection-mosaic-tile"></div>';
+        }
+        return tiles;
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            currentStep = 0;
+            mosaicRemoved = false;
+
+            container.innerHTML = `
+                <div class="injection-experience">
+                    <!-- Progress Indicator -->
+                    <div class="injection-progress">
+                        <div class="injection-progress-dot active"></div>
+                        <div class="injection-progress-dot"></div>
+                        <div class="injection-progress-dot"></div>
+                        <div class="injection-progress-dot"></div>
+                    </div>
+
+                    <!-- Step 1: Mosaic Needle -->
+                    <div class="injection-step" style="display: flex;">
+                        <h1 class="injection-title">Needle View</h1>
+                        <p class="injection-subtitle">Remove the mosaic to see the needle clearly</p>
+                        <div class="injection-mosaic-container">
+                            <img src="data/images/plane1.png" class="injection-needle-image" alt="Needle">
+                            <div class="injection-mosaic">
+                                ${createMosaicTiles()}
+                            </div>
+                        </div>
+                        <button id="remove-mosaic-btn" class="injection-btn">Remove Mosaic Filter</button>
+                    </div>
+
+                    <!-- Step 2: Gallery -->
+                    <div class="injection-step" style="display: none;">
+                        <h1 class="injection-title">Injection Types</h1>
+                        <p class="injection-subtitle">Different types of medical injections</p>
+                        <div class="injection-gallery">
+                            <div class="injection-gallery-item">
+                                <div class="injection-gallery-img">💉</div>
+                                <div class="injection-gallery-label">Vaccine Injection</div>
+                            </div>
+                            <div class="injection-gallery-item">
+                                <div class="injection-gallery-img">💊</div>
+                                <div class="injection-gallery-label">Intramuscular</div>
+                            </div>
+                            <div class="injection-gallery-item">
+                                <div class="injection-gallery-img">🩸</div>
+                                <div class="injection-gallery-label">Blood Draw</div>
+                            </div>
+                            <div class="injection-gallery-item">
+                                <div class="injection-gallery-img">🏥</div>
+                                <div class="injection-gallery-label">Subcutaneous</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Simulation -->
+                    <div class="injection-step" style="display: none;">
+                        <h1 class="injection-title">Injection Simulation</h1>
+                        <p class="injection-subtitle">Watch the injection process in slow motion</p>
+                        <div class="injection-simulation-container">
+                            <div class="injection-sim-skin">
+                                <div class="injection-sim-needle"></div>
+                            </div>
+                        </div>
+                        <button id="start-simulation-btn" class="injection-btn">Start Injection Simulation</button>
+                    </div>
+
+                    <!-- Step 4: Actual Size -->
+                    <div class="injection-step" style="display: none;">
+                        <h1 class="injection-title">Actual Needle Size</h1>
+                        <p class="injection-subtitle">See how small needles really are on your screen</p>
+                        <div class="injection-actual-size">
+                            <div>
+                                <div class="injection-needle-label">25 Gauge (0.5mm) - Typical Vaccine</div>
+                                <div class="injection-needle-real injection-needle-25g"></div>
+                            </div>
+                            <div>
+                                <div class="injection-needle-label">23 Gauge (0.6mm) - Standard Injection</div>
+                                <div class="injection-needle-real injection-needle-23g"></div>
+                            </div>
+                            <div>
+                                <div class="injection-needle-label">21 Gauge (0.8mm) - Blood Draw</div>
+                                <div class="injection-needle-real injection-needle-21g"></div>
+                            </div>
+                            <div class="injection-comparison">
+                                <p>These lines represent the <strong>actual thickness</strong> of medical needles.</p>
+                                <p>Compare to a human hair: 0.07mm (much thinner!)</p>
+                                <p>The needle tip is even thinner and incredibly sharp.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation -->
+                    <div class="injection-navigation">
+                        <button id="injection-prev-btn" class="injection-nav-btn" style="display: none;">← Previous</button>
+                        <button id="injection-next-btn" class="injection-nav-btn">Next →</button>
+                    </div>
+                </div>
+            `;
+
+            addStyles();
+        },
+
+        start: function() {
+            setupEventListeners();
+            showStep(0);
+        },
+
+        dispose: function() {
+            currentStep = 0;
+            mosaicRemoved = false;
+            container = null;
+        },
+
+        pause: function() {
+            // Pause any animations if needed
+        },
+
+        resume: function() {
+            // Resume animations if needed
+        }
+    };
+}();
 
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
@@ -1750,8 +2292,8 @@ Y.appendChild(CMDetect.circleMask);N=document.getElementById("triangulation-guid
 !0;TweenLite.killTweensOf(O);r();null!=T&&T.pause()},resume:function(){B=!1;null==T?n():T.resume()},resize:k}}(),ConfigModel=ConfigModel||function(){function d(a,b,c,d){var e=ConfigModel.configArr[b].poster.browser,f=ConfigModel.configArr[b].poster.preload;CircleAniamtion.ready();-1!=e.indexOf(CMDetect.browserName)||CMDetect.isDevice?(e=ConfigModel.configArr[b].poster.classfn,m(f)):(e=BrowserError,CircleAniamtion.loaded());Contents.init(a,b,c,d,e)}function m(a){var b=[],c,d=a.length;if(0!=d){for(c=
 0;c<d;c++)b[c]='<img src="'+a[c]+'">';a=b.join("");q.innerHTML=a;var f=$(q).imagesLoaded();f.always(function(){q.innerHTML="";f=null;CircleAniamtion.loaded()})}else CircleAniamtion.loaded()}var g={configArr:null,screensaverArr:null,total:0,screensaverTotal:0,isWhite:0,imgArr:null,screensaverID:null,sectionID:null},k,q,c=[{item:{id:"sheeps",mac:"data/screensaver/fffsheeps_mac_1.0.zip",win:"data/screensaver/fffsheeps_win_1.0.zip"}},{item:{id:"scream",mac:"data/screensaver/fffscream_mac_1.0.zip",win:"data/screensaver/fffscream_win_1.0.zip"}},
 {item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"plane",classfn:airplane,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"scream",classfn:ColorPixelated,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:["contents/scream/screammonk.jpg"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:ColorPixelated,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"injection",classfn:injection,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:ColorPixelated,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#0074b0",preload:[],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"planttrees",classfn:PlantTrees,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#ddd",preload:["contents/planttrees/plants.png","contents/planttrees/plants-bt@2x.png"],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:WaveInCircle,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Ocean",date:"Fear of Oceans",img:"data/poster/ocean",itemcolor:"#259ab3",bgcolor:"#29a5c0",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:PlantTrees,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
