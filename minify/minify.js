@@ -403,8 +403,8 @@ var injection = injection || function() {
                     flex-direction: column;
                     justify-content: center;
                     align-items: center;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                    color: white;
+                    background: #f5f5f5;
+                    color: #333;
                     position: relative;
                 }
 
@@ -420,9 +420,12 @@ var injection = injection || function() {
 
                 .injection-mosaic-container {
                     position: relative;
-                    width: 600px;
-                    height: 400px;
+                    width: 500px;
+                    height: 500px;
                     margin: 20px 0;
+                    border-radius: 50%;
+                    overflow: hidden;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
                 }
 
                 .injection-needle-image {
@@ -446,27 +449,29 @@ var injection = injection || function() {
                 }
 
                 .injection-mosaic-tile {
-                    background: rgba(255, 255, 255, 0.3);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    background: rgba(0, 0, 0, 0.15);
+                    border: 1px solid rgba(0, 0, 0, 0.1);
                 }
 
                 .injection-btn {
                     padding: 15px 40px;
                     font-size: 18px;
                     font-weight: bold;
-                    border: none;
+                    border: 2px solid #333;
                     border-radius: 30px;
-                    background: linear-gradient(135deg, #667eea, #764ba2);
-                    color: white;
+                    background: #fff;
+                    color: #333;
                     cursor: pointer;
                     margin: 20px;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
                     transition: all 0.3s ease;
                 }
 
                 .injection-btn:hover:not(:disabled) {
+                    background: #333;
+                    color: #fff;
                     transform: translateY(-2px);
-                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
                 }
 
                 .injection-btn:disabled {
@@ -484,15 +489,17 @@ var injection = injection || function() {
                 .injection-gallery-item {
                     width: 250px;
                     height: 250px;
-                    background: rgba(255, 255, 255, 0.1);
+                    background: #fff;
+                    border: 2px solid #e0e0e0;
                     border-radius: 15px;
                     padding: 10px;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
                     transition: transform 0.3s ease;
                 }
 
                 .injection-gallery-item:hover {
                     transform: scale(1.05);
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
                 }
 
                 .injection-gallery-img {
@@ -516,10 +523,12 @@ var injection = injection || function() {
                     position: relative;
                     width: 600px;
                     height: 400px;
-                    background: rgba(255, 255, 255, 0.1);
+                    background: #fff;
+                    border: 2px solid #e0e0e0;
                     border-radius: 20px;
                     overflow: hidden;
                     margin: 20px 0;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
                 }
 
                 .injection-sim-skin {
@@ -579,10 +588,12 @@ var injection = injection || function() {
                 }
 
                 .injection-actual-size {
-                    background: rgba(255, 255, 255, 0.1);
+                    background: #fff;
+                    border: 2px solid #e0e0e0;
                     padding: 40px;
                     border-radius: 20px;
                     text-align: center;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
                 }
 
                 .injection-needle-real {
@@ -618,7 +629,7 @@ var injection = injection || function() {
 
                 .injection-navigation {
                     position: absolute;
-                    bottom: 30px;
+                    bottom: 100px;
                     left: 50%;
                     transform: translateX(-50%);
                     display: flex;
@@ -628,16 +639,17 @@ var injection = injection || function() {
                 .injection-nav-btn {
                     padding: 10px 30px;
                     font-size: 16px;
-                    border: none;
+                    border: 2px solid #333;
                     border-radius: 25px;
-                    background: rgba(255, 255, 255, 0.2);
-                    color: white;
+                    background: #fff;
+                    color: #333;
                     cursor: pointer;
                     transition: all 0.3s ease;
                 }
 
                 .injection-nav-btn:hover {
-                    background: rgba(255, 255, 255, 0.3);
+                    background: #333;
+                    color: #fff;
                 }
 
                 .injection-progress {
@@ -653,12 +665,12 @@ var injection = injection || function() {
                     width: 12px;
                     height: 12px;
                     border-radius: 50%;
-                    background: rgba(255, 255, 255, 0.3);
+                    background: #ccc;
                     transition: all 0.3s ease;
                 }
 
                 .injection-progress-dot.active {
-                    background: white;
+                    background: #333;
                     transform: scale(1.3);
                 }
 
@@ -666,13 +678,14 @@ var injection = injection || function() {
                     font-size: 32px;
                     font-weight: bold;
                     margin-bottom: 20px;
-                    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                    color: #333;
                 }
 
                 .injection-subtitle {
                     font-size: 18px;
-                    opacity: 0.9;
+                    opacity: 0.7;
                     margin-bottom: 30px;
+                    color: #666;
                 }
 
                 @keyframes fadeIn {
