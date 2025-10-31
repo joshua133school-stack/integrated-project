@@ -1,5 +1,5 @@
 var airplane = airplane || function() {
-    var container, videoElement, isPlaying = false;
+    var container, videoElement, isPlaying = false, fullscreenContainer;
 
     // Define private methods here
     function setupEventListeners() {
@@ -11,36 +11,89 @@ var airplane = airplane || function() {
     }
 
     function playVideo() {
-        // Replace the intro content with video - more direct transition
-        const introScreen = container.querySelector('.airplane-intro-screen');
+        // Create fullscreen video container
+        fullscreenContainer = document.createElement('div');
+        fullscreenContainer.className = 'airplane-fullscreen-container';
+        fullscreenContainer.innerHTML = `
+            <video class="airplane-video" controls autoplay playsinline>
+                <source src="data/videos/plane1.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        `;
 
-        // Fade out intro with quick animation
-        introScreen.style.transition = 'opacity 0.3s ease-out';
-        introScreen.style.opacity = '0';
+        document.body.appendChild(fullscreenContainer);
 
+        // Setup video and attempt fullscreen
         setTimeout(() => {
-            introScreen.innerHTML = `
-                <video class="airplane-video" controls autoplay>
-                    <source src="data/videos/plane1.mp4" type="video/mp4">
-                    Your browser does not support the video tag.
-                </video>
-            `;
-            introScreen.style.opacity = '1';
             setupVideo();
-        }, 300);
+            requestFullscreen();
+        }, 100);
+    }
+
+    function requestFullscreen() {
+        if (videoElement) {
+            // Try to request fullscreen on the video element
+            if (videoElement.requestFullscreen) {
+                videoElement.requestFullscreen().catch(err => {
+                    console.log('Fullscreen request failed:', err);
+                });
+            } else if (videoElement.webkitRequestFullscreen) {
+                videoElement.webkitRequestFullscreen();
+            } else if (videoElement.mozRequestFullScreen) {
+                videoElement.mozRequestFullScreen();
+            } else if (videoElement.msRequestFullscreen) {
+                videoElement.msRequestFullscreen();
+            }
+        }
+    }
+
+    function exitFullscreen() {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
     }
 
     function setupVideo() {
-        videoElement = container.querySelector('.airplane-video');
+        videoElement = fullscreenContainer.querySelector('.airplane-video');
 
         // Add event listener for when video ends
         videoElement.addEventListener('ended', () => {
+            exitFullscreen();
+            // Remove fullscreen container
+            if (fullscreenContainer && fullscreenContainer.parentNode) {
+                fullscreenContainer.parentNode.removeChild(fullscreenContainer);
+            }
             // Close the experience
             const closeButton = document.querySelector('#close-bt');
             if (closeButton) {
                 closeButton.click();
             }
         });
+
+        // Handle fullscreen change
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    }
+
+    function handleFullscreenChange() {
+        // If exited fullscreen manually, clean up
+        if (!document.fullscreenElement && !document.webkitFullscreenElement &&
+            !document.mozFullScreenElement && !document.msFullscreenElement) {
+            if (videoElement && !videoElement.ended) {
+                videoElement.pause();
+            }
+            if (fullscreenContainer && fullscreenContainer.parentNode) {
+                fullscreenContainer.parentNode.removeChild(fullscreenContainer);
+            }
+        }
     }
 
     function addStyles() {
@@ -58,9 +111,12 @@ var airplane = airplane || function() {
                 }
 
                 .airplane-intro-screen {
-                    width: 100%;
-                    height: 100%;
-                    position: relative;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    z-index: 9999;
                     cursor: pointer;
                     display: flex;
                     justify-content: center;
@@ -84,37 +140,39 @@ var airplane = airplane || function() {
                 }
 
                 .airplane-intro-image {
-                    width: 90%;
-                    height: 90%;
+                    max-width: 95vw;
+                    max-height: 95vh;
+                    width: auto;
+                    height: auto;
                     object-fit: contain;
                     transition: transform 0.3s ease;
                 }
 
                 .airplane-intro-screen:hover .airplane-intro-image {
-                    transform: scale(1.05);
+                    transform: scale(1.02);
                 }
 
                 .airplane-play-overlay {
                     position: absolute;
-                    width: 120px;
-                    height: 120px;
-                    background: rgba(255, 255, 255, 0.9);
+                    width: 150px;
+                    height: 150px;
+                    background: rgba(255, 255, 255, 0.95);
                     border-radius: 50%;
                     display: flex;
                     justify-content: center;
                     align-items: center;
                     pointer-events: none;
                     animation: pulse 2s ease-in-out infinite;
-                    box-shadow: 0 0 40px rgba(255, 255, 255, 0.5);
+                    box-shadow: 0 0 60px rgba(255, 255, 255, 0.6);
                 }
 
                 @keyframes pulse {
                     0%, 100% {
                         transform: scale(1);
-                        opacity: 0.8;
+                        opacity: 0.9;
                     }
                     50% {
-                        transform: scale(1.1);
+                        transform: scale(1.15);
                         opacity: 1;
                     }
                 }
@@ -122,10 +180,23 @@ var airplane = airplane || function() {
                 .airplane-play-triangle {
                     width: 0;
                     height: 0;
-                    border-left: 40px solid #000;
-                    border-top: 25px solid transparent;
-                    border-bottom: 25px solid transparent;
-                    margin-left: 10px;
+                    border-left: 50px solid #000;
+                    border-top: 30px solid transparent;
+                    border-bottom: 30px solid transparent;
+                    margin-left: 12px;
+                }
+
+                .airplane-fullscreen-container {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    z-index: 10000;
+                    background: #000;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
                 }
 
                 .airplane-video {
@@ -177,8 +248,19 @@ var airplane = airplane || function() {
                 videoElement.pause();
                 videoElement.src = '';
             }
+            if (fullscreenContainer && fullscreenContainer.parentNode) {
+                fullscreenContainer.parentNode.removeChild(fullscreenContainer);
+            }
+            // Clean up event listeners
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+
+            exitFullscreen();
             container = null;
             videoElement = null;
+            fullscreenContainer = null;
         },
 
         pause: function() {
