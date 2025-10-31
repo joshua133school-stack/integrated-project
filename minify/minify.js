@@ -278,7 +278,7 @@ var airplane = airplane || function() {
 }();
 
 var injection = injection || function() {
-    var container, currentStep = 0, mosaicRemoved = false;
+    var container, currentStep = 0, mosaicRemoved = false, pixelationLevel = 40, fadeInterval = null, canvas, ctx, sourceImage;
 
     const steps = ['mosaic', 'gallery', 'simulation', 'actual-size'];
 
@@ -305,23 +305,77 @@ var injection = injection || function() {
         }
     }
 
+    function initCanvas() {
+        canvas = container.querySelector('#mosaic-canvas');
+        sourceImage = container.querySelector('#source-image');
+
+        if (!canvas || !sourceImage) return;
+
+        ctx = canvas.getContext('2d');
+        canvas.width = 500;
+        canvas.height = 500;
+
+        sourceImage.onload = function() {
+            drawPixelated(pixelationLevel);
+        };
+
+        // If image is already loaded
+        if (sourceImage.complete) {
+            drawPixelated(pixelationLevel);
+        }
+    }
+
+    function drawPixelated(pixelSize) {
+        if (!ctx || !sourceImage || !canvas) return;
+
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, w, h);
+
+        if (pixelSize <= 1) {
+            // Draw normal image when pixelSize is 1 or less
+            ctx.drawImage(sourceImage, 0, 0, w, h);
+            return;
+        }
+
+        // Draw pixelated effect
+        ctx.imageSmoothingEnabled = false;
+
+        // Scale down
+        const scaledW = w / pixelSize;
+        const scaledH = h / pixelSize;
+
+        // Draw small version
+        ctx.drawImage(sourceImage, 0, 0, scaledW, scaledH);
+
+        // Scale back up
+        ctx.drawImage(canvas, 0, 0, scaledW, scaledH, 0, 0, w, h);
+    }
+
     function removeMosaic() {
         if (mosaicRemoved) return;
 
-        const mosaic = container.querySelector('.injection-mosaic');
-        const image = container.querySelector('.injection-needle-image');
         const btn = container.querySelector('#remove-mosaic-btn');
-
         mosaicRemoved = true;
-        mosaic.style.transition = 'opacity 1s ease-out';
-        mosaic.style.opacity = '0';
+        btn.disabled = true;
+        btn.textContent = 'Removing Mosaic...';
 
-        setTimeout(() => {
-            mosaic.style.display = 'none';
-            btn.textContent = 'Mosaic Removed ✓';
-            btn.style.background = '#4CAF50';
-            btn.disabled = true;
-        }, 1000);
+        // Slowly fade mosaic over 5 seconds
+        fadeInterval = setInterval(function() {
+            pixelationLevel -= 0.4; // Reduces by 0.4 every 100ms
+
+            if (pixelationLevel <= 1) {
+                pixelationLevel = 1;
+                clearInterval(fadeInterval);
+                fadeInterval = null;
+                btn.textContent = 'Mosaic Removed ✓';
+                btn.style.background = '#4CAF50';
+            }
+
+            drawPixelated(pixelationLevel);
+        }, 100); // Update every 100ms for smooth animation
     }
 
     function nextStep() {
@@ -426,31 +480,20 @@ var injection = injection || function() {
                     border-radius: 50%;
                     overflow: hidden;
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+                    background: #000;
                 }
 
-                .injection-needle-image {
+                #mosaic-canvas {
                     width: 100%;
                     height: 100%;
                     object-fit: cover;
+                    image-rendering: pixelated;
+                    image-rendering: -moz-crisp-edges;
+                    image-rendering: crisp-edges;
                 }
 
-                .injection-mosaic {
-                    position: absolute;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    backdrop-filter: blur(20px);
-                    background: rgba(255, 255, 255, 0.1);
-                    display: grid;
-                    grid-template-columns: repeat(20, 1fr);
-                    grid-template-rows: repeat(13, 1fr);
-                    gap: 2px;
-                }
-
-                .injection-mosaic-tile {
-                    background: rgba(0, 0, 0, 0.15);
-                    border: 1px solid rgba(0, 0, 0, 0.1);
+                #source-image {
+                    display: none;
                 }
 
                 .injection-btn {
@@ -703,13 +746,6 @@ var injection = injection || function() {
         }
     }
 
-    function createMosaicTiles() {
-        let tiles = '';
-        for (let i = 0; i < 260; i++) {
-            tiles += '<div class="injection-mosaic-tile"></div>';
-        }
-        return tiles;
-    }
 
     return {
         init: function(parentElement) {
@@ -730,12 +766,10 @@ var injection = injection || function() {
                     <!-- Step 1: Mosaic Needle -->
                     <div class="injection-step" style="display: flex;">
                         <h1 class="injection-title">Needle View</h1>
-                        <p class="injection-subtitle">Remove the mosaic to see the needle clearly</p>
+                        <p class="injection-subtitle">Press the button to slowly remove the mosaic</p>
                         <div class="injection-mosaic-container">
-                            <img src="data/images/injectionimg1.jpg" class="injection-needle-image" alt="Needle">
-                            <div class="injection-mosaic">
-                                ${createMosaicTiles()}
-                            </div>
+                            <canvas id="mosaic-canvas"></canvas>
+                            <img id="source-image" src="data/images/injectionimg1.jpg" alt="Needle" crossorigin="anonymous">
                         </div>
                         <button id="remove-mosaic-btn" class="injection-btn">Remove Mosaic Filter</button>
                     </div>
@@ -814,17 +848,29 @@ var injection = injection || function() {
 
         start: function() {
             setupEventListeners();
+            initCanvas();
             showStep(0);
         },
 
         dispose: function() {
+            if (fadeInterval) {
+                clearInterval(fadeInterval);
+                fadeInterval = null;
+            }
             currentStep = 0;
             mosaicRemoved = false;
+            pixelationLevel = 40;
+            canvas = null;
+            ctx = null;
+            sourceImage = null;
             container = null;
         },
 
         pause: function() {
-            // Pause any animations if needed
+            if (fadeInterval) {
+                clearInterval(fadeInterval);
+                fadeInterval = null;
+            }
         },
 
         resume: function() {
