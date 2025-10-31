@@ -431,7 +431,7 @@ var injection = injection || function() {
                 .injection-needle-image {
                     width: 100%;
                     height: 100%;
-                    object-fit: contain;
+                    object-fit: cover;
                 }
 
                 .injection-mosaic {
@@ -732,7 +732,7 @@ var injection = injection || function() {
                         <h1 class="injection-title">Needle View</h1>
                         <p class="injection-subtitle">Remove the mosaic to see the needle clearly</p>
                         <div class="injection-mosaic-container">
-                            <img src="data/images/plane1.png" class="injection-needle-image" alt="Needle">
+                            <img src="data/images/injectionimg1.jpg" class="injection-needle-image" alt="Needle">
                             <div class="injection-mosaic">
                                 ${createMosaicTiles()}
                             </div>
