@@ -765,8 +765,6 @@ var injection = injection || function() {
 
                     <!-- Step 1: Mosaic Needle -->
                     <div class="injection-step" style="display: flex;">
-                        <h1 class="injection-title">Needle View</h1>
-                        <p class="injection-subtitle">Press the button to slowly remove the mosaic</p>
                         <div class="injection-mosaic-container">
                             <canvas id="mosaic-canvas"></canvas>
                             <img id="source-image" src="data/images/injectionimg1.jpg" alt="Needle" crossorigin="anonymous">
