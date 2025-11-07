@@ -1249,6 +1249,530 @@ var injection = injection || function() {
     };
 }();
 
+var knifeSafety = knifeSafety || function() {
+    var container, currentStep = 0, dropAnimationRunning = false, dropInterval = null;
+
+    const steps = ['intro', 'safety', 'simulation', 'cuts'];
+
+    function setupEventListeners() {
+        const nextBtn = container.querySelector('#knife-next-btn');
+        const prevBtn = container.querySelector('#knife-prev-btn');
+        const startDropBtn = container.querySelector('#start-drop-btn');
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', nextStep);
+        }
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', prevStep);
+        }
+
+        if (startDropBtn) {
+            startDropBtn.addEventListener('click', startDropSimulation);
+        }
+    }
+
+    function nextStep() {
+        if (currentStep < steps.length - 1) {
+            currentStep++;
+            updateView();
+        }
+    }
+
+    function prevStep() {
+        if (currentStep > 0) {
+            currentStep--;
+            updateView();
+        }
+    }
+
+    function updateView() {
+        const stepScreens = container.querySelectorAll('.knife-step');
+        const prevBtn = container.querySelector('#knife-prev-btn');
+        const nextBtn = container.querySelector('#knife-next-btn');
+
+        stepScreens.forEach((screen, index) => {
+            screen.style.display = index === currentStep ? 'flex' : 'none';
+        });
+
+        if (prevBtn) {
+            prevBtn.style.display = currentStep === 0 ? 'none' : 'block';
+        }
+
+        if (nextBtn) {
+            nextBtn.style.display = currentStep === steps.length - 1 ? 'none' : 'block';
+        }
+    }
+
+    function startDropSimulation() {
+        if (dropAnimationRunning) return;
+
+        dropAnimationRunning = true;
+        const knife = container.querySelector('.knife-drop-item');
+        const result = container.querySelector('.drop-result');
+        const startBtn = container.querySelector('#start-drop-btn');
+
+        if (!knife || !result) return;
+
+        startBtn.style.display = 'none';
+        result.textContent = '';
+
+        // Reset position
+        knife.style.top = '0px';
+        knife.style.transform = 'rotate(0deg)';
+        knife.style.opacity = '1';
+
+        let position = 0;
+        let rotation = 0;
+        const fallSpeed = 5;
+        const rotationSpeed = 8;
+        const maxFall = 300;
+
+        dropInterval = setInterval(() => {
+            position += fallSpeed;
+            rotation += rotationSpeed;
+
+            knife.style.top = position + 'px';
+            knife.style.transform = 'rotate(' + rotation + 'deg)';
+
+            if (position >= maxFall) {
+                clearInterval(dropInterval);
+                dropInterval = null;
+
+                // Land on back (flat side)
+                const finalRotation = Math.round(rotation / 180) * 180;
+                knife.style.transform = 'rotate(' + finalRotation + 'deg)';
+
+                setTimeout(() => {
+                    result.innerHTML = '<p class="success-message">✓ The knife landed safely on its back!</p><p>This demonstrates that knives don\'t always fall point-first. The flat surface provides stability.</p>';
+                    startBtn.style.display = 'block';
+                    startBtn.textContent = 'Drop Again';
+                    dropAnimationRunning = false;
+                }, 300);
+            }
+        }, 16);
+    }
+
+    function addStyles() {
+        if (!document.getElementById('knife-safety-styles')) {
+            const style = document.createElement('style');
+            style.id = 'knife-safety-styles';
+            style.innerHTML = `
+                .knife-safety-experience {
+                    width: 100%;
+                    height: 100%;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    position: relative;
+                }
+
+                .knife-step {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 40px;
+                    box-sizing: border-box;
+                    animation: fadeIn 0.5s ease-in;
+                }
+
+                .knife-content-box {
+                    background: rgba(255, 255, 255, 0.95);
+                    border-radius: 20px;
+                    padding: 40px;
+                    max-width: 800px;
+                    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                    animation: slideUp 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+                }
+
+                @keyframes slideUp {
+                    from {
+                        transform: translateY(50px);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateY(0);
+                        opacity: 1;
+                    }
+                }
+
+                @keyframes fadeIn {
+                    from {
+                        opacity: 0;
+                    }
+                    to {
+                        opacity: 1;
+                    }
+                }
+
+                .knife-title {
+                    font-size: 32px;
+                    font-weight: bold;
+                    color: #333;
+                    margin-bottom: 20px;
+                    text-align: center;
+                }
+
+                .knife-subtitle {
+                    font-size: 20px;
+                    color: #666;
+                    margin-bottom: 30px;
+                    text-align: center;
+                }
+
+                .knife-text {
+                    font-size: 18px;
+                    line-height: 1.8;
+                    color: #444;
+                    margin-bottom: 15px;
+                }
+
+                .knife-images-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                    gap: 20px;
+                    margin: 30px 0;
+                }
+
+                .knife-image-card {
+                    background: #f5f5f5;
+                    border-radius: 10px;
+                    padding: 20px;
+                    text-align: center;
+                    transition: transform 0.3s ease;
+                }
+
+                .knife-image-card:hover {
+                    transform: scale(1.05);
+                }
+
+                .knife-icon {
+                    font-size: 60px;
+                    margin-bottom: 10px;
+                }
+
+                .knife-image-label {
+                    font-size: 16px;
+                    color: #666;
+                    font-weight: 500;
+                }
+
+                .safety-tips-list {
+                    list-style: none;
+                    padding: 0;
+                    margin: 20px 0;
+                }
+
+                .safety-tips-list li {
+                    background: #e8f5e9;
+                    padding: 15px 20px;
+                    margin-bottom: 10px;
+                    border-radius: 10px;
+                    border-left: 4px solid #4caf50;
+                    font-size: 16px;
+                    color: #2e7d32;
+                    animation: slideIn 0.5s ease forwards;
+                    opacity: 0;
+                }
+
+                .safety-tips-list li:nth-child(1) { animation-delay: 0.1s; }
+                .safety-tips-list li:nth-child(2) { animation-delay: 0.2s; }
+                .safety-tips-list li:nth-child(3) { animation-delay: 0.3s; }
+                .safety-tips-list li:nth-child(4) { animation-delay: 0.4s; }
+                .safety-tips-list li:nth-child(5) { animation-delay: 0.5s; }
+
+                @keyframes slideIn {
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
+                    }
+                    from {
+                        transform: translateX(-20px);
+                    }
+                }
+
+                .drop-simulation-container {
+                    background: #fff;
+                    border-radius: 15px;
+                    padding: 40px;
+                    min-height: 450px;
+                    position: relative;
+                    border: 2px dashed #ccc;
+                }
+
+                .knife-drop-item {
+                    position: absolute;
+                    font-size: 60px;
+                    top: 0;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    transition: none;
+                }
+
+                .drop-result {
+                    margin-top: 350px;
+                    min-height: 80px;
+                    font-size: 18px;
+                    color: #333;
+                    text-align: center;
+                }
+
+                .success-message {
+                    color: #4caf50;
+                    font-weight: bold;
+                    font-size: 24px;
+                    margin-bottom: 10px;
+                }
+
+                #start-drop-btn {
+                    background: #667eea;
+                    color: white;
+                    border: none;
+                    padding: 15px 40px;
+                    font-size: 18px;
+                    border-radius: 50px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    margin: 20px auto;
+                    display: block;
+                }
+
+                #start-drop-btn:hover {
+                    background: #764ba2;
+                    transform: scale(1.05);
+                    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+                }
+
+                .cuts-info-grid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 20px;
+                    margin: 30px 0;
+                }
+
+                .cuts-info-card {
+                    background: #f8f9fa;
+                    padding: 25px;
+                    border-radius: 15px;
+                    border: 2px solid #e9ecef;
+                }
+
+                .cuts-info-card h3 {
+                    color: #667eea;
+                    margin-bottom: 15px;
+                    font-size: 20px;
+                }
+
+                .cuts-info-card p {
+                    color: #555;
+                    line-height: 1.6;
+                    font-size: 16px;
+                }
+
+                .knife-nav-buttons {
+                    position: absolute;
+                    bottom: 30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    display: flex;
+                    gap: 20px;
+                }
+
+                .knife-nav-btn {
+                    background: rgba(255, 255, 255, 0.9);
+                    color: #667eea;
+                    border: 2px solid #667eea;
+                    padding: 12px 30px;
+                    font-size: 16px;
+                    border-radius: 50px;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                    font-weight: 600;
+                }
+
+                .knife-nav-btn:hover {
+                    background: #667eea;
+                    color: white;
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+                }
+
+                @media (max-width: 768px) {
+                    .knife-content-box {
+                        padding: 20px;
+                    }
+
+                    .knife-title {
+                        font-size: 24px;
+                    }
+
+                    .cuts-info-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            container.innerHTML = `
+                <div class="knife-safety-experience">
+                    <!-- Step 1: Introduction with knife images -->
+                    <div class="knife-step" data-step="intro">
+                        <div class="knife-content-box">
+                            <h1 class="knife-title">Understanding Knives</h1>
+                            <p class="knife-subtitle">Let's explore knives and sharp edges together</p>
+
+                            <div class="knife-images-grid">
+                                <div class="knife-image-card">
+                                    <div class="knife-icon">🔪</div>
+                                    <div class="knife-image-label">Kitchen Knife</div>
+                                </div>
+                                <div class="knife-image-card">
+                                    <div class="knife-icon">✂️</div>
+                                    <div class="knife-image-label">Scissors</div>
+                                </div>
+                                <div class="knife-image-card">
+                                    <div class="knife-icon">🗡️</div>
+                                    <div class="knife-image-label">Utility Knife</div>
+                                </div>
+                            </div>
+
+                            <p class="knife-text">
+                                Knives are common tools we use in everyday life. While they have sharp edges,
+                                understanding how to handle them properly makes them safe to use.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Safety handling -->
+                    <div class="knife-step" data-step="safety" style="display: none;">
+                        <div class="knife-content-box">
+                            <h1 class="knife-title">How to Handle Knives Safely</h1>
+
+                            <ul class="safety-tips-list">
+                                <li><strong>Always cut away from your body</strong> - This prevents accidents if the knife slips</li>
+                                <li><strong>Keep a firm grip on the handle</strong> - A secure grip gives you better control</li>
+                                <li><strong>Use a cutting board</strong> - Stable surfaces prevent the knife from slipping</li>
+                                <li><strong>Store knives properly</strong> - Knife blocks or sheaths keep them safe when not in use</li>
+                                <li><strong>Never try to catch a falling knife</strong> - Let it fall and step back safely</li>
+                            </ul>
+
+                            <p class="knife-text" style="margin-top: 30px; text-align: center; font-weight: 600; color: #667eea;">
+                                Following these simple rules makes knife use safe and routine!
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Drop simulation -->
+                    <div class="knife-step" data-step="simulation" style="display: none;">
+                        <div class="knife-content-box">
+                            <h1 class="knife-title">Drop Simulation</h1>
+                            <p class="knife-subtitle">See how knives fall naturally</p>
+
+                            <div class="drop-simulation-container">
+                                <div class="knife-drop-item">🔪</div>
+                                <div class="drop-result"></div>
+                            </div>
+
+                            <button id="start-drop-btn">Start Drop Simulation</button>
+
+                            <p class="knife-text" style="margin-top: 20px; text-align: center;">
+                                Knives often land on their flat backs due to weight distribution.
+                                The handle is typically heavier than the blade, causing the knife to rotate and land safely.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Cut depth information -->
+                    <div class="knife-step" data-step="cuts" style="display: none;">
+                        <div class="knife-content-box">
+                            <h1 class="knife-title">Understanding Cuts</h1>
+
+                            <div class="cuts-info-grid">
+                                <div class="cuts-info-card">
+                                    <h3>Most Cuts Are Shallow</h3>
+                                    <p>
+                                        The majority of accidental cuts from kitchen knives are superficial,
+                                        affecting only the top layer of skin. These heal quickly with basic first aid.
+                                    </p>
+                                </div>
+
+                                <div class="cuts-info-card">
+                                    <h3>Controlled Pressure</h3>
+                                    <p>
+                                        Knives require deliberate pressure to cut deeply. Accidental contact
+                                        typically results in minor, shallow cuts that are easily treatable.
+                                    </p>
+                                </div>
+
+                                <div class="cuts-info-card">
+                                    <h3>Quick Healing</h3>
+                                    <p>
+                                        Small cuts heal rapidly - usually within a few days. The body's natural
+                                        healing process quickly repairs minor knife cuts with proper care.
+                                    </p>
+                                </div>
+
+                                <div class="cuts-info-card">
+                                    <h3>Prevention Is Easy</h3>
+                                    <p>
+                                        Following basic safety guidelines makes cuts very rare. Awareness and
+                                        proper technique eliminate most risks when using knives.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <p class="knife-text" style="margin-top: 30px; text-align: center; font-weight: 600; color: #667eea;">
+                                With proper handling, knives are safe, useful tools that pose minimal risk!
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Navigation buttons -->
+                    <div class="knife-nav-buttons">
+                        <button id="knife-prev-btn" class="knife-nav-btn" style="display: none;">← Previous</button>
+                        <button id="knife-next-btn" class="knife-nav-btn">Next →</button>
+                    </div>
+                </div>
+            `;
+
+            addStyles();
+        },
+
+        start: function() {
+            currentStep = 0;
+            updateView();
+            setupEventListeners();
+        },
+
+        dispose: function() {
+            if (dropInterval) {
+                clearInterval(dropInterval);
+                dropInterval = null;
+            }
+            dropAnimationRunning = false;
+            currentStep = 0;
+            container = null;
+        },
+
+        pause: function() {
+            if (dropInterval) {
+                clearInterval(dropInterval);
+                dropInterval = null;
+            }
+        },
+
+        resume: function() {
+            // Resume if needed
+        }
+    };
+}();
+
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
 $jscomp.polyfill("Array.prototype.find",function(d){return d?d:function(d,g){return $jscomp.findInternal(this,d,g).v}},"es6","es3");$jscomp.polyfill("Object.getOwnPropertySymbols",function(d){return d?d:function(){return[]}},"es6","es5");$jscomp.arrayIteratorImpl=function(d){var m=0;return function(){return m<d.length?{done:!1,value:d[m++]}:{done:!0}}};$jscomp.arrayIterator=function(d){return{next:$jscomp.arrayIteratorImpl(d)}};$jscomp.SYMBOL_PREFIX="jscomp_symbol_";
