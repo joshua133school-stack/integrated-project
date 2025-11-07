@@ -484,32 +484,88 @@ var injection = injection || function() {
     function startSimulation() {
         const btn = container.querySelector('#start-simulation-btn');
         const needle = container.querySelector('.injection-sim-needle');
+        const syringe = container.querySelector('.injection-sim-syringe');
+        const plunger = container.querySelector('.injection-sim-plunger');
         const skin = container.querySelector('.injection-sim-skin');
+        const depthIndicator = container.querySelector('.depth-indicator');
+        const depthValue = container.querySelector('.depth-value');
 
         btn.disabled = true;
         btn.textContent = 'Injecting...';
 
-        // Animate needle going in
-        needle.style.transition = 'transform 2s ease-in-out';
-        needle.style.transform = 'translateX(0) rotate(-45deg)';
+        let depth = 0;
+
+        // Phase 1: Needle approaches skin (1 second)
+        needle.style.transition = 'transform 1s ease-out';
+        syringe.style.transition = 'transform 1s ease-out';
+        needle.style.transform = 'translateX(80px)';
+        syringe.style.transform = 'translateX(80px)';
 
         setTimeout(() => {
-            // Show injection effect
-            skin.classList.add('injecting');
+            // Phase 2: Needle penetrates skin slowly (2.5 seconds)
+            needle.style.transition = 'transform 2.5s ease-in-out';
+            syringe.style.transition = 'transform 2.5s ease-in-out';
+            needle.style.transform = 'translateX(150px)';
+            syringe.style.transform = 'translateX(150px)';
+
+            // Animate depth indicator
+            const depthInterval = setInterval(() => {
+                depth += 0.5;
+                if (depth > 25) depth = 25;
+                depthIndicator.style.top = (depth / 50 * 100) + '%';
+                depthValue.textContent = depth.toFixed(1) + 'mm';
+            }, 50);
+
+            // Show injection site reaction
+            setTimeout(() => {
+                skin.classList.add('injecting');
+            }, 1500);
 
             setTimeout(() => {
-                // Needle comes back out
-                needle.style.transform = 'translateX(-200px) rotate(-45deg)';
+                clearInterval(depthInterval);
+
+                // Phase 3: Push plunger to inject (1 second)
+                plunger.style.transition = 'transform 1s ease-in-out';
+                plunger.style.transform = 'translateX(30px)';
 
                 setTimeout(() => {
-                    btn.disabled = false;
-                    btn.textContent = 'Start Injection Simulation';
-                    needle.style.transition = 'none';
-                    needle.style.transform = 'translateX(-200px) rotate(-45deg)';
-                    skin.classList.remove('injecting');
+                    // Phase 4: Slight pause (0.5 seconds)
+                    setTimeout(() => {
+                        // Phase 5: Needle withdraws (1.5 seconds)
+                        needle.style.transition = 'transform 1.5s ease-in';
+                        syringe.style.transition = 'transform 1.5s ease-in';
+                        needle.style.transform = 'translateX(-300px)';
+                        syringe.style.transform = 'translateX(-300px)';
+
+                        // Animate depth indicator back
+                        const withdrawInterval = setInterval(() => {
+                            depth -= 2;
+                            if (depth <= 0) {
+                                depth = 0;
+                                clearInterval(withdrawInterval);
+                            }
+                            depthIndicator.style.top = (depth / 50 * 100) + '%';
+                            depthValue.textContent = depth.toFixed(1) + 'mm';
+                        }, 30);
+
+                        setTimeout(() => {
+                            // Reset everything
+                            btn.disabled = false;
+                            btn.textContent = 'Start Injection Simulation';
+                            needle.style.transition = 'none';
+                            syringe.style.transition = 'none';
+                            plunger.style.transition = 'none';
+                            needle.style.transform = 'translateX(-300px)';
+                            syringe.style.transform = 'translateX(-300px)';
+                            plunger.style.transform = 'translateX(0)';
+                            skin.classList.remove('injecting');
+                            depthIndicator.style.top = '0%';
+                            depthValue.textContent = '0.0mm';
+                        }, 1500);
+                    }, 500);
                 }, 1000);
-            }, 1000);
-        }, 2000);
+            }, 2500);
+        }, 1000);
     }
 
     function addStyles() {
@@ -646,6 +702,98 @@ var injection = injection || function() {
                     font-size: 14px;
                 }
 
+                .injection-simulation-wrapper {
+                    display: flex;
+                    gap: 30px;
+                    align-items: center;
+                }
+
+                .injection-depth-graph {
+                    width: 200px;
+                    height: 400px;
+                    background: #fff;
+                    border: 2px solid #e0e0e0;
+                    border-radius: 15px;
+                    padding: 20px;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+                    position: relative;
+                }
+
+                .depth-graph-title {
+                    font-size: 14px;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                    text-align: center;
+                }
+
+                .depth-layers {
+                    position: relative;
+                    height: 280px;
+                    border: 2px solid #333;
+                    border-radius: 8px;
+                    overflow: hidden;
+                }
+
+                .skin-layer {
+                    position: relative;
+                    border-bottom: 1px solid #999;
+                    display: flex;
+                    align-items: center;
+                    padding-left: 10px;
+                    font-size: 11px;
+                    font-weight: 600;
+                }
+
+                .layer-epidermis {
+                    height: 10%;
+                    background: linear-gradient(180deg, #f5d5c8 0%, #f0cabb 100%);
+                }
+
+                .layer-dermis {
+                    height: 20%;
+                    background: linear-gradient(180deg, #e8c4b8 0%, #ddb5a5 100%);
+                }
+
+                .layer-subcutaneous {
+                    height: 30%;
+                    background: linear-gradient(180deg, #f9e5a8 0%, #f7dd8e 100%);
+                }
+
+                .layer-muscle {
+                    height: 40%;
+                    background: linear-gradient(180deg, #d4959e 0%, #c8848d 100%);
+                    border-bottom: none;
+                }
+
+                .depth-indicator {
+                    position: absolute;
+                    left: -5px;
+                    top: 0;
+                    width: 10px;
+                    height: 3px;
+                    background: #ff0000;
+                    box-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
+                    transition: top 0.05s linear;
+                    z-index: 10;
+                }
+
+                .depth-indicator::before {
+                    content: '→';
+                    position: absolute;
+                    right: -15px;
+                    top: -7px;
+                    font-size: 16px;
+                    color: #ff0000;
+                }
+
+                .depth-value {
+                    margin-top: 15px;
+                    text-align: center;
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #ff0000;
+                }
+
                 .injection-simulation-container {
                     position: relative;
                     width: 600px;
@@ -654,64 +802,182 @@ var injection = injection || function() {
                     border: 2px solid #e0e0e0;
                     border-radius: 20px;
                     overflow: hidden;
-                    margin: 20px 0;
                     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
                 }
 
                 .injection-sim-skin {
                     width: 100%;
                     height: 100%;
-                    background: linear-gradient(180deg, #f5d5c8 0%, #e8c4b8 100%);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
                     position: relative;
+                    overflow: hidden;
+                }
+
+                .skin-layers-visual {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                }
+
+                .visual-epidermis {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: 30px;
+                    background: linear-gradient(180deg, #f5d5c8 0%, #f0cabb 100%);
+                    border-bottom: 2px solid rgba(0,0,0,0.1);
+                }
+
+                .visual-dermis {
+                    position: absolute;
+                    top: 30px;
+                    left: 0;
+                    right: 0;
+                    height: 80px;
+                    background: linear-gradient(180deg, #e8c4b8 0%, #ddb5a5 100%);
+                    border-bottom: 2px solid rgba(0,0,0,0.1);
+                }
+
+                .visual-subcutaneous {
+                    position: absolute;
+                    top: 110px;
+                    left: 0;
+                    right: 0;
+                    height: 120px;
+                    background: linear-gradient(180deg, #f9e5a8 0%, #f7dd8e 100%);
+                    border-bottom: 2px solid rgba(0,0,0,0.1);
+                }
+
+                .visual-muscle {
+                    position: absolute;
+                    top: 230px;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: linear-gradient(180deg, #d4959e 0%, #c8848d 100%);
+                }
+
+                .injection-point {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 300px;
+                    height: 300px;
                 }
 
                 .injection-sim-skin.injecting::after {
                     content: '';
                     position: absolute;
-                    width: 20px;
-                    height: 20px;
-                    background: rgba(255, 0, 0, 0.3);
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    width: 8px;
+                    height: 8px;
+                    background: rgba(180, 0, 0, 0.6);
                     border-radius: 50%;
-                    animation: pulse-injection 0.5s ease-out;
+                    animation: pulse-injection 1.5s ease-out infinite;
                 }
 
                 @keyframes pulse-injection {
                     0% {
-                        width: 20px;
-                        height: 20px;
-                        opacity: 1;
+                        width: 8px;
+                        height: 8px;
+                        opacity: 0.8;
                     }
                     100% {
-                        width: 60px;
-                        height: 60px;
+                        width: 50px;
+                        height: 50px;
                         opacity: 0;
                     }
                 }
 
                 .injection-sim-needle {
                     position: absolute;
-                    left: -200px;
-                    width: 250px;
-                    height: 20px;
-                    background: linear-gradient(90deg, #ccc 0%, #999 80%, #666 95%, #333 100%);
-                    transform: rotate(-45deg);
-                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+                    left: -300px;
+                    top: 50%;
+                    width: 120px;
+                    height: 2px;
+                    background: linear-gradient(90deg, transparent 0%, #b8b8b8 5%, #d4d4d4 100%);
+                    transform: translateY(-50%);
+                    z-index: 5;
                 }
 
-                .injection-sim-needle::after {
+                .injection-sim-needle::before {
                     content: '';
                     position: absolute;
-                    right: -20px;
+                    right: 0;
                     top: 50%;
                     transform: translateY(-50%);
                     width: 0;
                     height: 0;
-                    border-left: 20px solid #333;
-                    border-top: 10px solid transparent;
-                    border-bottom: 10px solid transparent;
+                    border-left: 12px solid #888;
+                    border-top: 3px solid transparent;
+                    border-bottom: 3px solid transparent;
+                }
+
+                .injection-sim-syringe {
+                    position: absolute;
+                    left: -300px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 140px;
+                    height: 22px;
+                    z-index: 4;
+                }
+
+                .syringe-barrel {
+                    position: absolute;
+                    left: 0;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 100px;
+                    height: 18px;
+                    background: linear-gradient(180deg, rgba(200, 220, 255, 0.4) 0%, rgba(180, 200, 230, 0.3) 100%);
+                    border: 2px solid #888;
+                    border-radius: 3px;
+                    box-shadow: inset 0 2px 4px rgba(255,255,255,0.5);
+                }
+
+                .syringe-barrel::after {
+                    content: '';
+                    position: absolute;
+                    right: -3px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 8px;
+                    height: 10px;
+                    background: #666;
+                    border-radius: 0 2px 2px 0;
+                }
+
+                .injection-sim-plunger {
+                    position: absolute;
+                    left: -30px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    width: 35px;
+                    height: 12px;
+                    z-index: 3;
+                }
+
+                .plunger-handle {
+                    width: 15px;
+                    height: 12px;
+                    background: #e74c3c;
+                    border-radius: 2px;
+                    position: absolute;
+                    left: 0;
+                }
+
+                .plunger-rod {
+                    width: 25px;
+                    height: 3px;
+                    background: #999;
+                    position: absolute;
+                    left: 15px;
+                    top: 50%;
+                    transform: translateY(-50%);
                 }
 
                 .injection-actual-size {
@@ -863,9 +1129,39 @@ var injection = injection || function() {
                     <div class="injection-step" style="display: none;">
                         <h1 class="injection-title">Injection Simulation</h1>
                         <p class="injection-subtitle">Watch the injection process in slow motion</p>
-                        <div class="injection-simulation-container">
-                            <div class="injection-sim-skin">
-                                <div class="injection-sim-needle"></div>
+                        <div class="injection-simulation-wrapper">
+                            <!-- Depth Graph -->
+                            <div class="injection-depth-graph">
+                                <div class="depth-graph-title">Injection Depth</div>
+                                <div class="depth-layers">
+                                    <div class="skin-layer layer-epidermis">Epidermis</div>
+                                    <div class="skin-layer layer-dermis">Dermis</div>
+                                    <div class="skin-layer layer-subcutaneous">Subcutaneous</div>
+                                    <div class="skin-layer layer-muscle">Muscle</div>
+                                    <div class="depth-indicator"></div>
+                                </div>
+                                <div class="depth-value">0.0mm</div>
+                            </div>
+                            <!-- Simulation Container -->
+                            <div class="injection-simulation-container">
+                                <div class="injection-sim-skin">
+                                    <div class="skin-layers-visual">
+                                        <div class="visual-epidermis"></div>
+                                        <div class="visual-dermis"></div>
+                                        <div class="visual-subcutaneous"></div>
+                                        <div class="visual-muscle"></div>
+                                    </div>
+                                    <div class="injection-point">
+                                        <div class="injection-sim-needle"></div>
+                                        <div class="injection-sim-syringe">
+                                            <div class="syringe-barrel"></div>
+                                        </div>
+                                        <div class="injection-sim-plunger">
+                                            <div class="plunger-handle"></div>
+                                            <div class="plunger-rod"></div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <button id="start-simulation-btn" class="injection-btn">Start Injection Simulation</button>
