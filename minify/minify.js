@@ -1773,6 +1773,314 @@ var knifeSafety = knifeSafety || function() {
     };
 }();
 
+var darkness = darkness || function() {
+    var container, isRunning = false;
+
+    function addStyles() {
+        if (!document.getElementById('darkness-styles')) {
+            const style = document.createElement('style');
+            style.id = 'darkness-styles';
+            style.innerHTML = `
+                .darkness-experience {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                    overflow: hidden;
+                    background: linear-gradient(to bottom, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
+                }
+
+                .darkness-sky {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 70%;
+                    background: linear-gradient(to bottom, #0a0a0f 0%, #16213e 100%);
+                    z-index: 1;
+                }
+
+                .darkness-cloud {
+                    position: absolute;
+                    background: rgba(60, 60, 70, 0.4);
+                    border-radius: 100px;
+                    filter: blur(15px);
+                    z-index: 2;
+                }
+
+                .cloud-1 {
+                    width: 200px;
+                    height: 60px;
+                    top: 15%;
+                    left: -200px;
+                    animation: driftCloud1 45s linear infinite;
+                }
+
+                .cloud-2 {
+                    width: 250px;
+                    height: 70px;
+                    top: 25%;
+                    left: -250px;
+                    animation: driftCloud2 55s linear infinite;
+                    animation-delay: 5s;
+                }
+
+                .cloud-3 {
+                    width: 180px;
+                    height: 55px;
+                    top: 35%;
+                    left: -180px;
+                    animation: driftCloud3 50s linear infinite;
+                    animation-delay: 15s;
+                }
+
+                @keyframes driftCloud1 {
+                    from {
+                        left: -200px;
+                    }
+                    to {
+                        left: 100%;
+                    }
+                }
+
+                @keyframes driftCloud2 {
+                    from {
+                        left: -250px;
+                    }
+                    to {
+                        left: 100%;
+                    }
+                }
+
+                @keyframes driftCloud3 {
+                    from {
+                        left: -180px;
+                    }
+                    to {
+                        left: 100%;
+                    }
+                }
+
+                .darkness-ocean {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 50%;
+                    background: linear-gradient(to bottom, #0f3460 0%, #0a1929 100%);
+                    z-index: 3;
+                }
+
+                .darkness-boat-container {
+                    position: absolute;
+                    bottom: 15%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 100%;
+                    max-width: 900px;
+                    z-index: 5;
+                    animation: boatOscillate 4s ease-in-out infinite;
+                }
+
+                @keyframes boatOscillate {
+                    0% {
+                        transform: translateX(-50%) translateY(0px) rotate(0deg);
+                    }
+                    25% {
+                        transform: translateX(-50%) translateY(-15px) rotate(-1.5deg);
+                    }
+                    50% {
+                        transform: translateX(-50%) translateY(-8px) rotate(0deg);
+                    }
+                    75% {
+                        transform: translateX(-50%) translateY(-15px) rotate(1.5deg);
+                    }
+                    100% {
+                        transform: translateX(-50%) translateY(0px) rotate(0deg);
+                    }
+                }
+
+                .darkness-boat-image {
+                    width: 100%;
+                    height: auto;
+                    display: block;
+                    opacity: 0;
+                    animation: boatFadeIn 2s ease-in forwards;
+                }
+
+                @keyframes boatFadeIn {
+                    to {
+                        opacity: 1;
+                    }
+                }
+
+                .darkness-water-reflection {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 30%;
+                    background: linear-gradient(to top, rgba(15, 52, 96, 0.3) 0%, transparent 100%);
+                    z-index: 4;
+                    animation: waterShimmer 3s ease-in-out infinite;
+                }
+
+                @keyframes waterShimmer {
+                    0%, 100% {
+                        opacity: 0.3;
+                    }
+                    50% {
+                        opacity: 0.5;
+                    }
+                }
+
+                .darkness-waves {
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100px;
+                    z-index: 4;
+                }
+
+                .wave-layer {
+                    position: absolute;
+                    bottom: 0;
+                    width: 200%;
+                    height: 100%;
+                    background: repeating-linear-gradient(
+                        90deg,
+                        transparent 0px,
+                        rgba(15, 52, 96, 0.2) 50px,
+                        transparent 100px
+                    );
+                }
+
+                .wave-layer-1 {
+                    animation: waveMove1 8s linear infinite;
+                    opacity: 0.3;
+                }
+
+                .wave-layer-2 {
+                    animation: waveMove2 12s linear infinite;
+                    opacity: 0.2;
+                }
+
+                @keyframes waveMove1 {
+                    from {
+                        transform: translateX(0);
+                    }
+                    to {
+                        transform: translateX(-50%);
+                    }
+                }
+
+                @keyframes waveMove2 {
+                    from {
+                        transform: translateX(-25%);
+                    }
+                    to {
+                        transform: translateX(-75%);
+                    }
+                }
+
+                .darkness-ambient-text {
+                    position: absolute;
+                    bottom: 40px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    color: rgba(200, 200, 220, 0.8);
+                    font-size: 18px;
+                    text-align: center;
+                    z-index: 10;
+                    opacity: 0;
+                    animation: textFadeIn 3s ease-in 2s forwards;
+                    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+                    max-width: 80%;
+                }
+
+                @keyframes textFadeIn {
+                    to {
+                        opacity: 1;
+                    }
+                }
+
+                @media (max-width: 768px) {
+                    .darkness-boat-container {
+                        max-width: 100%;
+                        bottom: 10%;
+                    }
+
+                    .darkness-ambient-text {
+                        font-size: 16px;
+                        bottom: 20px;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            container.innerHTML = `
+                <div class="darkness-experience">
+                    <!-- Dark sky -->
+                    <div class="darkness-sky"></div>
+
+                    <!-- Grey clouds -->
+                    <div class="darkness-cloud cloud-1"></div>
+                    <div class="darkness-cloud cloud-2"></div>
+                    <div class="darkness-cloud cloud-3"></div>
+
+                    <!-- Ocean -->
+                    <div class="darkness-ocean"></div>
+
+                    <!-- Water reflection effect -->
+                    <div class="darkness-water-reflection"></div>
+
+                    <!-- Animated waves -->
+                    <div class="darkness-waves">
+                        <div class="wave-layer wave-layer-1"></div>
+                        <div class="wave-layer wave-layer-2"></div>
+                    </div>
+
+                    <!-- Boat with oscillation -->
+                    <div class="darkness-boat-container">
+                        <img src="data/images/boatfront.webp"
+                             alt="Boat view"
+                             class="darkness-boat-image">
+                    </div>
+
+                    <!-- Ambient text -->
+                    <div class="darkness-ambient-text">
+                        Floating peacefully in the quiet darkness
+                    </div>
+                </div>
+            `;
+
+            addStyles();
+        },
+
+        start: function() {
+            isRunning = true;
+        },
+
+        dispose: function() {
+            isRunning = false;
+            container = null;
+        },
+
+        pause: function() {
+            isRunning = false;
+        },
+
+        resume: function() {
+            isRunning = true;
+        }
+    };
+}();
+
 var $jscomp=$jscomp||{};$jscomp.scope={};$jscomp.findInternal=function(d,m,g){d instanceof String&&(d=String(d));for(var k=d.length,q=0;q<k;q++){var c=d[q];if(m.call(g,c,q,d))return{i:q,v:c}}return{i:-1,v:void 0}};$jscomp.ASSUME_ES5=!1;$jscomp.ASSUME_NO_NATIVE_MAP=!1;$jscomp.ASSUME_NO_NATIVE_SET=!1;$jscomp.defineProperty=$jscomp.ASSUME_ES5||"function"==typeof Object.defineProperties?Object.defineProperty:function(d,m,g){d!=Array.prototype&&d!=Object.prototype&&(d[m]=g.value)};
 $jscomp.getGlobal=function(d){return"undefined"!=typeof window&&window===d?d:"undefined"!=typeof global&&null!=global?global:d};$jscomp.global=$jscomp.getGlobal(this);$jscomp.polyfill=function(d,m,g,k){if(m){g=$jscomp.global;d=d.split(".");for(k=0;k<d.length-1;k++){var q=d[k];q in g||(g[q]={});g=g[q]}d=d[d.length-1];k=g[d];m=m(k);m!=k&&null!=m&&$jscomp.defineProperty(g,d,{configurable:!0,writable:!0,value:m})}};
 $jscomp.polyfill("Array.prototype.find",function(d){return d?d:function(d,g){return $jscomp.findInternal(this,d,g).v}},"es6","es3");$jscomp.polyfill("Object.getOwnPropertySymbols",function(d){return d?d:function(){return[]}},"es6","es5");$jscomp.arrayIteratorImpl=function(d){var m=0;return function(){return m<d.length?{done:!1,value:d[m++]}:{done:!0}}};$jscomp.arrayIterator=function(d){return{next:$jscomp.arrayIteratorImpl(d)}};$jscomp.SYMBOL_PREFIX="jscomp_symbol_";
