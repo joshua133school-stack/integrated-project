@@ -1773,7 +1773,7 @@ var knifeSafety = knifeSafety || function() {
     };
 }();
 
-var darkness = darkness || function() {
+var Darkness = Darkness || function() {
     var container, isRunning = false;
 
     function addStyles() {
