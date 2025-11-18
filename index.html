@@ -129,10 +129,11 @@
     <script src="minify/minify.js?id=3"></script>
 
 <script>
-// Preload critical images on startup
-window.addEventListener('load', function() {
-    // List all your important images
-    [
+// Preload critical images immediately - don't wait for window.load
+// Store preloaded images in a global cache for instant access
+window.posterImageCache = {};
+(function() {
+    var imagesToPreload = [
         'data/poster/planehd_c.png',
         'data/poster/planehd.png',
         'data/poster/injectionhd_c.png',
@@ -141,13 +142,18 @@ window.addEventListener('load', function() {
         'data/poster/thunderhd.png',
         'data/poster/darknesshd_c.png',
         'data/poster/darknesshd.png',
-         'data/images/plane1.png',
-        // Add more images here as needed
-    ].forEach(src => {
-        const img = new Image();
+        'data/images/plane1.png'
+    ];
+
+    imagesToPreload.forEach(function(src) {
+        var img = new Image();
+        img.onload = function() {
+            window.posterImageCache[src] = img;
+            console.log('Preloaded:', src);
+        };
         img.src = src;
     });
-});
+})();
 </script>
     
     <script type="text/javascript">
