@@ -1,0 +1,83 @@
+/* Language Switcher Styles */
+#lang-switcher {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    gap: 10px;
+}
+
+#lang-switcher button {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-family: 'Crimson Text', serif;
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+#lang-switcher button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+#lang-switcher button.active {
+    background: rgba(255, 255, 255, 0.9);
+    color: #222;
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+/* Dark header variation */
+.header-black ~ #lang-switcher button {
+    background: rgba(34, 34, 34, 0.1);
+    border-color: rgba(34, 34, 34, 0.3);
+    color: #222;
+}
+
+.header-black ~ #lang-switcher button:hover {
+    background: rgba(34, 34, 34, 0.2);
+    border-color: rgba(34, 34, 34, 0.5);
+}
+
+.header-black ~ #lang-switcher button.active {
+    background: rgba(34, 34, 34, 0.9);
+    color: #fff;
+    border-color: rgba(34, 34, 34, 0.9);
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    #lang-switcher {
+        top: 15px;
+        right: 15px;
+        gap: 8px;
+    }
+
+    #lang-switcher button {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 480px) {
+    #lang-switcher {
+        top: 10px;
+        right: 10px;
+        gap: 6px;
+    }
+
+    #lang-switcher button {
+        padding: 5px 10px;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+    }
+}
