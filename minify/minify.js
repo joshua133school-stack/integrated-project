@@ -282,7 +282,6 @@ var thunderClass = thunderClass || function() {
     var imageElement1, imageElement2, activeImage = 1;
     var topEyelid, bottomEyelid, carouselCount = 0;
     var backgroundImg, handImg, mugImg;
-    var shakeIntervalHand = null, shakeIntervalMug = null;
     var phase = 'carousel'; // 'carousel' or 'scene'
 
     function addStyles() {
@@ -372,14 +371,12 @@ var thunderClass = thunderClass || function() {
                     left: 50%;
                     transform: translate(-50%, -50%);
                     z-index: 2;
-                    transition: transform 0.1s linear;
                 }
                 .thunder-scene-mug {
                     top: 50%;
                     left: 50%;
                     transform: translate(-50%, -50%);
                     z-index: 3;
-                    transition: transform 0.1s linear;
                 }
             `;
             document.head.appendChild(style);
@@ -396,48 +393,47 @@ var thunderClass = thunderClass || function() {
         bottomEyelid.classList.remove('closed');
     }
 
-    function getRandomOffset() {
-        return (Math.random() * 10 - 5); // Random between -5 and 5 pixels
-    }
+    var shakeTime = 0;
+    var shakeAnimationId = null;
 
-    function shakeHand() {
-        if (!handImg) return;
-        const offsetY = getRandomOffset();
-        handImg.style.transform = `translate(-50%, calc(-50% + ${offsetY}px))`;
-    }
+    function animateShake() {
+        if (!handImg || !mugImg || phase !== 'scene') return;
 
-    function shakeMug() {
-        if (!mugImg) return;
-        const offsetY = getRandomOffset();
-        mugImg.style.transform = `translate(-50%, calc(-50% + ${offsetY}px))`;
+        shakeTime += 0.05;
+
+        // Use multiple sine waves for natural, smooth trembling
+        // Combine different frequencies for more realistic shake
+        const baseShakeY = Math.sin(shakeTime * 3) * 3;
+        const microShakeY = Math.sin(shakeTime * 12) * 1;
+        const baseShakeX = Math.sin(shakeTime * 2.5) * 2;
+        const microShakeX = Math.sin(shakeTime * 10) * 0.8;
+
+        const handOffsetY = baseShakeY + microShakeY;
+        const handOffsetX = baseShakeX + microShakeX;
+
+        // Mug follows hand movement with slight additional wobble
+        const mugExtraY = Math.sin(shakeTime * 8) * 1.5;
+        const mugExtraX = Math.sin(shakeTime * 7) * 1;
+
+        const mugOffsetY = handOffsetY + mugExtraY;
+        const mugOffsetX = handOffsetX + mugExtraX;
+
+        // Apply smooth transforms
+        handImg.style.transform = `translate(calc(-50% + ${handOffsetX}px), calc(-50% + ${handOffsetY}px))`;
+        mugImg.style.transform = `translate(calc(-50% + ${mugOffsetX}px), calc(-50% + ${mugOffsetY}px))`;
+
+        shakeAnimationId = requestAnimationFrame(animateShake);
     }
 
     function startShaking() {
-        // Random intervals between 100ms and 400ms for more natural shaking
-        function scheduleNextHandShake() {
-            shakeHand();
-            const delay = Math.random() * 300 + 100;
-            shakeIntervalHand = setTimeout(scheduleNextHandShake, delay);
-        }
-
-        function scheduleNextMugShake() {
-            shakeMug();
-            const delay = Math.random() * 300 + 100;
-            shakeIntervalMug = setTimeout(scheduleNextMugShake, delay);
-        }
-
-        scheduleNextHandShake();
-        scheduleNextMugShake();
+        shakeTime = 0;
+        animateShake();
     }
 
     function stopShaking() {
-        if (shakeIntervalHand) {
-            clearTimeout(shakeIntervalHand);
-            shakeIntervalHand = null;
-        }
-        if (shakeIntervalMug) {
-            clearTimeout(shakeIntervalMug);
-            shakeIntervalMug = null;
+        if (shakeAnimationId) {
+            cancelAnimationFrame(shakeAnimationId);
+            shakeAnimationId = null;
         }
     }
 
