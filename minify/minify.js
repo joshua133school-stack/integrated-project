@@ -278,8 +278,12 @@ var airplane = airplane || function() {
 
 var thunderClass = thunderClass || function() {
     var container, currentImageIndex = 0, intervalId = null, isTransitioning = false;
-    var images = ['data/images/1.webp', 'data/images/2.webp', 'data/images/3.webp'];
+    var carouselImages = ['data/images/1.webp', 'data/images/2.webp', 'data/images/3.webp'];
     var imageElement1, imageElement2, activeImage = 1;
+    var topEyelid, bottomEyelid, carouselCount = 0;
+    var backgroundImg, handImg, mugImg;
+    var shakeIntervalHand = null, shakeIntervalMug = null;
+    var phase = 'carousel'; // 'carousel' or 'scene'
 
     function addStyles() {
         if (!document.getElementById('thunder-class-styles')) {
@@ -295,6 +299,11 @@ var thunderClass = thunderClass || function() {
                     display: flex;
                     align-items: center;
                     justify-content: center;
+                }
+                .thunder-class-carousel {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
                 }
                 .thunder-class-image {
                     max-width: 100%;
@@ -314,41 +323,203 @@ var thunderClass = thunderClass || function() {
                     z-index: 1;
                     opacity: 0;
                 }
+                .thunder-eyelid {
+                    position: absolute;
+                    left: 0;
+                    width: 100%;
+                    height: 50%;
+                    background: #000;
+                    z-index: 100;
+                    transition: transform 1.5s ease-in-out;
+                }
+                .thunder-eyelid-top {
+                    top: 0;
+                    transform: translateY(-100%);
+                }
+                .thunder-eyelid-top.closed {
+                    transform: translateY(0);
+                }
+                .thunder-eyelid-bottom {
+                    bottom: 0;
+                    transform: translateY(100%);
+                }
+                .thunder-eyelid-bottom.closed {
+                    transform: translateY(0);
+                }
+                .thunder-class-scene {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                    display: none;
+                }
+                .thunder-class-scene.active {
+                    display: block;
+                }
+                .thunder-scene-layer {
+                    position: absolute;
+                    max-width: 100%;
+                    max-height: 100%;
+                    object-fit: contain;
+                }
+                .thunder-scene-background {
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 1;
+                }
+                .thunder-scene-hand {
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 2;
+                    transition: transform 0.1s linear;
+                }
+                .thunder-scene-mug {
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    z-index: 3;
+                    transition: transform 0.1s linear;
+                }
             `;
             document.head.appendChild(style);
         }
     }
 
+    function closeEyes() {
+        topEyelid.classList.add('closed');
+        bottomEyelid.classList.add('closed');
+    }
+
+    function openEyes() {
+        topEyelid.classList.remove('closed');
+        bottomEyelid.classList.remove('closed');
+    }
+
+    function getRandomOffset() {
+        return (Math.random() * 10 - 5); // Random between -5 and 5 pixels
+    }
+
+    function shakeHand() {
+        if (!handImg) return;
+        const offsetY = getRandomOffset();
+        handImg.style.transform = `translate(-50%, calc(-50% + ${offsetY}px))`;
+    }
+
+    function shakeMug() {
+        if (!mugImg) return;
+        const offsetY = getRandomOffset();
+        mugImg.style.transform = `translate(-50%, calc(-50% + ${offsetY}px))`;
+    }
+
+    function startShaking() {
+        // Random intervals between 100ms and 400ms for more natural shaking
+        function scheduleNextHandShake() {
+            shakeHand();
+            const delay = Math.random() * 300 + 100;
+            shakeIntervalHand = setTimeout(scheduleNextHandShake, delay);
+        }
+
+        function scheduleNextMugShake() {
+            shakeMug();
+            const delay = Math.random() * 300 + 100;
+            shakeIntervalMug = setTimeout(scheduleNextMugShake, delay);
+        }
+
+        scheduleNextHandShake();
+        scheduleNextMugShake();
+    }
+
+    function stopShaking() {
+        if (shakeIntervalHand) {
+            clearTimeout(shakeIntervalHand);
+            shakeIntervalHand = null;
+        }
+        if (shakeIntervalMug) {
+            clearTimeout(shakeIntervalMug);
+            shakeIntervalMug = null;
+        }
+    }
+
+    function transitionToScene() {
+        phase = 'scene';
+        isTransitioning = true;
+
+        // Close eyes
+        closeEyes();
+
+        // Wait for eyes to close (1.5s), stay closed for 2s, then switch scene and open
+        setTimeout(() => {
+            // Hide carousel, show scene
+            const carousel = container.querySelector('.thunder-class-carousel');
+            const scene = container.querySelector('.thunder-class-scene');
+            carousel.style.display = 'none';
+            scene.classList.add('active');
+
+            // Wait a bit more with eyes closed
+            setTimeout(() => {
+                // Open eyes
+                openEyes();
+
+                // Start shaking after eyes open (wait for transition)
+                setTimeout(() => {
+                    startShaking();
+                    isTransitioning = false;
+                }, 1500);
+            }, 2000); // Eyes stay closed for 2 seconds
+        }, 1500); // Wait for eyes to close
+    }
+
     function changeImage() {
-        if (isTransitioning) return;
+        if (isTransitioning || phase !== 'carousel') return;
         isTransitioning = true;
 
         // Move to next image
-        currentImageIndex = (currentImageIndex + 1) % images.length;
+        currentImageIndex = (currentImageIndex + 1) % carouselImages.length;
+        carouselCount++;
 
-        // Determine which image element to update
+        // Check if we've shown all 3 images
+        if (carouselCount >= 3) {
+            // Stop the carousel
+            stopCarousel();
+
+            // Determine which image element to update one last time
+            if (activeImage === 1) {
+                imageElement2.src = carouselImages[currentImageIndex];
+                imageElement1.style.opacity = '0';
+                imageElement2.style.opacity = '1';
+            } else {
+                imageElement1.src = carouselImages[currentImageIndex];
+                imageElement2.style.opacity = '0';
+                imageElement1.style.opacity = '1';
+            }
+
+            // Wait for last image to fade in, then transition to scene
+            setTimeout(() => {
+                transitionToScene();
+            }, 1000 + 3000); // Wait 1s for fade + 3s to view last image
+            return;
+        }
+
+        // Regular carousel transition
         if (activeImage === 1) {
-            // Update image 2 (behind) and fade to it
-            imageElement2.src = images[currentImageIndex];
+            imageElement2.src = carouselImages[currentImageIndex];
             imageElement1.style.opacity = '0';
             imageElement2.style.opacity = '1';
             activeImage = 2;
         } else {
-            // Update image 1 (behind) and fade to it
-            imageElement1.src = images[currentImageIndex];
+            imageElement1.src = carouselImages[currentImageIndex];
             imageElement2.style.opacity = '0';
             imageElement1.style.opacity = '1';
             activeImage = 1;
         }
 
-        // Wait for transition to complete
         setTimeout(() => {
             isTransitioning = false;
-        }, 1000); // Match CSS transition time
+        }, 1000);
     }
 
     function startCarousel() {
-        // Change image every 5 seconds
         intervalId = setInterval(changeImage, 5000);
     }
 
@@ -364,8 +535,17 @@ var thunderClass = thunderClass || function() {
             container = parentElement;
             container.innerHTML = `
                 <div class="thunder-class-container">
-                    <img class="thunder-class-image thunder-class-image-1" src="${images[0]}" alt="Thunder Class Image">
-                    <img class="thunder-class-image thunder-class-image-2" src="${images[0]}" alt="Thunder Class Image">
+                    <div class="thunder-class-carousel">
+                        <img class="thunder-class-image thunder-class-image-1" src="${carouselImages[0]}" alt="Thunder Class Image">
+                        <img class="thunder-class-image thunder-class-image-2" src="${carouselImages[0]}" alt="Thunder Class Image">
+                    </div>
+                    <div class="thunder-class-scene">
+                        <img class="thunder-scene-layer thunder-scene-background" src="data/images/4.webp" alt="Background">
+                        <img class="thunder-scene-layer thunder-scene-hand" src="data/images/5.webp" alt="Hand">
+                        <img class="thunder-scene-layer thunder-scene-mug" src="data/images/6.webp" alt="Mug">
+                    </div>
+                    <div class="thunder-eyelid thunder-eyelid-top"></div>
+                    <div class="thunder-eyelid thunder-eyelid-bottom"></div>
                 </div>
             `;
 
@@ -373,10 +553,17 @@ var thunderClass = thunderClass || function() {
 
             imageElement1 = container.querySelector('.thunder-class-image-1');
             imageElement2 = container.querySelector('.thunder-class-image-2');
+            topEyelid = container.querySelector('.thunder-eyelid-top');
+            bottomEyelid = container.querySelector('.thunder-eyelid-bottom');
+            backgroundImg = container.querySelector('.thunder-scene-background');
+            handImg = container.querySelector('.thunder-scene-hand');
+            mugImg = container.querySelector('.thunder-scene-mug');
 
             currentImageIndex = 0;
             activeImage = 1;
             isTransitioning = false;
+            carouselCount = 0;
+            phase = 'carousel';
         },
 
         start: function() {
@@ -385,17 +572,28 @@ var thunderClass = thunderClass || function() {
 
         dispose: function() {
             stopCarousel();
+            stopShaking();
             container = null;
             imageElement1 = null;
             imageElement2 = null;
+            topEyelid = null;
+            bottomEyelid = null;
+            backgroundImg = null;
+            handImg = null;
+            mugImg = null;
         },
 
         pause: function() {
             stopCarousel();
+            stopShaking();
         },
 
         resume: function() {
-            startCarousel();
+            if (phase === 'carousel') {
+                startCarousel();
+            } else {
+                startShaking();
+            }
         }
     };
 }();
@@ -3370,7 +3568,7 @@ Y.appendChild(CMDetect.circleMask);N=document.getElementById("triangulation-guid
 {item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"plane",classfn:airplane,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"injection",classfn:injection,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:thunderClass,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:Darkness,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp","data/images/4.webp","data/images/5.webp","data/images/6.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:Darkness,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:OceanBioluminescent,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Ocean",date:"Fear of Oceans",img:"data/poster/ocean",itemcolor:"#259ab3",bgcolor:"#001a33",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:PlantTrees,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"circles",date:"Fear of Circles",img:"data/poster/circle",itemcolor:"#29a5c0",bgcolor:"#ddd",preload:["contents/rainingmen/rain.png"],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"ripples",classfn:RippleGreen,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
