@@ -474,32 +474,22 @@ var thunderClass = thunderClass || function() {
         if (isTransitioning || phase !== 'carousel') return;
         isTransitioning = true;
 
-        // Move to next image
-        currentImageIndex = (currentImageIndex + 1) % carouselImages.length;
         carouselCount++;
 
-        // Check if we've shown all 3 images
+        // Check if we've completed 3 transitions (showing all 3 images)
         if (carouselCount >= 3) {
             // Stop the carousel
             stopCarousel();
 
-            // Determine which image element to update one last time
-            if (activeImage === 1) {
-                imageElement2.src = carouselImages[currentImageIndex];
-                imageElement1.style.opacity = '0';
-                imageElement2.style.opacity = '1';
-            } else {
-                imageElement1.src = carouselImages[currentImageIndex];
-                imageElement2.style.opacity = '0';
-                imageElement1.style.opacity = '1';
-            }
-
-            // Wait for last image to fade in, then transition to scene
+            // Wait for current image to be viewed, then transition to scene
             setTimeout(() => {
                 transitionToScene();
-            }, 1000 + 3000); // Wait 1s for fade + 3s to view last image
+            }, 3000); // Wait 3s to view last image
             return;
         }
+
+        // Move to next image
+        currentImageIndex = (currentImageIndex + 1) % carouselImages.length;
 
         // Regular carousel transition
         if (activeImage === 1) {
