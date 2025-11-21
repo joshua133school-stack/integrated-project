@@ -1,0 +1,52 @@
+{
+  "header": {
+    "title": "oasis"
+  },
+  "about": {
+    "title": "Oasis",
+    "heading": "Oasis",
+    "description": "The <strong>oasis</strong> project is a collection of \"interactive experiences\", each experience has its own unique design and functionality. The project intends to help alleviate symptoms and reduce reactions of specific phobias on the website, with each interactive experience represented by a poster. By clicking on a poster, an interactive experience opens up specialized to a certain type of phobia.",
+    "contact": "If you want to contact me check out my",
+    "website": "website",
+    "copyright": "Copyright © 2025 cute centipede . All rights reserved.",
+    "kmla": "This is a KMLA project"
+  },
+  "footer": {
+    "about": "about oasis",
+    "screensaver": "screen saver",
+    "share": "share",
+    "shareToSns": "share to sns",
+    "fullscreen": "fullscreen",
+    "exitFullscreen": "exit fullscreen",
+    "touch": "about oasis"
+  },
+  "share": {
+    "facebook": "facebook",
+    "twitter": "twitter",
+    "googlePlus": "google plus",
+    "pinterest": "pinterest",
+    "tumblr": "tumblr"
+  },
+  "injection": {
+    "button": "Start Injection Simulation",
+    "injecting": "Injecting...",
+    "depth": "mm",
+    "checkmark": "✓"
+  },
+  "knife": {
+    "dropAgain": "Drop Again",
+    "successMessage": "✓ The knife landed safely on its back!",
+    "successDescription": "This demonstrates that knives don't always fall point-first. The flat surface provides stability.",
+    "text": "Drop the knife and see how it lands"
+  },
+  "screensaver": {
+    "forMac": "FOR MACINTOSH",
+    "forWin": "FOR WINDOWS",
+    "flashRequired": "You need Adobe Flash Player 10.1 or higher to install this screensaver.",
+    "getFlash": "Adobe Flash Player"
+  },
+  "common": {
+    "loading": "Loading...",
+    "close": "Close"
+  }
+}

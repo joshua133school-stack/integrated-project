@@ -1,0 +1,52 @@
+{
+  "header": {
+    "title": "오아시스"
+  },
+  "about": {
+    "title": "오아시스",
+    "heading": "오아시스",
+    "description": "<strong>오아시스</strong> 프로젝트는 \"대화형 경험\"의 모음으로, 각 경험은 고유한 디자인과 기능을 가지고 있습니다. 이 프로젝트는 웹사이트에서 특정 공포증의 증상을 완화하고 반응을 줄이는 데 도움을 주기 위한 것이며, 각 대화형 경험은 포스터로 표현됩니다. 포스터를 클릭하면 특정 공포증에 특화된 대화형 경험이 열립니다.",
+    "contact": "연락을 원하시면 제",
+    "website": "웹사이트",
+    "copyright": "저작권 © 2025 cute centipede . 모든 권리 보유.",
+    "kmla": "민족사관고등학교 프로젝트입니다"
+  },
+  "footer": {
+    "about": "오아시스 소개",
+    "screensaver": "화면 보호기",
+    "share": "공유",
+    "shareToSns": "SNS에 공유",
+    "fullscreen": "전체 화면",
+    "exitFullscreen": "전체 화면 종료",
+    "touch": "오아시스 소개"
+  },
+  "share": {
+    "facebook": "페이스북",
+    "twitter": "트위터",
+    "googlePlus": "구글 플러스",
+    "pinterest": "핀터레스트",
+    "tumblr": "텀블러"
+  },
+  "injection": {
+    "button": "주사 시뮬레이션 시작",
+    "injecting": "주사 중...",
+    "depth": "mm",
+    "checkmark": "✓"
+  },
+  "knife": {
+    "dropAgain": "다시 떨어뜨리기",
+    "successMessage": "✓ 칼이 안전하게 뒷면으로 떨어졌습니다!",
+    "successDescription": "칼이 항상 끝이 뾰족한 쪽으로 떨어지지 않는다는 것을 보여줍니다. 평평한 표면이 안정성을 제공합니다.",
+    "text": "칼을 떨어뜨려 어떻게 떨어지는지 확인하세요"
+  },
+  "screensaver": {
+    "forMac": "매킨토시용",
+    "forWin": "윈도우용",
+    "flashRequired": "이 화면 보호기를 설치하려면 Adobe Flash Player 10.1 이상이 필요합니다.",
+    "getFlash": "Adobe Flash Player"
+  },
+  "common": {
+    "loading": "로딩 중...",
+    "close": "닫기"
+  }
+}
