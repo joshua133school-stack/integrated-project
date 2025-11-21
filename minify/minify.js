@@ -276,6 +276,146 @@ var airplane = airplane || function() {
     };
 }();
 
+var thunderClass = thunderClass || function() {
+    var container, currentImageIndex = 0, intervalId = null, isTransitioning = false;
+    var images = ['data/images/1.webp', 'data/images/2.webp', 'data/images/3.webp'];
+    var topCurtain, bottomCurtain, imageElement;
+
+    function addStyles() {
+        if (!document.getElementById('thunder-class-styles')) {
+            const style = document.createElement('style');
+            style.id = 'thunder-class-styles';
+            style.innerHTML = `
+                .thunder-class-container {
+                    width: 100%;
+                    height: 100%;
+                    position: relative;
+                    overflow: hidden;
+                    background: #000;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .thunder-class-image {
+                    max-width: 100%;
+                    max-height: 100%;
+                    object-fit: contain;
+                    position: relative;
+                    z-index: 1;
+                }
+                .thunder-curtain {
+                    position: absolute;
+                    left: 0;
+                    width: 100%;
+                    height: 50%;
+                    background: #000;
+                    z-index: 10;
+                    transition: transform 0.8s ease-in-out;
+                }
+                .thunder-curtain-top {
+                    top: 0;
+                    transform: translateY(-100%);
+                }
+                .thunder-curtain-top.active {
+                    transform: translateY(0);
+                }
+                .thunder-curtain-bottom {
+                    bottom: 0;
+                    transform: translateY(100%);
+                }
+                .thunder-curtain-bottom.active {
+                    transform: translateY(0);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    function showCurtains() {
+        topCurtain.classList.add('active');
+        bottomCurtain.classList.add('active');
+    }
+
+    function hideCurtains() {
+        topCurtain.classList.remove('active');
+        bottomCurtain.classList.remove('active');
+    }
+
+    function changeImage() {
+        if (isTransitioning) return;
+        isTransitioning = true;
+
+        // Show curtains (cover the screen)
+        showCurtains();
+
+        // Wait for curtains to cover, then change image
+        setTimeout(() => {
+            currentImageIndex = (currentImageIndex + 1) % images.length;
+            imageElement.src = images[currentImageIndex];
+
+            // Wait a bit, then hide curtains
+            setTimeout(() => {
+                hideCurtains();
+                isTransitioning = false;
+            }, 100);
+        }, 800); // Match curtain transition time
+    }
+
+    function startCarousel() {
+        // Change image every 5 seconds (5000ms) + transition time
+        intervalId = setInterval(changeImage, 5000);
+    }
+
+    function stopCarousel() {
+        if (intervalId) {
+            clearInterval(intervalId);
+            intervalId = null;
+        }
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            container.innerHTML = `
+                <div class="thunder-class-container">
+                    <img class="thunder-class-image" src="${images[0]}" alt="Thunder Class Image">
+                    <div class="thunder-curtain thunder-curtain-top"></div>
+                    <div class="thunder-curtain thunder-curtain-bottom"></div>
+                </div>
+            `;
+
+            addStyles();
+
+            imageElement = container.querySelector('.thunder-class-image');
+            topCurtain = container.querySelector('.thunder-curtain-top');
+            bottomCurtain = container.querySelector('.thunder-curtain-bottom');
+
+            currentImageIndex = 0;
+            isTransitioning = false;
+        },
+
+        start: function() {
+            startCarousel();
+        },
+
+        dispose: function() {
+            stopCarousel();
+            container = null;
+            imageElement = null;
+            topCurtain = null;
+            bottomCurtain = null;
+        },
+
+        pause: function() {
+            stopCarousel();
+        },
+
+        resume: function() {
+            startCarousel();
+        }
+    };
+}();
+
 var injection = injection || function() {
     var container, currentStep = 0, mosaicRemoved = false, mosaicRemoved2 = false, pixelationLevel = 40, pixelationLevel2 = 40, fadeInterval = null, fadeInterval2 = null, canvas, ctx, sourceImage, canvas2, ctx2, sourceImage2;
 
@@ -3245,8 +3385,8 @@ Y.appendChild(CMDetect.circleMask);N=document.getElementById("triangulation-guid
 0;c<d;c++)b[c]='<img src="'+a[c]+'">';a=b.join("");q.innerHTML=a;var f=$(q).imagesLoaded();f.always(function(){q.innerHTML="";f=null;CircleAniamtion.loaded()})}else CircleAniamtion.loaded()}var g={configArr:null,screensaverArr:null,total:0,screensaverTotal:0,isWhite:0,imgArr:null,screensaverID:null,sectionID:null},k,q,c=[{item:{id:"sheeps",mac:"data/screensaver/fffsheeps_mac_1.0.zip",win:"data/screensaver/fffsheeps_win_1.0.zip"}},{item:{id:"scream",mac:"data/screensaver/fffscream_mac_1.0.zip",win:"data/screensaver/fffscream_win_1.0.zip"}},
 {item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"plane",classfn:airplane,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"injection",classfn:injection,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:ColorPixelated,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#0074b0",preload:[],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:Darkness,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:thunderClass,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:Darkness,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:OceanBioluminescent,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Ocean",date:"Fear of Oceans",img:"data/poster/ocean",itemcolor:"#259ab3",bgcolor:"#001a33",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:PlantTrees,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"circles",date:"Fear of Circles",img:"data/poster/circle",itemcolor:"#29a5c0",bgcolor:"#ddd",preload:["contents/rainingmen/rain.png"],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"ripples",classfn:RippleGreen,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
