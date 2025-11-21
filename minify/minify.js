@@ -279,7 +279,7 @@ var airplane = airplane || function() {
 var thunderClass = thunderClass || function() {
     var container, currentImageIndex = 0, intervalId = null, isTransitioning = false;
     var images = ['data/images/1.webp', 'data/images/2.webp', 'data/images/3.webp'];
-    var topCurtain, bottomCurtain, imageElement;
+    var imageElement1, imageElement2, activeImage = 1;
 
     function addStyles() {
         if (!document.getElementById('thunder-class-styles')) {
@@ -300,69 +300,55 @@ var thunderClass = thunderClass || function() {
                     max-width: 100%;
                     max-height: 100%;
                     object-fit: contain;
-                    position: relative;
-                    z-index: 1;
-                }
-                .thunder-curtain {
                     position: absolute;
-                    left: 0;
-                    width: 100%;
-                    height: 50%;
-                    background: #000;
-                    z-index: 10;
-                    transition: transform 0.8s ease-in-out;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    transition: opacity 1s ease-in-out;
                 }
-                .thunder-curtain-top {
-                    top: 0;
-                    transform: translateY(-100%);
+                .thunder-class-image-1 {
+                    z-index: 2;
+                    opacity: 1;
                 }
-                .thunder-curtain-top.active {
-                    transform: translateY(0);
-                }
-                .thunder-curtain-bottom {
-                    bottom: 0;
-                    transform: translateY(100%);
-                }
-                .thunder-curtain-bottom.active {
-                    transform: translateY(0);
+                .thunder-class-image-2 {
+                    z-index: 1;
+                    opacity: 0;
                 }
             `;
             document.head.appendChild(style);
         }
     }
 
-    function showCurtains() {
-        topCurtain.classList.add('active');
-        bottomCurtain.classList.add('active');
-    }
-
-    function hideCurtains() {
-        topCurtain.classList.remove('active');
-        bottomCurtain.classList.remove('active');
-    }
-
     function changeImage() {
         if (isTransitioning) return;
         isTransitioning = true;
 
-        // Show curtains (cover the screen)
-        showCurtains();
+        // Move to next image
+        currentImageIndex = (currentImageIndex + 1) % images.length;
 
-        // Wait for curtains to cover, then change image
+        // Determine which image element to update
+        if (activeImage === 1) {
+            // Update image 2 (behind) and fade to it
+            imageElement2.src = images[currentImageIndex];
+            imageElement1.style.opacity = '0';
+            imageElement2.style.opacity = '1';
+            activeImage = 2;
+        } else {
+            // Update image 1 (behind) and fade to it
+            imageElement1.src = images[currentImageIndex];
+            imageElement2.style.opacity = '0';
+            imageElement1.style.opacity = '1';
+            activeImage = 1;
+        }
+
+        // Wait for transition to complete
         setTimeout(() => {
-            currentImageIndex = (currentImageIndex + 1) % images.length;
-            imageElement.src = images[currentImageIndex];
-
-            // Wait a bit, then hide curtains
-            setTimeout(() => {
-                hideCurtains();
-                isTransitioning = false;
-            }, 100);
-        }, 800); // Match curtain transition time
+            isTransitioning = false;
+        }, 1000); // Match CSS transition time
     }
 
     function startCarousel() {
-        // Change image every 5 seconds (5000ms) + transition time
+        // Change image every 5 seconds
         intervalId = setInterval(changeImage, 5000);
     }
 
@@ -378,19 +364,18 @@ var thunderClass = thunderClass || function() {
             container = parentElement;
             container.innerHTML = `
                 <div class="thunder-class-container">
-                    <img class="thunder-class-image" src="${images[0]}" alt="Thunder Class Image">
-                    <div class="thunder-curtain thunder-curtain-top"></div>
-                    <div class="thunder-curtain thunder-curtain-bottom"></div>
+                    <img class="thunder-class-image thunder-class-image-1" src="${images[0]}" alt="Thunder Class Image">
+                    <img class="thunder-class-image thunder-class-image-2" src="${images[0]}" alt="Thunder Class Image">
                 </div>
             `;
 
             addStyles();
 
-            imageElement = container.querySelector('.thunder-class-image');
-            topCurtain = container.querySelector('.thunder-curtain-top');
-            bottomCurtain = container.querySelector('.thunder-curtain-bottom');
+            imageElement1 = container.querySelector('.thunder-class-image-1');
+            imageElement2 = container.querySelector('.thunder-class-image-2');
 
             currentImageIndex = 0;
+            activeImage = 1;
             isTransitioning = false;
         },
 
@@ -401,9 +386,8 @@ var thunderClass = thunderClass || function() {
         dispose: function() {
             stopCarousel();
             container = null;
-            imageElement = null;
-            topCurtain = null;
-            bottomCurtain = null;
+            imageElement1 = null;
+            imageElement2 = null;
         },
 
         pause: function() {
