@@ -283,6 +283,7 @@ var thunderClass = thunderClass || function() {
     var topEyelid, bottomEyelid, carouselCount = 0;
     var backgroundImg, handImg, mugImg;
     var phase = 'carousel'; // 'carousel' or 'scene'
+    var rainCanvas, rainCtx, rainDrops = [], rainAnimationId = null;
 
     function addStyles() {
         if (!document.getElementById('thunder-class-styles')) {
@@ -321,6 +322,20 @@ var thunderClass = thunderClass || function() {
                 .thunder-class-image-2 {
                     z-index: 1;
                     opacity: 0;
+                }
+                .thunder-rain-canvas {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 5;
+                    pointer-events: none;
+                    opacity: 0;
+                    transition: opacity 0.5s ease-in-out;
+                }
+                .thunder-rain-canvas.active {
+                    opacity: 1;
                 }
                 .thunder-eyelid {
                     position: absolute;
@@ -393,6 +408,72 @@ var thunderClass = thunderClass || function() {
         bottomEyelid.classList.remove('closed');
     }
 
+    // Rain effect functions
+    function createRainDrops() {
+        rainDrops = [];
+        const numDrops = 150;
+        for (let i = 0; i < numDrops; i++) {
+            rainDrops.push({
+                x: Math.random() * rainCanvas.width,
+                y: Math.random() * rainCanvas.height,
+                length: Math.random() * 20 + 10,
+                speed: Math.random() * 3 + 4,
+                opacity: Math.random() * 0.3 + 0.3
+            });
+        }
+    }
+
+    function animateRain() {
+        if (!rainCtx || phase !== 'carousel') return;
+
+        rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+
+        rainDrops.forEach(drop => {
+            rainCtx.beginPath();
+            rainCtx.moveTo(drop.x, drop.y);
+            rainCtx.lineTo(drop.x - 2, drop.y + drop.length);
+            rainCtx.strokeStyle = `rgba(174, 194, 224, ${drop.opacity})`;
+            rainCtx.lineWidth = 1;
+            rainCtx.stroke();
+
+            drop.y += drop.speed;
+
+            if (drop.y > rainCanvas.height) {
+                drop.y = -drop.length;
+                drop.x = Math.random() * rainCanvas.width;
+            }
+        });
+
+        rainAnimationId = requestAnimationFrame(animateRain);
+    }
+
+    function startRain() {
+        if (!rainCanvas) return;
+        rainCanvas.classList.add('active');
+        createRainDrops();
+        animateRain();
+    }
+
+    function stopRain() {
+        if (rainCanvas) {
+            rainCanvas.classList.remove('active');
+        }
+        if (rainAnimationId) {
+            cancelAnimationFrame(rainAnimationId);
+            rainAnimationId = null;
+        }
+        rainDrops = [];
+    }
+
+    function resizeRainCanvas() {
+        if (!rainCanvas) return;
+        rainCanvas.width = rainCanvas.offsetWidth;
+        rainCanvas.height = rainCanvas.offsetHeight;
+        if (currentImageIndex === 2 && phase === 'carousel') {
+            createRainDrops();
+        }
+    }
+
     var shakeTime = 0;
     var shakeAnimationId = null;
 
@@ -440,6 +521,9 @@ var thunderClass = thunderClass || function() {
     function transitionToScene() {
         phase = 'scene';
         isTransitioning = true;
+
+        // Stop rain before closing eyes
+        stopRain();
 
         // Close eyes
         closeEyes();
@@ -500,6 +584,15 @@ var thunderClass = thunderClass || function() {
             activeImage = 1;
         }
 
+        // Start rain when showing image 3 (index 2)
+        setTimeout(() => {
+            if (currentImageIndex === 2) {
+                startRain();
+            } else {
+                stopRain();
+            }
+        }, 1000); // Wait for fade transition to complete
+
         setTimeout(() => {
             isTransitioning = false;
         }, 1000);
@@ -524,6 +617,7 @@ var thunderClass = thunderClass || function() {
                     <div class="thunder-class-carousel">
                         <img class="thunder-class-image thunder-class-image-1" src="${carouselImages[0]}" alt="Thunder Class Image">
                         <img class="thunder-class-image thunder-class-image-2" src="${carouselImages[0]}" alt="Thunder Class Image">
+                        <canvas class="thunder-rain-canvas"></canvas>
                     </div>
                     <div class="thunder-class-scene">
                         <img class="thunder-scene-layer thunder-scene-background" src="data/images/4.webp" alt="Background">
@@ -545,6 +639,10 @@ var thunderClass = thunderClass || function() {
             handImg = container.querySelector('.thunder-scene-hand');
             mugImg = container.querySelector('.thunder-scene-mug');
 
+            rainCanvas = container.querySelector('.thunder-rain-canvas');
+            rainCtx = rainCanvas.getContext('2d');
+            resizeRainCanvas();
+
             currentImageIndex = 0;
             activeImage = 1;
             isTransitioning = false;
@@ -559,6 +657,7 @@ var thunderClass = thunderClass || function() {
         dispose: function() {
             stopCarousel();
             stopShaking();
+            stopRain();
             container = null;
             imageElement1 = null;
             imageElement2 = null;
@@ -567,16 +666,22 @@ var thunderClass = thunderClass || function() {
             backgroundImg = null;
             handImg = null;
             mugImg = null;
+            rainCanvas = null;
+            rainCtx = null;
         },
 
         pause: function() {
             stopCarousel();
             stopShaking();
+            stopRain();
         },
 
         resume: function() {
             if (phase === 'carousel') {
                 startCarousel();
+                if (currentImageIndex === 2) {
+                    startRain();
+                }
             } else {
                 startShaking();
             }
