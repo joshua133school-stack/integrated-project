@@ -121,7 +121,7 @@ var airplane = airplane || function() {
                     display: flex;
                     justify-content: center;
                     align-items: center;
-                    background: #000;
+                    background: linear-gradient(to bottom, #001428 0%, #003560 100%);
                     animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
                 }
 
@@ -145,11 +145,13 @@ var airplane = airplane || function() {
                     width: auto;
                     height: auto;
                     object-fit: contain;
-                    transition: transform 0.3s ease;
+                    transition: transform 0.3s ease, filter 0.3s ease;
+                    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
                 }
 
                 .airplane-intro-screen:hover .airplane-intro-image {
-                    transform: scale(1.02);
+                    transform: scale(1.05);
+                    filter: drop-shadow(0 15px 40px rgba(0, 0, 0, 0.7)) brightness(1.1);
                 }
 
                 .airplane-play-overlay {
@@ -226,12 +228,9 @@ var airplane = airplane || function() {
             container.innerHTML = `
                 <div class="airplane-experience">
                     <div class="airplane-intro-screen">
-                        <img src="data/images/plane1.png"
+                        <img src="data/images/plane1.webp"
                              class="airplane-intro-image"
-                             alt="Click to watch airplane therapy video">
-                        <div class="airplane-play-overlay">
-                            <div class="airplane-play-triangle"></div>
-                        </div>
+                             alt="Click on the plane to watch video">
                     </div>
                 </div>
             `;
