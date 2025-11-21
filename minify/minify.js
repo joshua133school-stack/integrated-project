@@ -303,7 +303,9 @@ var thunderClass = thunderClass || function() {
                 .thunder-class-carousel {
                     width: 100%;
                     height: 100%;
-                    position: relative;
+                    position: absolute;
+                    top: 0;
+                    left: 0;
                 }
                 .thunder-class-image {
                     max-width: 100%;
@@ -314,13 +316,12 @@ var thunderClass = thunderClass || function() {
                     left: 50%;
                     transform: translate(-50%, -50%);
                     transition: opacity 1s ease-in-out;
+                    z-index: 1;
                 }
                 .thunder-class-image-1 {
-                    z-index: 2;
                     opacity: 1;
                 }
                 .thunder-class-image-2 {
-                    z-index: 1;
                     opacity: 0;
                 }
                 .thunder-rain-canvas {
@@ -329,7 +330,7 @@ var thunderClass = thunderClass || function() {
                     left: 0;
                     width: 100%;
                     height: 100%;
-                    z-index: 5;
+                    z-index: 10;
                     pointer-events: none;
                     opacity: 0;
                     transition: opacity 0.5s ease-in-out;
@@ -410,30 +411,31 @@ var thunderClass = thunderClass || function() {
 
     // Rain effect functions
     function createRainDrops() {
+        if (!rainCanvas) return;
         rainDrops = [];
-        const numDrops = 150;
+        const numDrops = 200;
         for (let i = 0; i < numDrops; i++) {
             rainDrops.push({
                 x: Math.random() * rainCanvas.width,
-                y: Math.random() * rainCanvas.height,
-                length: Math.random() * 20 + 10,
-                speed: Math.random() * 3 + 4,
-                opacity: Math.random() * 0.3 + 0.3
+                y: Math.random() * rainCanvas.height - rainCanvas.height,
+                length: Math.random() * 20 + 15,
+                speed: Math.random() * 5 + 5,
+                opacity: Math.random() * 0.4 + 0.4
             });
         }
     }
 
     function animateRain() {
-        if (!rainCtx || phase !== 'carousel') return;
+        if (!rainCtx || !rainCanvas || phase !== 'carousel') return;
 
         rainCtx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
 
         rainDrops.forEach(drop => {
             rainCtx.beginPath();
             rainCtx.moveTo(drop.x, drop.y);
-            rainCtx.lineTo(drop.x - 2, drop.y + drop.length);
-            rainCtx.strokeStyle = `rgba(174, 194, 224, ${drop.opacity})`;
-            rainCtx.lineWidth = 1;
+            rainCtx.lineTo(drop.x - 3, drop.y + drop.length);
+            rainCtx.strokeStyle = `rgba(200, 220, 255, ${drop.opacity})`;
+            rainCtx.lineWidth = 2;
             rainCtx.stroke();
 
             drop.y += drop.speed;
@@ -466,10 +468,16 @@ var thunderClass = thunderClass || function() {
     }
 
     function resizeRainCanvas() {
-        if (!rainCanvas) return;
-        rainCanvas.width = rainCanvas.offsetWidth;
-        rainCanvas.height = rainCanvas.offsetHeight;
-        if (currentImageIndex === 2 && phase === 'carousel') {
+        if (!rainCanvas || !container) return;
+        const containerEl = container.querySelector('.thunder-class-container');
+        if (containerEl) {
+            rainCanvas.width = containerEl.offsetWidth;
+            rainCanvas.height = containerEl.offsetHeight;
+        } else {
+            rainCanvas.width = window.innerWidth;
+            rainCanvas.height = window.innerHeight;
+        }
+        if (currentImageIndex === 2 && phase === 'carousel' && rainDrops.length > 0) {
             createRainDrops();
         }
     }
@@ -617,8 +625,8 @@ var thunderClass = thunderClass || function() {
                     <div class="thunder-class-carousel">
                         <img class="thunder-class-image thunder-class-image-1" src="${carouselImages[0]}" alt="Thunder Class Image">
                         <img class="thunder-class-image thunder-class-image-2" src="${carouselImages[0]}" alt="Thunder Class Image">
-                        <canvas class="thunder-rain-canvas"></canvas>
                     </div>
+                    <canvas class="thunder-rain-canvas"></canvas>
                     <div class="thunder-class-scene">
                         <img class="thunder-scene-layer thunder-scene-background" src="data/images/4.webp" alt="Background">
                         <img class="thunder-scene-layer thunder-scene-hand" src="data/images/5.webp" alt="Hand">
@@ -641,7 +649,11 @@ var thunderClass = thunderClass || function() {
 
             rainCanvas = container.querySelector('.thunder-rain-canvas');
             rainCtx = rainCanvas.getContext('2d');
-            resizeRainCanvas();
+
+            // Set canvas dimensions after a brief delay to ensure container is rendered
+            setTimeout(() => {
+                resizeRainCanvas();
+            }, 100);
 
             currentImageIndex = 0;
             activeImage = 1;
