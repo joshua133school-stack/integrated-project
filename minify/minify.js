@@ -1,3 +1,521 @@
+var cardboardVR = cardboardVR || function() {
+    var container, videoElement, vrContainer, isPlaying = false;
+    var alpha = 0, beta = 0, gamma = 0;
+    var orientationHandler = null;
+    var animationFrameId = null;
+    var videoCanvas, canvasCtx;
+    var isVRMode = false;
+
+    function setupEventListeners() {
+        const introScreen = container.querySelector('.cardboard-vr-intro-screen');
+        introScreen.addEventListener('click', () => {
+            startVRExperience();
+        });
+    }
+
+    function startVRExperience() {
+        // Create VR container
+        vrContainer = document.createElement('div');
+        vrContainer.className = 'cardboard-vr-container';
+        vrContainer.innerHTML = `
+            <div class="cardboard-vr-viewer">
+                <div class="cardboard-vr-left-eye">
+                    <canvas class="cardboard-vr-canvas-left"></canvas>
+                </div>
+                <div class="cardboard-vr-divider"></div>
+                <div class="cardboard-vr-right-eye">
+                    <canvas class="cardboard-vr-canvas-right"></canvas>
+                </div>
+            </div>
+            <video class="cardboard-vr-video" loop playsinline muted>
+                <source src="data/videos/vr_video.mp4" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div class="cardboard-vr-controls">
+                <button class="cardboard-vr-exit-btn">Exit VR</button>
+            </div>
+            <div class="cardboard-vr-instructions">
+                <p>Place phone in Cardboard VR headset</p>
+                <p>Tap to start • Look around to explore</p>
+            </div>
+        `;
+
+        document.body.appendChild(vrContainer);
+
+        setTimeout(() => {
+            setupVRVideo();
+            requestFullscreenLandscape();
+            startDeviceOrientation();
+        }, 100);
+    }
+
+    function setupVRVideo() {
+        videoElement = vrContainer.querySelector('.cardboard-vr-video');
+        const leftCanvas = vrContainer.querySelector('.cardboard-vr-canvas-left');
+        const rightCanvas = vrContainer.querySelector('.cardboard-vr-canvas-right');
+
+        // Setup canvases for stereo rendering
+        const setCanvasSize = () => {
+            const w = window.innerWidth / 2;
+            const h = window.innerHeight;
+            leftCanvas.width = w;
+            leftCanvas.height = h;
+            rightCanvas.width = w;
+            rightCanvas.height = h;
+        };
+        setCanvasSize();
+        window.addEventListener('resize', setCanvasSize);
+
+        const leftCtx = leftCanvas.getContext('2d');
+        const rightCtx = rightCanvas.getContext('2d');
+
+        // Play video on user interaction
+        vrContainer.addEventListener('click', function playHandler() {
+            if (videoElement.paused) {
+                videoElement.play().then(() => {
+                    isPlaying = true;
+                    hideInstructions();
+                }).catch(err => console.log('Video play failed:', err));
+            }
+        });
+
+        // Exit button handler
+        const exitBtn = vrContainer.querySelector('.cardboard-vr-exit-btn');
+        exitBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            exitVRMode();
+        });
+
+        // Render loop for stereo view
+        function renderStereo() {
+            if (!isVRMode) return;
+
+            if (videoElement && !videoElement.paused && !videoElement.ended) {
+                const vw = videoElement.videoWidth;
+                const vh = videoElement.videoHeight;
+
+                if (vw && vh) {
+                    // Calculate offset based on device orientation for pan effect
+                    const panX = (gamma / 90) * vw * 0.3;
+                    const panY = (beta / 90) * vh * 0.3;
+
+                    // Draw to left eye (slight offset for 3D effect)
+                    drawEyeView(leftCtx, leftCanvas, -panX - 10, panY);
+                    // Draw to right eye (slight offset for 3D effect)
+                    drawEyeView(rightCtx, rightCanvas, -panX + 10, panY);
+                }
+            }
+
+            animationFrameId = requestAnimationFrame(renderStereo);
+        }
+
+        function drawEyeView(ctx, canvas, offsetX, offsetY) {
+            const vw = videoElement.videoWidth;
+            const vh = videoElement.videoHeight;
+            const cw = canvas.width;
+            const ch = canvas.height;
+
+            // Calculate aspect-ratio-preserving dimensions
+            const videoAspect = vw / vh;
+            const canvasAspect = cw / ch;
+
+            let drawWidth, drawHeight, drawX, drawY;
+
+            if (videoAspect > canvasAspect) {
+                drawHeight = ch;
+                drawWidth = ch * videoAspect;
+            } else {
+                drawWidth = cw;
+                drawHeight = cw / videoAspect;
+            }
+
+            drawX = (cw - drawWidth) / 2 + offsetX;
+            drawY = (ch - drawHeight) / 2 + offsetY;
+
+            // Apply barrel distortion effect for cardboard lens correction
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, cw, ch);
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.arc(cw/2, ch/2, Math.min(cw, ch) * 0.48, 0, Math.PI * 2);
+            ctx.clip();
+            ctx.drawImage(videoElement, drawX, drawY, drawWidth, drawHeight);
+            ctx.restore();
+        }
+
+        isVRMode = true;
+        renderStereo();
+    }
+
+    function hideInstructions() {
+        const instructions = vrContainer.querySelector('.cardboard-vr-instructions');
+        if (instructions) {
+            instructions.style.opacity = '0';
+            setTimeout(() => {
+                instructions.style.display = 'none';
+            }, 500);
+        }
+    }
+
+    function startDeviceOrientation() {
+        // Request permission for iOS 13+
+        if (typeof DeviceOrientationEvent !== 'undefined' &&
+            typeof DeviceOrientationEvent.requestPermission === 'function') {
+            DeviceOrientationEvent.requestPermission()
+                .then(permission => {
+                    if (permission === 'granted') {
+                        addOrientationListener();
+                    }
+                })
+                .catch(console.error);
+        } else {
+            addOrientationListener();
+        }
+    }
+
+    function addOrientationListener() {
+        orientationHandler = function(event) {
+            alpha = event.alpha || 0; // Z-axis rotation (compass direction)
+            beta = event.beta || 0;   // X-axis rotation (front-back tilt)
+            gamma = event.gamma || 0; // Y-axis rotation (left-right tilt)
+        };
+        window.addEventListener('deviceorientation', orientationHandler);
+    }
+
+    function requestFullscreenLandscape() {
+        const elem = vrContainer;
+
+        // Request fullscreen
+        if (elem.requestFullscreen) {
+            elem.requestFullscreen().catch(err => console.log('Fullscreen failed:', err));
+        } else if (elem.webkitRequestFullscreen) {
+            elem.webkitRequestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+            elem.mozRequestFullScreen();
+        } else if (elem.msRequestFullscreen) {
+            elem.msRequestFullscreen();
+        }
+
+        // Lock to landscape if supported
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(err => {
+                console.log('Orientation lock not supported:', err);
+            });
+        }
+
+        // Handle fullscreen exit
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    }
+
+    function handleFullscreenChange() {
+        if (!document.fullscreenElement && !document.webkitFullscreenElement &&
+            !document.mozFullScreenElement && !document.msFullscreenElement) {
+            exitVRMode();
+        }
+    }
+
+    function exitVRMode() {
+        isVRMode = false;
+
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
+        if (orientationHandler) {
+            window.removeEventListener('deviceorientation', orientationHandler);
+            orientationHandler = null;
+        }
+
+        if (videoElement) {
+            videoElement.pause();
+            videoElement.src = '';
+        }
+
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+            document.exitFullscreen().catch(() => {});
+        } else if (document.webkitExitFullscreen) {
+            document.webkitExitFullscreen();
+        } else if (document.mozCancelFullScreen) {
+            document.mozCancelFullScreen();
+        } else if (document.msExitFullscreen) {
+            document.msExitFullscreen();
+        }
+
+        // Unlock orientation
+        if (screen.orientation && screen.orientation.unlock) {
+            screen.orientation.unlock();
+        }
+
+        if (vrContainer && vrContainer.parentNode) {
+            vrContainer.parentNode.removeChild(vrContainer);
+        }
+
+        // Close the experience
+        const closeButton = document.querySelector('#close-bt');
+        if (closeButton) {
+            closeButton.click();
+        }
+    }
+
+    function addStyles() {
+        if (!document.getElementById('cardboard-vr-styles')) {
+            const style = document.createElement('style');
+            style.id = 'cardboard-vr-styles';
+            style.innerHTML = `
+                .cardboard-vr-experience {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                }
+
+                .cardboard-vr-intro-screen {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    z-index: 9999;
+                    cursor: pointer;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                    animation: vrFadeIn 0.6s ease-out;
+                }
+
+                @keyframes vrFadeIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+
+                .cardboard-vr-icon {
+                    width: 200px;
+                    height: 200px;
+                    margin-bottom: 30px;
+                    animation: vrFloat 3s ease-in-out infinite;
+                }
+
+                @keyframes vrFloat {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-20px); }
+                }
+
+                .cardboard-vr-title {
+                    color: #fff;
+                    font-size: 32px;
+                    font-weight: bold;
+                    margin-bottom: 15px;
+                    text-shadow: 0 0 20px rgba(255,255,255,0.3);
+                }
+
+                .cardboard-vr-subtitle {
+                    color: rgba(255,255,255,0.7);
+                    font-size: 18px;
+                    margin-bottom: 40px;
+                }
+
+                .cardboard-vr-start-btn {
+                    padding: 20px 60px;
+                    font-size: 20px;
+                    background: linear-gradient(45deg, #e94560, #ff6b6b);
+                    border: none;
+                    border-radius: 50px;
+                    color: white;
+                    cursor: pointer;
+                    box-shadow: 0 10px 30px rgba(233, 69, 96, 0.4);
+                    transition: all 0.3s ease;
+                }
+
+                .cardboard-vr-start-btn:hover {
+                    transform: translateY(-3px);
+                    box-shadow: 0 15px 40px rgba(233, 69, 96, 0.5);
+                }
+
+                .cardboard-vr-container {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    z-index: 10000;
+                    background: #000;
+                    display: flex;
+                    overflow: hidden;
+                }
+
+                .cardboard-vr-viewer {
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    position: relative;
+                }
+
+                .cardboard-vr-left-eye,
+                .cardboard-vr-right-eye {
+                    width: 50%;
+                    height: 100%;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    overflow: hidden;
+                }
+
+                .cardboard-vr-canvas-left,
+                .cardboard-vr-canvas-right {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                }
+
+                .cardboard-vr-divider {
+                    position: absolute;
+                    left: 50%;
+                    top: 0;
+                    width: 2px;
+                    height: 100%;
+                    background: #333;
+                    transform: translateX(-50%);
+                }
+
+                .cardboard-vr-video {
+                    position: absolute;
+                    top: -9999px;
+                    left: -9999px;
+                    width: 1px;
+                    height: 1px;
+                    opacity: 0;
+                }
+
+                .cardboard-vr-controls {
+                    position: absolute;
+                    bottom: 20px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 10001;
+                }
+
+                .cardboard-vr-exit-btn {
+                    padding: 10px 30px;
+                    font-size: 14px;
+                    background: rgba(255,255,255,0.2);
+                    border: 1px solid rgba(255,255,255,0.3);
+                    border-radius: 25px;
+                    color: white;
+                    cursor: pointer;
+                    backdrop-filter: blur(10px);
+                    transition: all 0.3s ease;
+                }
+
+                .cardboard-vr-exit-btn:hover {
+                    background: rgba(255,255,255,0.3);
+                }
+
+                .cardboard-vr-instructions {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    text-align: center;
+                    color: white;
+                    z-index: 10001;
+                    pointer-events: none;
+                    transition: opacity 0.5s ease;
+                }
+
+                .cardboard-vr-instructions p {
+                    margin: 10px 0;
+                    font-size: 16px;
+                    text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
+    // Return the public interface
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            container.innerHTML = `
+                <div class="cardboard-vr-experience">
+                    <div class="cardboard-vr-intro-screen">
+                        <svg class="cardboard-vr-icon" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="30" width="80" height="45" rx="8" stroke="white" stroke-width="3" fill="none"/>
+                            <circle cx="30" cy="52" r="12" stroke="white" stroke-width="3" fill="none"/>
+                            <circle cx="70" cy="52" r="12" stroke="white" stroke-width="3" fill="none"/>
+                            <path d="M42 52 L58 52" stroke="white" stroke-width="3"/>
+                            <path d="M50 30 L50 20 L60 20" stroke="white" stroke-width="3" fill="none"/>
+                            <circle cx="30" cy="52" r="5" fill="white"/>
+                            <circle cx="70" cy="52" r="5" fill="white"/>
+                        </svg>
+                        <div class="cardboard-vr-title">VR Video Experience</div>
+                        <div class="cardboard-vr-subtitle">Immersive 360° viewing for Google Cardboard</div>
+                        <button class="cardboard-vr-start-btn">Enter VR Mode</button>
+                    </div>
+                </div>
+            `;
+
+            addStyles();
+        },
+
+        start: function() {
+            setupEventListeners();
+        },
+
+        dispose: function() {
+            isVRMode = false;
+
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+            }
+
+            if (orientationHandler) {
+                window.removeEventListener('deviceorientation', orientationHandler);
+            }
+
+            if (videoElement) {
+                videoElement.pause();
+                videoElement.src = '';
+            }
+
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+
+            if (vrContainer && vrContainer.parentNode) {
+                vrContainer.parentNode.removeChild(vrContainer);
+            }
+
+            container = null;
+            videoElement = null;
+            vrContainer = null;
+        },
+
+        pause: function() {
+            if (videoElement && !videoElement.paused) {
+                videoElement.pause();
+            }
+        },
+
+        resume: function() {
+            if (videoElement && videoElement.paused && isVRMode) {
+                videoElement.play();
+            }
+        }
+    };
+}();
+
 var airplane = airplane || function() {
     var container, videoElement, isPlaying = false, fullscreenContainer;
 
@@ -3684,7 +4202,8 @@ title:"Injury",date:"Fear of Injury",img:"data/poster/lock",itemcolor:"#efbb00",
 title:"Tight spaces",date:"Fear of Tight Spaces",img:"data/poster/lock",itemcolor:"#ffc800",bgcolor:"#111",preload:["contents/pixelated/gogh0.jpg"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"universe",classfn:Panorama,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Social Events",date:"Fear of Social Events",img:"data/poster/lock",itemcolor:"#c13227",bgcolor:"#111",preload:"contents/panorama/panorama-up.jpg contents/panorama/panorama-down.jpg contents/panorama/panorama-left.jpg contents/panorama/panorama-right.jpg contents/panorama/panorama-front.jpg contents/panorama/panorama-back.jpg".split(" "),white:1,browser:["ch","ff","sf"]}},{poster:{id:"cylinder",classfn:Cylinder3D,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Germs",date:"Fear of Germs",img:"data/poster/lock",itemcolor:"#cc372b",bgcolor:"#ddd",bggra:"cylinder-gra",preload:["contents/cylinder/soupmat.jpg"],browser:["ch","ff","sf"]}},{poster:{id:"bokeh",classfn:GlowLight,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Driving",date:"Fear of Driving",img:"data/poster/lock",itemcolor:"#d94034",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}}];g.load=function(a,b,c,f){k.style.display="block";k.style.backgroundColor=ConfigModel.configArr[b].poster.bgcolor;TweenLite.set(k,{css:{x:-StageController.stageWidth}});TweenLite.to(k,1,{css:{x:0},ease:Cubic.easeInOut,onComplete:d,onCompleteParams:[a,b,c,f]})};g.init=function(){g.configArr=[];g.screensaverArr=[];g.imgArr=[];g.screensaverID=[];g.sectionID=
+title:"Driving",date:"Fear of Driving",img:"data/poster/lock",itemcolor:"#d94034",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"cardboardvr",classfn:cardboardVR,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"VR Video",date:"Cardboard VR Experience",img:"data/poster/lock",itemcolor:"#6c5ce7",bgcolor:"#1a1a2e",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}}];g.load=function(a,b,c,f){k.style.display="block";k.style.backgroundColor=ConfigModel.configArr[b].poster.bgcolor;TweenLite.set(k,{css:{x:-StageController.stageWidth}});TweenLite.to(k,1,{css:{x:0},ease:Cubic.easeInOut,onComplete:d,onCompleteParams:[a,b,c,f]})};g.init=function(){g.configArr=[];g.screensaverArr=[];g.imgArr=[];g.screensaverID=[];g.sectionID=
 [];k=document.getElementById("pantone-loading");q=document.getElementById("preloader");g.configArr=f;g.screensaverArr=c;g.total=g.configArr.length;g.screensaverTotal=g.screensaverArr.length;var a=[],b,d=g.total;for(b=0;b<g.screensaverTotal;b++){var h=g.screensaverArr[b].item.id;g.screensaverID[b]=h}for(b=0;b<d;b++)h=g.configArr[b].poster.img,g.imgArr[b]=h,a[b]='<img src="'+h+'_c.png">',h=g.configArr[b].poster.id,g.sectionID[b]=h;a.push('<img src="images/about-press@2x.png">');a.push('<img src="images/buttons@2x.png">');
 a.push('<img src="images/guide@2x.png">');CMDetect.isDevice||a.push('<img src="images/cinema.png">');return a};g.convertIdToOrder=function(a){if(""==a)return 0;var b,c=g.total;for(b=0;b<c;b++)if(a==g.configArr[b].poster.id)return b;return 0};g.convertSaverIdToOrder=function(a){if(""==a)return 0;var b,c=g.screensaverTotal;for(b=0;b<c;b++)if(a==g.screensaverArr[b].item.id)return b;return 0};g.svgHeader='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 700 986" enable-background="new 0 0 700 986" xml:space="preserve">';
 g.svgTxt='<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>';
