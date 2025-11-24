@@ -607,7 +607,7 @@ var thunderClass = thunderClass || function() {
     }
 
     function startCarousel() {
-        intervalId = setInterval(changeImage, 5000);
+        intervalId = setInterval(changeImage, 2000);
     }
 
     function stopCarousel() {
