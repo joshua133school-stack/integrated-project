@@ -1520,7 +1520,7 @@ var injection = injection || function() {
                     <div class="injection-step" style="display: none;">
                         <div class="injection-mosaic-container">
                             <canvas id="mosaic-canvas-2"></canvas>
-                            <img id="source-image-2" src="data/images/injectionimg2.jpg" alt="Needle" crossorigin="anonymous">
+                            <img id="source-image-2" src="data/images/injection2.webp" alt="Needle" crossorigin="anonymous">
                         </div>
                         <button id="remove-mosaic-btn-2" class="injection-btn">Hold to Clear</button>
                     </div>
