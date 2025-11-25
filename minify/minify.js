@@ -281,8 +281,9 @@ var thunderClass = thunderClass || function() {
     var carouselImages = ['data/images/1.webp', 'data/images/2.webp', 'data/images/3.webp'];
     var imageElement1, imageElement2, activeImage = 1;
     var topEyelid, bottomEyelid, carouselCount = 0;
-    var backgroundImg, handImg, mugImg;
+    var backgroundImg, handImg, mugImg, finalImg;
     var phase = 'carousel'; // 'carousel' or 'scene'
+    var finalImageTimeoutId = null;
     var rainCanvas, rainCtx, rainDrops = [], rainAnimationId = null;
 
     function addStyles() {
@@ -393,6 +394,18 @@ var thunderClass = thunderClass || function() {
                     left: 50%;
                     transform: translate(-50%, -50%);
                     z-index: 3;
+                }
+                .thunder-scene-final {
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%) scale(1);
+                    z-index: 10;
+                    opacity: 0;
+                    transition: opacity 1.5s ease-in-out, transform 8s ease-out;
+                }
+                .thunder-scene-final.visible {
+                    opacity: 1;
+                    transform: translate(-50%, -50%) scale(1.15);
                 }
             `;
             document.head.appendChild(style);
@@ -514,9 +527,21 @@ var thunderClass = thunderClass || function() {
         shakeAnimationId = requestAnimationFrame(animateShake);
     }
 
+    function showFinalImage() {
+        if (finalImg && phase === 'scene') {
+            finalImg.classList.add('visible');
+        }
+    }
+
     function startShaking() {
         shakeTime = 0;
         animateShake();
+
+        // After 5 seconds of shaking, show the final image with zoom
+        if (finalImageTimeoutId) {
+            clearTimeout(finalImageTimeoutId);
+        }
+        finalImageTimeoutId = setTimeout(showFinalImage, 5000);
     }
 
     function stopShaking() {
@@ -631,6 +656,7 @@ var thunderClass = thunderClass || function() {
                         <img class="thunder-scene-layer thunder-scene-background" src="data/images/4.webp" alt="Background">
                         <img class="thunder-scene-layer thunder-scene-hand" src="data/images/5.webp" alt="Hand">
                         <img class="thunder-scene-layer thunder-scene-mug" src="data/images/6.webp" alt="Mug">
+                        <img class="thunder-scene-layer thunder-scene-final" src="data/images/7.webp" alt="Final">
                     </div>
                     <div class="thunder-eyelid thunder-eyelid-top"></div>
                     <div class="thunder-eyelid thunder-eyelid-bottom"></div>
@@ -646,6 +672,7 @@ var thunderClass = thunderClass || function() {
             backgroundImg = container.querySelector('.thunder-scene-background');
             handImg = container.querySelector('.thunder-scene-hand');
             mugImg = container.querySelector('.thunder-scene-mug');
+            finalImg = container.querySelector('.thunder-scene-final');
 
             rainCanvas = container.querySelector('.thunder-rain-canvas');
             rainCtx = rainCanvas.getContext('2d');
@@ -670,6 +697,10 @@ var thunderClass = thunderClass || function() {
             stopCarousel();
             stopShaking();
             stopRain();
+            if (finalImageTimeoutId) {
+                clearTimeout(finalImageTimeoutId);
+                finalImageTimeoutId = null;
+            }
             container = null;
             imageElement1 = null;
             imageElement2 = null;
@@ -678,6 +709,7 @@ var thunderClass = thunderClass || function() {
             backgroundImg = null;
             handImg = null;
             mugImg = null;
+            finalImg = null;
             rainCanvas = null;
             rainCtx = null;
         },
@@ -686,6 +718,10 @@ var thunderClass = thunderClass || function() {
             stopCarousel();
             stopShaking();
             stopRain();
+            if (finalImageTimeoutId) {
+                clearTimeout(finalImageTimeoutId);
+                finalImageTimeoutId = null;
+            }
         },
 
         resume: function() {
