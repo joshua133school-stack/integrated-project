@@ -288,6 +288,7 @@ var thunderClass = thunderClass || function() {
     var rainCanvas, rainCtx, rainDrops = [], rainAnimationId = null;
     var lightningIntervalId = null;
     var thunderSound = null;
+    var lightningStartTime = null;
 
     function addStyles() {
         if (!document.getElementById('thunder-class-styles')) {
@@ -619,9 +620,17 @@ var thunderClass = thunderClass || function() {
         if (lightningIntervalId) {
             clearInterval(lightningIntervalId);
         }
-        // Random lightning every 0.8-2.5 seconds (more frequent)
+        lightningStartTime = Date.now();
+
+        // Lightning gets progressively more frequent over time
         function scheduleLightning() {
-            const delay = 800 + Math.random() * 1700;
+            var elapsed = (Date.now() - lightningStartTime) / 1000; // seconds since start
+
+            // Start with long delays (4-7 seconds), gradually decrease to (0.5-1.5 seconds)
+            var maxDelay = Math.max(1500, 7000 - elapsed * 300); // decreases over time
+            var minDelay = Math.max(500, 4000 - elapsed * 200);  // decreases over time
+            var delay = minDelay + Math.random() * (maxDelay - minDelay);
+
             lightningIntervalId = setTimeout(() => {
                 triggerLightning();
                 if (phase === 'scene') {
@@ -629,8 +638,8 @@ var thunderClass = thunderClass || function() {
                 }
             }, delay);
         }
-        // Initial flash after a short delay
-        setTimeout(triggerLightning, 300);
+        // First flash after a longer delay at the start
+        setTimeout(triggerLightning, 2000);
         scheduleLightning();
     }
 
