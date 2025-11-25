@@ -520,6 +520,7 @@ var thunderClass = thunderClass || function() {
 
     var shakeTime = 0;
     var shakeAnimationId = null;
+    var shakeIntensity = 0.5; // Start with less shaking (0.5), increase to more (1.5) after first cycle
 
     function animateShake() {
         if (!handImg || !mugImg || phase !== 'scene') return;
@@ -528,17 +529,18 @@ var thunderClass = thunderClass || function() {
 
         // Use multiple sine waves for natural, smooth trembling
         // Combine different frequencies for more realistic shake
-        const baseShakeY = Math.sin(shakeTime * 3) * 3;
-        const microShakeY = Math.sin(shakeTime * 12) * 1;
-        const baseShakeX = Math.sin(shakeTime * 2.5) * 2;
-        const microShakeX = Math.sin(shakeTime * 10) * 0.8;
+        // Apply intensity multiplier to control shake amount
+        const baseShakeY = Math.sin(shakeTime * 3) * 3 * shakeIntensity;
+        const microShakeY = Math.sin(shakeTime * 12) * 1 * shakeIntensity;
+        const baseShakeX = Math.sin(shakeTime * 2.5) * 2 * shakeIntensity;
+        const microShakeX = Math.sin(shakeTime * 10) * 0.8 * shakeIntensity;
 
         const handOffsetY = baseShakeY + microShakeY;
         const handOffsetX = baseShakeX + microShakeX;
 
         // Mug follows hand movement with slight additional wobble
-        const mugExtraY = Math.sin(shakeTime * 8) * 1.5;
-        const mugExtraX = Math.sin(shakeTime * 7) * 1;
+        const mugExtraY = Math.sin(shakeTime * 8) * 1.5 * shakeIntensity;
+        const mugExtraX = Math.sin(shakeTime * 7) * 1 * shakeIntensity;
 
         const mugOffsetY = handOffsetY + mugExtraY;
         const mugOffsetX = handOffsetX + mugExtraX;
@@ -553,6 +555,8 @@ var thunderClass = thunderClass || function() {
     function hideFinalImage() {
         if (finalImg && phase === 'scene') {
             finalImg.classList.remove('visible');
+            // Increase shake intensity for subsequent shaking
+            shakeIntensity = 1.5;
             // After hiding, wait 5 seconds of hand shaking then show again
             if (finalImageTimeoutId) {
                 clearTimeout(finalImageTimeoutId);
@@ -655,6 +659,7 @@ var thunderClass = thunderClass || function() {
 
                 // Start shaking and lightning after eyes open (wait for transition)
                 setTimeout(() => {
+                    shakeIntensity = 0.5; // Start with less shaking
                     startShaking();
                     startLightning();
                     isTransitioning = false;
