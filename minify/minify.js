@@ -416,18 +416,19 @@ var thunderClass = thunderClass || function() {
                     width: 100%;
                     height: 100%;
                     background: rgba(255, 255, 255, 0);
-                    z-index: 5;
+                    z-index: 15;
                     pointer-events: none;
                 }
                 .thunder-lightning-flash.flash {
-                    animation: lightningFlash 0.3s ease-out;
+                    animation: lightningFlash 0.4s ease-out;
                 }
                 @keyframes lightningFlash {
-                    0% { background: rgba(255, 255, 255, 0.9); }
-                    20% { background: rgba(255, 255, 255, 0.3); }
-                    40% { background: rgba(255, 255, 255, 0.7); }
-                    60% { background: rgba(255, 255, 255, 0.1); }
-                    80% { background: rgba(255, 255, 255, 0.4); }
+                    0% { background: rgba(255, 255, 255, 1); }
+                    15% { background: rgba(255, 255, 255, 0.4); }
+                    30% { background: rgba(255, 255, 255, 0.95); }
+                    50% { background: rgba(255, 255, 255, 0.2); }
+                    65% { background: rgba(255, 255, 255, 0.7); }
+                    80% { background: rgba(255, 255, 255, 0.1); }
                     100% { background: rgba(255, 255, 255, 0); }
                 }
             `;
@@ -609,9 +610,9 @@ var thunderClass = thunderClass || function() {
         if (lightningIntervalId) {
             clearInterval(lightningIntervalId);
         }
-        // Random lightning every 2-5 seconds
+        // Random lightning every 0.8-2.5 seconds (more frequent)
         function scheduleLightning() {
-            const delay = 2000 + Math.random() * 3000;
+            const delay = 800 + Math.random() * 1700;
             lightningIntervalId = setTimeout(() => {
                 triggerLightning();
                 if (phase === 'scene') {
@@ -620,7 +621,7 @@ var thunderClass = thunderClass || function() {
             }, delay);
         }
         // Initial flash after a short delay
-        setTimeout(triggerLightning, 500);
+        setTimeout(triggerLightning, 300);
         scheduleLightning();
     }
 
