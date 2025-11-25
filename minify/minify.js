@@ -287,6 +287,7 @@ var thunderClass = thunderClass || function() {
     var hideFinalImageTimeoutId = null;
     var rainCanvas, rainCtx, rainDrops = [], rainAnimationId = null;
     var lightningIntervalId = null;
+    var thunderSound = null;
 
     function addStyles() {
         if (!document.getElementById('thunder-class-styles')) {
@@ -604,6 +605,14 @@ var thunderClass = thunderClass || function() {
         void lightningFlash.offsetWidth;
         // Add class to trigger flash
         lightningFlash.classList.add('flash');
+
+        // Play thunder sound after a small delay
+        setTimeout(function() {
+            if (thunderSound && phase === 'scene') {
+                thunderSound.currentTime = 0;
+                thunderSound.play().catch(function() {});
+            }
+        }, 200);
     }
 
     function startLightning() {
@@ -761,6 +770,10 @@ var thunderClass = thunderClass || function() {
             mugImg = container.querySelector('.thunder-scene-mug');
             finalImg = container.querySelector('.thunder-scene-final');
             lightningFlash = container.querySelector('.thunder-lightning-flash');
+
+            // Initialize thunder sound
+            thunderSound = new Audio('data/videos/thundersound.mp3');
+            thunderSound.volume = 1.0;
 
             rainCanvas = container.querySelector('.thunder-rain-canvas');
             rainCtx = rainCanvas.getContext('2d');
