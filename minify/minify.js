@@ -281,11 +281,12 @@ var thunderClass = thunderClass || function() {
     var carouselImages = ['data/images/1.webp', 'data/images/2.webp', 'data/images/3.webp'];
     var imageElement1, imageElement2, activeImage = 1;
     var topEyelid, bottomEyelid, carouselCount = 0;
-    var backgroundImg, handImg, mugImg, finalImg;
+    var backgroundImg, handImg, mugImg, finalImg, lightningFlash;
     var phase = 'carousel'; // 'carousel' or 'scene'
     var finalImageTimeoutId = null;
     var hideFinalImageTimeoutId = null;
     var rainCanvas, rainCtx, rainDrops = [], rainAnimationId = null;
+    var lightningIntervalId = null;
 
     function addStyles() {
         if (!document.getElementById('thunder-class-styles')) {
@@ -407,6 +408,27 @@ var thunderClass = thunderClass || function() {
                 .thunder-scene-final.visible {
                     opacity: 1;
                     transform: translate(-50%, -50%) scale(1.15);
+                }
+                .thunder-lightning-flash {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(255, 255, 255, 0);
+                    z-index: 5;
+                    pointer-events: none;
+                }
+                .thunder-lightning-flash.flash {
+                    animation: lightningFlash 0.3s ease-out;
+                }
+                @keyframes lightningFlash {
+                    0% { background: rgba(255, 255, 255, 0.9); }
+                    20% { background: rgba(255, 255, 255, 0.3); }
+                    40% { background: rgba(255, 255, 255, 0.7); }
+                    60% { background: rgba(255, 255, 255, 0.1); }
+                    80% { background: rgba(255, 255, 255, 0.4); }
+                    100% { background: rgba(255, 255, 255, 0); }
                 }
             `;
             document.head.appendChild(style);
@@ -568,6 +590,46 @@ var thunderClass = thunderClass || function() {
         }
     }
 
+    function triggerLightning() {
+        if (!lightningFlash || phase !== 'scene') return;
+
+        // Remove class first to reset animation
+        lightningFlash.classList.remove('flash');
+        // Force reflow to restart animation
+        void lightningFlash.offsetWidth;
+        // Add class to trigger flash
+        lightningFlash.classList.add('flash');
+    }
+
+    function startLightning() {
+        if (lightningIntervalId) {
+            clearInterval(lightningIntervalId);
+        }
+        // Random lightning every 2-5 seconds
+        function scheduleLightning() {
+            const delay = 2000 + Math.random() * 3000;
+            lightningIntervalId = setTimeout(() => {
+                triggerLightning();
+                if (phase === 'scene') {
+                    scheduleLightning();
+                }
+            }, delay);
+        }
+        // Initial flash after a short delay
+        setTimeout(triggerLightning, 500);
+        scheduleLightning();
+    }
+
+    function stopLightning() {
+        if (lightningIntervalId) {
+            clearTimeout(lightningIntervalId);
+            lightningIntervalId = null;
+        }
+        if (lightningFlash) {
+            lightningFlash.classList.remove('flash');
+        }
+    }
+
     function transitionToScene() {
         phase = 'scene';
         isTransitioning = true;
@@ -591,9 +653,10 @@ var thunderClass = thunderClass || function() {
                 // Open eyes
                 openEyes();
 
-                // Start shaking after eyes open (wait for transition)
+                // Start shaking and lightning after eyes open (wait for transition)
                 setTimeout(() => {
                     startShaking();
+                    startLightning();
                     isTransitioning = false;
                 }, 1500);
             }, 2000); // Eyes stay closed for 2 seconds
@@ -674,6 +737,7 @@ var thunderClass = thunderClass || function() {
                         <img class="thunder-scene-layer thunder-scene-hand" src="data/images/5.webp" alt="Hand">
                         <img class="thunder-scene-layer thunder-scene-mug" src="data/images/6.webp" alt="Mug">
                         <img class="thunder-scene-layer thunder-scene-final" src="data/images/7.webp" alt="Final">
+                        <div class="thunder-lightning-flash"></div>
                     </div>
                     <div class="thunder-eyelid thunder-eyelid-top"></div>
                     <div class="thunder-eyelid thunder-eyelid-bottom"></div>
@@ -690,6 +754,7 @@ var thunderClass = thunderClass || function() {
             handImg = container.querySelector('.thunder-scene-hand');
             mugImg = container.querySelector('.thunder-scene-mug');
             finalImg = container.querySelector('.thunder-scene-final');
+            lightningFlash = container.querySelector('.thunder-lightning-flash');
 
             rainCanvas = container.querySelector('.thunder-rain-canvas');
             rainCtx = rainCanvas.getContext('2d');
@@ -714,6 +779,7 @@ var thunderClass = thunderClass || function() {
             stopCarousel();
             stopShaking();
             stopRain();
+            stopLightning();
             if (finalImageTimeoutId) {
                 clearTimeout(finalImageTimeoutId);
                 finalImageTimeoutId = null;
@@ -731,6 +797,7 @@ var thunderClass = thunderClass || function() {
             handImg = null;
             mugImg = null;
             finalImg = null;
+            lightningFlash = null;
             rainCanvas = null;
             rainCtx = null;
         },
@@ -739,6 +806,7 @@ var thunderClass = thunderClass || function() {
             stopCarousel();
             stopShaking();
             stopRain();
+            stopLightning();
             if (finalImageTimeoutId) {
                 clearTimeout(finalImageTimeoutId);
                 finalImageTimeoutId = null;
@@ -757,6 +825,7 @@ var thunderClass = thunderClass || function() {
                 }
             } else {
                 startShaking();
+                startLightning();
             }
         }
     };
