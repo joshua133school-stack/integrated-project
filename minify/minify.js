@@ -284,6 +284,7 @@ var thunderClass = thunderClass || function() {
     var backgroundImg, handImg, mugImg, finalImg;
     var phase = 'carousel'; // 'carousel' or 'scene'
     var finalImageTimeoutId = null;
+    var hideFinalImageTimeoutId = null;
     var rainCanvas, rainCtx, rainDrops = [], rainAnimationId = null;
 
     function addStyles() {
@@ -527,9 +528,25 @@ var thunderClass = thunderClass || function() {
         shakeAnimationId = requestAnimationFrame(animateShake);
     }
 
+    function hideFinalImage() {
+        if (finalImg && phase === 'scene') {
+            finalImg.classList.remove('visible');
+            // After hiding, wait 5 seconds of hand shaking then show again
+            if (finalImageTimeoutId) {
+                clearTimeout(finalImageTimeoutId);
+            }
+            finalImageTimeoutId = setTimeout(showFinalImage, 5000);
+        }
+    }
+
     function showFinalImage() {
         if (finalImg && phase === 'scene') {
             finalImg.classList.add('visible');
+            // After zoom completes (8s animation + 2s viewing), hide and cycle back
+            if (hideFinalImageTimeoutId) {
+                clearTimeout(hideFinalImageTimeoutId);
+            }
+            hideFinalImageTimeoutId = setTimeout(hideFinalImage, 10000);
         }
     }
 
@@ -701,6 +718,10 @@ var thunderClass = thunderClass || function() {
                 clearTimeout(finalImageTimeoutId);
                 finalImageTimeoutId = null;
             }
+            if (hideFinalImageTimeoutId) {
+                clearTimeout(hideFinalImageTimeoutId);
+                hideFinalImageTimeoutId = null;
+            }
             container = null;
             imageElement1 = null;
             imageElement2 = null;
@@ -721,6 +742,10 @@ var thunderClass = thunderClass || function() {
             if (finalImageTimeoutId) {
                 clearTimeout(finalImageTimeoutId);
                 finalImageTimeoutId = null;
+            }
+            if (hideFinalImageTimeoutId) {
+                clearTimeout(hideFinalImageTimeoutId);
+                hideFinalImageTimeoutId = null;
             }
         },
 
