@@ -1085,13 +1085,13 @@ var injection = injection || function() {
         // Phase 1: Syringe approaches skin (0.4 seconds)
         statusPhase.textContent = 'Approaching...';
         syringeImage.style.transition = 'transform 0.4s ease-out, clip-path 0.3s ease-out';
-        syringeImage.style.transform = 'translateY(-50%) translateX(380px) rotate(90deg)';
+        syringeImage.style.transform = 'translateY(-50%) translateX(320px) rotate(90deg)';
 
         setTimeout(() => {
             // Phase 2: Needle penetrates skin (0.5 seconds)
             statusPhase.textContent = 'Insert';
             syringeImage.style.transition = 'transform 0.5s ease-in-out, clip-path 0.3s ease-out';
-            syringeImage.style.transform = 'translateY(-50%) translateX(480px) rotate(90deg)';
+            syringeImage.style.transform = 'translateY(-50%) translateX(400px) rotate(90deg)';
 
             // Clip the needle to make it look like it went into skin
             syringeImage.classList.add('inserted');
@@ -1319,7 +1319,7 @@ var injection = injection || function() {
                 }
 
                 .skin-container .syringe-image.inserted {
-                    clip-path: inset(0 0 55% 0);
+                    clip-path: inset(55% 0 0 0);
                 }
 
                 .skin-surface {
