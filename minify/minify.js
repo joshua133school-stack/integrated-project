@@ -1064,6 +1064,7 @@ var injection = injection || function() {
     }
 
     function startSimulation() {
+        const t = window.i18n ? window.i18n.t : function(k) { return k; };
         const btn = container.querySelector('#start-simulation-btn');
         const syringeImage = container.querySelector('.syringe-image');
         const skinDimple = container.querySelector('.skin-dimple');
@@ -1073,7 +1074,7 @@ var injection = injection || function() {
         const timerValue = container.querySelector('.timer-value');
 
         btn.disabled = true;
-        btn.textContent = 'Watch...';
+        btn.textContent = t('injection.watch');
 
         // Start timer
         let startTime = Date.now();
@@ -1083,13 +1084,13 @@ var injection = injection || function() {
         }, 10);
 
         // Phase 1: Syringe approaches skin (0.4 seconds)
-        statusPhase.textContent = 'Approaching...';
+        statusPhase.textContent = t('injection.approaching');
         syringeImage.style.transition = 'transform 0.4s ease-out, clip-path 0.3s ease-out';
         syringeImage.style.transform = 'translateY(-50%) translateX(320px) rotate(90deg)';
 
         setTimeout(() => {
             // Phase 2: Needle penetrates skin (0.5 seconds)
-            statusPhase.textContent = 'Insert';
+            statusPhase.textContent = t('injection.insert');
             syringeImage.style.transition = 'transform 0.5s ease-in-out, clip-path 0.3s ease-out';
             syringeImage.style.transform = 'translateY(-50%) translateX(350px) rotate(90deg)';
 
@@ -1102,12 +1103,12 @@ var injection = injection || function() {
 
             setTimeout(() => {
                 // Phase 3: Inject medication (0.8 seconds)
-                statusPhase.textContent = 'Inject';
+                statusPhase.textContent = t('injection.inject');
                 injectionEffect.classList.add('active');
 
                 setTimeout(() => {
                     // Phase 4: Withdraw needle (0.4 seconds)
-                    statusPhase.textContent = 'Withdraw';
+                    statusPhase.textContent = t('injection.withdraw');
                     syringeImage.style.transition = 'transform 0.4s ease-in, clip-path 0.2s ease-in';
                     syringeImage.style.transform = 'translateY(-50%) translateX(100px) rotate(90deg)';
                     syringeImage.classList.remove('inserted');
@@ -1121,17 +1122,17 @@ var injection = injection || function() {
 
                         injectionEffect.classList.remove('active');
                         injectionEffect.classList.add('complete');
-                        statusPhase.textContent = 'Done!';
+                        statusPhase.textContent = t('injection.done');
 
                         setTimeout(() => {
                             // Reset everything
                             btn.disabled = false;
-                            btn.textContent = 'Try Again';
+                            btn.textContent = t('common.tryAgain');
                             syringeImage.style.transition = 'none';
                             syringeImage.style.transform = 'translateY(-50%) rotate(90deg)';
                             injectionEffect.classList.remove('complete');
                             if (injectionSite) injectionSite.classList.remove('active');
-                            statusPhase.textContent = 'Ready';
+                            statusPhase.textContent = t('common.ready');
                             timerValue.textContent = '0.00';
                         }, 2500);
                     }, 400);
@@ -1736,6 +1737,7 @@ var injection = injection || function() {
             currentStep = 0;
             mosaicRemoved = false;
 
+            var t = window.i18n ? window.i18n.t : function(k) { return k; };
             container.innerHTML = `
                 <div class="injection-experience">
                     <!-- Step 1: Mosaic Needle -->
@@ -1744,7 +1746,7 @@ var injection = injection || function() {
                             <canvas id="mosaic-canvas"></canvas>
                             <img id="source-image" src="data/images/injectionimg1.jpg" alt="Needle" crossorigin="anonymous">
                         </div>
-                        <button id="remove-mosaic-btn" class="injection-btn">Hold to Clear</button>
+                        <button id="remove-mosaic-btn" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
                     </div>
 
                     <!-- Step 2: Second Mosaic Needle -->
@@ -1753,29 +1755,29 @@ var injection = injection || function() {
                             <canvas id="mosaic-canvas-2"></canvas>
                             <img id="source-image-2" src="data/images/injection2.webp" alt="Needle" crossorigin="anonymous">
                         </div>
-                        <button id="remove-mosaic-btn-2" class="injection-btn">Hold to Clear</button>
+                        <button id="remove-mosaic-btn-2" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
                     </div>
 
                     <!-- Step 3: Gallery -->
                     <div class="injection-step" style="display: none;">
-                        <h1 class="injection-title">Injection Types</h1>
-                        <p class="injection-subtitle">Different types of medical injections</p>
+                        <h1 class="injection-title" data-i18n="injection.injectionTypes">${t('injection.injectionTypes')}</h1>
+                        <p class="injection-subtitle" data-i18n="injection.typesSubtitle">${t('injection.typesSubtitle')}</p>
                         <div class="injection-gallery">
                             <div class="injection-gallery-item">
                                 <div class="injection-gallery-img">💉</div>
-                                <div class="injection-gallery-label">Vaccine Injection</div>
+                                <div class="injection-gallery-label" data-i18n="injection.vaccineInjection">${t('injection.vaccineInjection')}</div>
                             </div>
                             <div class="injection-gallery-item">
                                 <div class="injection-gallery-img">💊</div>
-                                <div class="injection-gallery-label">Intramuscular</div>
+                                <div class="injection-gallery-label" data-i18n="injection.intramuscular">${t('injection.intramuscular')}</div>
                             </div>
                             <div class="injection-gallery-item">
                                 <div class="injection-gallery-img">🩸</div>
-                                <div class="injection-gallery-label">Blood Draw</div>
+                                <div class="injection-gallery-label" data-i18n="injection.bloodDraw">${t('injection.bloodDraw')}</div>
                             </div>
                             <div class="injection-gallery-item">
                                 <div class="injection-gallery-img">🏥</div>
-                                <div class="injection-gallery-label">Subcutaneous</div>
+                                <div class="injection-gallery-label" data-i18n="injection.subcutaneous">${t('injection.subcutaneous')}</div>
                             </div>
                         </div>
                     </div>
@@ -1786,7 +1788,7 @@ var injection = injection || function() {
                             <!-- Timer Display -->
                             <div class="injection-timer">
                                 <span class="timer-value">0.00</span>
-                                <span class="timer-unit">seconds</span>
+                                <span class="timer-unit" data-i18n="common.seconds">${t('common.seconds')}</span>
                             </div>
 
                             <!-- Skin Container -->
@@ -1808,41 +1810,41 @@ var injection = injection || function() {
 
                             <!-- Status Display -->
                             <div class="injection-status">
-                                <div class="status-phase">Ready</div>
+                                <div class="status-phase" data-i18n="common.ready">${t('common.ready')}</div>
                             </div>
                         </div>
-                        <button id="start-simulation-btn" class="injection-btn">Start Injection</button>
+                        <button id="start-simulation-btn" class="injection-btn" data-i18n="injection.startInjection">${t('injection.startInjection')}</button>
                     </div>
 
                     <!-- Step 5: Actual Size -->
                     <div class="injection-step" style="display: none;">
-                        <h1 class="injection-title">Actual Needle Size</h1>
-                        <p class="injection-subtitle">See how small needles really are on your screen</p>
+                        <h1 class="injection-title" data-i18n="injection.actualNeedleSize">${t('injection.actualNeedleSize')}</h1>
+                        <p class="injection-subtitle" data-i18n="injection.needleSizeSubtitle">${t('injection.needleSizeSubtitle')}</p>
                         <div class="injection-actual-size">
                             <div>
-                                <div class="injection-needle-label">25 Gauge (0.5mm) - Typical Vaccine</div>
+                                <div class="injection-needle-label" data-i18n="injection.gauge25">${t('injection.gauge25')}</div>
                                 <div class="injection-needle-real injection-needle-25g"></div>
                             </div>
                             <div>
-                                <div class="injection-needle-label">23 Gauge (0.6mm) - Standard Injection</div>
+                                <div class="injection-needle-label" data-i18n="injection.gauge23">${t('injection.gauge23')}</div>
                                 <div class="injection-needle-real injection-needle-23g"></div>
                             </div>
                             <div>
-                                <div class="injection-needle-label">21 Gauge (0.8mm) - Blood Draw</div>
+                                <div class="injection-needle-label" data-i18n="injection.gauge21">${t('injection.gauge21')}</div>
                                 <div class="injection-needle-real injection-needle-21g"></div>
                             </div>
                             <div class="injection-comparison">
-                                <p>These lines represent the <strong>actual thickness</strong> of medical needles.</p>
-                                <p>Compare to a human hair: 0.07mm (much thinner!)</p>
-                                <p>The needle tip is even thinner and incredibly sharp.</p>
+                                <p data-i18n="injection.needleComparison1">${t('injection.needleComparison1')}</p>
+                                <p data-i18n="injection.needleComparison2">${t('injection.needleComparison2')}</p>
+                                <p data-i18n="injection.needleComparison3">${t('injection.needleComparison3')}</p>
                             </div>
                         </div>
                     </div>
 
                     <!-- Navigation -->
                     <div class="injection-navigation">
-                        <button id="injection-prev-btn" class="injection-nav-btn" style="display: none;">← Previous</button>
-                        <button id="injection-next-btn" class="injection-nav-btn">Next →</button>
+                        <button id="injection-prev-btn" class="injection-nav-btn" style="display: none;" data-i18n="common.previous">${t('common.previous')}</button>
+                        <button id="injection-next-btn" class="injection-nav-btn" data-i18n="common.next">${t('common.next')}</button>
                     </div>
                 </div>
             `;
@@ -1953,6 +1955,7 @@ var knifeSafety = knifeSafety || function() {
 
     function startDropSimulation() {
         if (dropAnimationRunning) return;
+        const t = window.i18n ? window.i18n.t : function(k) { return k; };
 
         dropAnimationRunning = true;
         const knife = container.querySelector('.knife-drop-item');
@@ -1991,9 +1994,9 @@ var knifeSafety = knifeSafety || function() {
                 knife.style.transform = 'rotate(' + finalRotation + 'deg)';
 
                 setTimeout(() => {
-                    result.innerHTML = '<p class="success-message">✓ The knife landed safely on its back!</p><p>This demonstrates that knives don\'t always fall point-first. The flat surface provides stability.</p>';
+                    result.innerHTML = '<p class="success-message">' + t('knife.dropSuccess') + '</p><p>' + t('knife.dropExplanation') + '</p>';
                     startBtn.style.display = 'block';
-                    startBtn.textContent = 'Drop Again';
+                    startBtn.textContent = t('knife.dropAgain');
                     dropAnimationRunning = false;
                 }, 300);
             }
@@ -2266,124 +2269,103 @@ var knifeSafety = knifeSafety || function() {
     return {
         init: function(parentElement) {
             container = parentElement;
+            var t = window.i18n ? window.i18n.t : function(k) { return k; };
             container.innerHTML = `
                 <div class="knife-safety-experience">
                     <!-- Step 1: Introduction with knife images -->
                     <div class="knife-step" data-step="intro">
                         <div class="knife-content-box">
-                            <h1 class="knife-title">Understanding Knives</h1>
-                            <p class="knife-subtitle">Let's explore knives and sharp edges together</p>
+                            <h1 class="knife-title" data-i18n="knife.understandingKnives">${t('knife.understandingKnives')}</h1>
+                            <p class="knife-subtitle" data-i18n="knife.introSubtitle">${t('knife.introSubtitle')}</p>
 
                             <div class="knife-images-grid">
                                 <div class="knife-image-card">
                                     <div class="knife-icon">🔪</div>
-                                    <div class="knife-image-label">Kitchen Knife</div>
+                                    <div class="knife-image-label" data-i18n="knife.kitchenKnife">${t('knife.kitchenKnife')}</div>
                                 </div>
                                 <div class="knife-image-card">
                                     <div class="knife-icon">✂️</div>
-                                    <div class="knife-image-label">Scissors</div>
+                                    <div class="knife-image-label" data-i18n="knife.scissors">${t('knife.scissors')}</div>
                                 </div>
                                 <div class="knife-image-card">
                                     <div class="knife-icon">🗡️</div>
-                                    <div class="knife-image-label">Utility Knife</div>
+                                    <div class="knife-image-label" data-i18n="knife.utilityKnife">${t('knife.utilityKnife')}</div>
                                 </div>
                             </div>
 
-                            <p class="knife-text">
-                                Knives are common tools we use in everyday life. While they have sharp edges,
-                                understanding how to handle them properly makes them safe to use.
-                            </p>
+                            <p class="knife-text" data-i18n="knife.introText">${t('knife.introText')}</p>
                         </div>
                     </div>
 
                     <!-- Step 2: Safety handling -->
                     <div class="knife-step" data-step="safety" style="display: none;">
                         <div class="knife-content-box">
-                            <h1 class="knife-title">How to Handle Knives Safely</h1>
+                            <h1 class="knife-title" data-i18n="knife.safetyTitle">${t('knife.safetyTitle')}</h1>
 
                             <ul class="safety-tips-list">
-                                <li><strong>Always cut away from your body</strong> - This prevents accidents if the knife slips</li>
-                                <li><strong>Keep a firm grip on the handle</strong> - A secure grip gives you better control</li>
-                                <li><strong>Use a cutting board</strong> - Stable surfaces prevent the knife from slipping</li>
-                                <li><strong>Store knives properly</strong> - Knife blocks or sheaths keep them safe when not in use</li>
-                                <li><strong>Never try to catch a falling knife</strong> - Let it fall and step back safely</li>
+                                <li><strong data-i18n="knife.safetyTip1Title">${t('knife.safetyTip1Title')}</strong> - <span data-i18n="knife.safetyTip1">${t('knife.safetyTip1')}</span></li>
+                                <li><strong data-i18n="knife.safetyTip2Title">${t('knife.safetyTip2Title')}</strong> - <span data-i18n="knife.safetyTip2">${t('knife.safetyTip2')}</span></li>
+                                <li><strong data-i18n="knife.safetyTip3Title">${t('knife.safetyTip3Title')}</strong> - <span data-i18n="knife.safetyTip3">${t('knife.safetyTip3')}</span></li>
+                                <li><strong data-i18n="knife.safetyTip4Title">${t('knife.safetyTip4Title')}</strong> - <span data-i18n="knife.safetyTip4">${t('knife.safetyTip4')}</span></li>
+                                <li><strong data-i18n="knife.safetyTip5Title">${t('knife.safetyTip5Title')}</strong> - <span data-i18n="knife.safetyTip5">${t('knife.safetyTip5')}</span></li>
                             </ul>
 
-                            <p class="knife-text" style="margin-top: 30px; text-align: center; font-weight: 600; color: #667eea;">
-                                Following these simple rules makes knife use safe and routine!
-                            </p>
+                            <p class="knife-text" style="margin-top: 30px; text-align: center; font-weight: 600; color: #667eea;" data-i18n="knife.safetyConclusion">${t('knife.safetyConclusion')}</p>
                         </div>
                     </div>
 
                     <!-- Step 3: Drop simulation -->
                     <div class="knife-step" data-step="simulation" style="display: none;">
                         <div class="knife-content-box">
-                            <h1 class="knife-title">Drop Simulation</h1>
-                            <p class="knife-subtitle">See how knives fall naturally</p>
+                            <h1 class="knife-title" data-i18n="knife.dropSimulation">${t('knife.dropSimulation')}</h1>
+                            <p class="knife-subtitle" data-i18n="knife.dropSubtitle">${t('knife.dropSubtitle')}</p>
 
                             <div class="drop-simulation-container">
                                 <div class="knife-drop-item">🔪</div>
                                 <div class="drop-result"></div>
                             </div>
 
-                            <button id="start-drop-btn">Start Drop Simulation</button>
+                            <button id="start-drop-btn" data-i18n="knife.startDropSimulation">${t('knife.startDropSimulation')}</button>
 
-                            <p class="knife-text" style="margin-top: 20px; text-align: center;">
-                                Knives often land on their flat backs due to weight distribution.
-                                The handle is typically heavier than the blade, causing the knife to rotate and land safely.
-                            </p>
+                            <p class="knife-text" style="margin-top: 20px; text-align: center;" data-i18n="knife.dropText">${t('knife.dropText')}</p>
                         </div>
                     </div>
 
                     <!-- Step 4: Cut depth information -->
                     <div class="knife-step" data-step="cuts" style="display: none;">
                         <div class="knife-content-box">
-                            <h1 class="knife-title">Understanding Cuts</h1>
+                            <h1 class="knife-title" data-i18n="knife.understandingCuts">${t('knife.understandingCuts')}</h1>
 
                             <div class="cuts-info-grid">
                                 <div class="cuts-info-card">
-                                    <h3>Most Cuts Are Shallow</h3>
-                                    <p>
-                                        The majority of accidental cuts from kitchen knives are superficial,
-                                        affecting only the top layer of skin. These heal quickly with basic first aid.
-                                    </p>
+                                    <h3 data-i18n="knife.mostCutsShallow">${t('knife.mostCutsShallow')}</h3>
+                                    <p data-i18n="knife.mostCutsShallowText">${t('knife.mostCutsShallowText')}</p>
                                 </div>
 
                                 <div class="cuts-info-card">
-                                    <h3>Controlled Pressure</h3>
-                                    <p>
-                                        Knives require deliberate pressure to cut deeply. Accidental contact
-                                        typically results in minor, shallow cuts that are easily treatable.
-                                    </p>
+                                    <h3 data-i18n="knife.controlledPressure">${t('knife.controlledPressure')}</h3>
+                                    <p data-i18n="knife.controlledPressureText">${t('knife.controlledPressureText')}</p>
                                 </div>
 
                                 <div class="cuts-info-card">
-                                    <h3>Quick Healing</h3>
-                                    <p>
-                                        Small cuts heal rapidly - usually within a few days. The body's natural
-                                        healing process quickly repairs minor knife cuts with proper care.
-                                    </p>
+                                    <h3 data-i18n="knife.quickHealing">${t('knife.quickHealing')}</h3>
+                                    <p data-i18n="knife.quickHealingText">${t('knife.quickHealingText')}</p>
                                 </div>
 
                                 <div class="cuts-info-card">
-                                    <h3>Prevention Is Easy</h3>
-                                    <p>
-                                        Following basic safety guidelines makes cuts very rare. Awareness and
-                                        proper technique eliminate most risks when using knives.
-                                    </p>
+                                    <h3 data-i18n="knife.preventionEasy">${t('knife.preventionEasy')}</h3>
+                                    <p data-i18n="knife.preventionEasyText">${t('knife.preventionEasyText')}</p>
                                 </div>
                             </div>
 
-                            <p class="knife-text" style="margin-top: 30px; text-align: center; font-weight: 600; color: #667eea;">
-                                With proper handling, knives are safe, useful tools that pose minimal risk!
-                            </p>
+                            <p class="knife-text" style="margin-top: 30px; text-align: center; font-weight: 600; color: #667eea;" data-i18n="knife.cutsConclusion">${t('knife.cutsConclusion')}</p>
                         </div>
                     </div>
 
                     <!-- Navigation buttons -->
                     <div class="knife-nav-buttons">
-                        <button id="knife-prev-btn" class="knife-nav-btn" style="display: none;">← Previous</button>
-                        <button id="knife-next-btn" class="knife-nav-btn">Next →</button>
+                        <button id="knife-prev-btn" class="knife-nav-btn" style="display: none;" data-i18n="common.previous">${t('common.previous')}</button>
+                        <button id="knife-next-btn" class="knife-nav-btn" data-i18n="common.next">${t('common.next')}</button>
                     </div>
                 </div>
             `;
