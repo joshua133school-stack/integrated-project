@@ -1082,31 +1082,35 @@ var injection = injection || function() {
             timerValue.textContent = elapsed.toFixed(2);
         }, 10);
 
-        // Phase 1: Syringe approaches skin (0.3 seconds)
+        // Phase 1: Syringe approaches skin (0.4 seconds)
         statusPhase.textContent = 'Approaching...';
-        syringeImage.style.transition = 'transform 0.3s ease-out';
-        syringeImage.style.transform = 'translateY(-50%) translateX(200px) rotate(90deg)';
+        syringeImage.style.transition = 'transform 0.4s ease-out, clip-path 0.3s ease-out';
+        syringeImage.style.transform = 'translateY(-50%) translateX(380px) rotate(90deg)';
 
         setTimeout(() => {
-            // Phase 2: Needle penetrates skin (0.4 seconds)
+            // Phase 2: Needle penetrates skin (0.5 seconds)
             statusPhase.textContent = 'Insert';
-            syringeImage.style.transition = 'transform 0.4s ease-in-out';
-            syringeImage.style.transform = 'translateY(-50%) translateX(350px) rotate(90deg)';
+            syringeImage.style.transition = 'transform 0.5s ease-in-out, clip-path 0.3s ease-out';
+            syringeImage.style.transform = 'translateY(-50%) translateX(480px) rotate(90deg)';
+
+            // Clip the needle to make it look like it went into skin
+            syringeImage.classList.add('inserted');
 
             // Create skin dimple effect
             skinDimple.classList.add('active');
             if (injectionSite) injectionSite.classList.add('active');
 
             setTimeout(() => {
-                // Phase 3: Inject medication (0.5 seconds)
+                // Phase 3: Inject medication (0.8 seconds)
                 statusPhase.textContent = 'Inject';
                 injectionEffect.classList.add('active');
 
                 setTimeout(() => {
-                    // Phase 4: Withdraw needle (0.3 seconds)
+                    // Phase 4: Withdraw needle (0.4 seconds)
                     statusPhase.textContent = 'Withdraw';
-                    syringeImage.style.transition = 'transform 0.3s ease-in';
-                    syringeImage.style.transform = 'translateY(-50%) translateX(-100px) rotate(90deg)';
+                    syringeImage.style.transition = 'transform 0.4s ease-in, clip-path 0.2s ease-in';
+                    syringeImage.style.transform = 'translateY(-50%) translateX(100px) rotate(90deg)';
+                    syringeImage.classList.remove('inserted');
                     skinDimple.classList.remove('active');
 
                     setTimeout(() => {
@@ -1130,10 +1134,10 @@ var injection = injection || function() {
                             statusPhase.textContent = 'Ready';
                             timerValue.textContent = '0.00';
                         }, 2500);
-                    }, 300);
-                }, 500);
-            }, 400);
-        }, 300);
+                    }, 400);
+                }, 800);
+            }, 500);
+        }, 400);
     }
 
     function addStyles() {
@@ -1310,6 +1314,14 @@ var injection = injection || function() {
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
                 }
 
+                .skin-container .syringe-image {
+                    clip-path: inset(0 0 0 0);
+                }
+
+                .skin-container .syringe-image.inserted {
+                    clip-path: inset(0 0 55% 0);
+                }
+
                 .skin-surface {
                     width: 100%;
                     height: 100%;
@@ -1364,12 +1376,13 @@ var injection = injection || function() {
                 .syringe-image {
                     position: absolute;
                     top: 50%;
-                    left: -300px;
+                    left: -100px;
                     transform: translateY(-50%) rotate(90deg);
                     width: 280px;
                     height: auto;
                     z-index: 10;
                     filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
+                    transition: transform 0.4s ease-out, clip-path 0.3s ease-out;
                 }
 
                 .injection-effect {
