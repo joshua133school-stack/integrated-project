@@ -1285,23 +1285,22 @@ var injection = injection || function() {
                     display: flex;
                     align-items: baseline;
                     gap: 10px;
-                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                    background: #fff;
                     padding: 20px 40px;
                     border-radius: 15px;
-                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
                 }
 
                 .timer-value {
                     font-size: 64px;
                     font-weight: bold;
-                    color: #00ff88;
+                    color: #e53935;
                     font-family: 'Courier New', monospace;
-                    text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
                 }
 
                 .timer-unit {
                     font-size: 20px;
-                    color: #888;
+                    color: #666;
                     font-weight: normal;
                 }
 
@@ -1783,8 +1782,6 @@ var injection = injection || function() {
 
                     <!-- Step 4: Simulation -->
                     <div class="injection-step" style="display: none;">
-                        <h1 class="injection-title">How Quick Is A Shot?</h1>
-                        <p class="injection-subtitle">Watch how fast an injection really is</p>
                         <div class="injection-skin-simulation">
                             <!-- Timer Display -->
                             <div class="injection-timer">
