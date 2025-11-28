@@ -1091,7 +1091,7 @@ var injection = injection || function() {
             // Phase 2: Needle penetrates skin (0.5 seconds)
             statusPhase.textContent = 'Insert';
             syringeImage.style.transition = 'transform 0.5s ease-in-out, clip-path 0.3s ease-out';
-            syringeImage.style.transform = 'translateY(-50%) translateX(400px) rotate(90deg)';
+            syringeImage.style.transform = 'translateY(-50%) translateX(350px) rotate(90deg)';
 
             // Clip the needle to make it look like it went into skin
             syringeImage.classList.add('inserted');
