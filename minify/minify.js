@@ -1070,89 +1070,70 @@ var injection = injection || function() {
         const injectionEffect = container.querySelector('.injection-effect');
         const injectionSite = container.querySelector('.injection-site-marker');
         const statusPhase = container.querySelector('.status-phase');
-        const statusDepth = container.querySelector('.status-depth');
+        const timerValue = container.querySelector('.timer-value');
 
         btn.disabled = true;
-        btn.textContent = 'Injecting...';
+        btn.textContent = 'Watch...';
 
-        let depth = 0;
+        // Start timer
+        let startTime = Date.now();
+        let timerInterval = setInterval(() => {
+            const elapsed = (Date.now() - startTime) / 1000;
+            timerValue.textContent = elapsed.toFixed(2);
+        }, 10);
 
-        // Phase 1: Syringe approaches skin (1.5 seconds)
+        // Phase 1: Syringe approaches skin (0.3 seconds)
         statusPhase.textContent = 'Approaching...';
-        syringeImage.style.transition = 'transform 1.5s ease-out';
+        syringeImage.style.transition = 'transform 0.3s ease-out';
         syringeImage.style.transform = 'translateY(-50%) translateX(200px) rotate(90deg)';
 
         setTimeout(() => {
-            // Phase 2: Needle penetrates skin (2 seconds)
-            statusPhase.textContent = 'Inserting needle...';
-            syringeImage.style.transition = 'transform 2s ease-in-out';
+            // Phase 2: Needle penetrates skin (0.4 seconds)
+            statusPhase.textContent = 'Insert';
+            syringeImage.style.transition = 'transform 0.4s ease-in-out';
             syringeImage.style.transform = 'translateY(-50%) translateX(350px) rotate(90deg)';
 
             // Create skin dimple effect
             skinDimple.classList.add('active');
-
-            // Show injection site reaction
             if (injectionSite) injectionSite.classList.add('active');
 
-            // Animate depth
-            const depthInterval = setInterval(() => {
-                depth += 0.4;
-                if (depth > 20) depth = 20;
-                statusDepth.textContent = 'Depth: ' + depth.toFixed(1) + 'mm';
-            }, 80);
-
             setTimeout(() => {
-                clearInterval(depthInterval);
-                statusPhase.textContent = 'Injecting medication...';
-
-                // Show injection spreading effect
+                // Phase 3: Inject medication (0.5 seconds)
+                statusPhase.textContent = 'Inject';
                 injectionEffect.classList.add('active');
 
                 setTimeout(() => {
-                    // Phase 4: Brief pause (0.5 seconds)
-                    statusPhase.textContent = 'Holding...';
+                    // Phase 4: Withdraw needle (0.3 seconds)
+                    statusPhase.textContent = 'Withdraw';
+                    syringeImage.style.transition = 'transform 0.3s ease-in';
+                    syringeImage.style.transform = 'translateY(-50%) translateX(-100px) rotate(90deg)';
+                    skinDimple.classList.remove('active');
 
                     setTimeout(() => {
-                        // Phase 5: Withdraw needle (1.5 seconds)
-                        statusPhase.textContent = 'Withdrawing...';
-                        syringeImage.style.transition = 'transform 1.5s ease-in';
-                        syringeImage.style.transform = 'translateY(-50%) translateX(-100px) rotate(90deg)';
+                        // Stop timer
+                        clearInterval(timerInterval);
+                        const finalTime = (Date.now() - startTime) / 1000;
+                        timerValue.textContent = finalTime.toFixed(2);
 
-                        // Reset skin dimple
-                        skinDimple.classList.remove('active');
-
-                        // Animate depth back
-                        const withdrawInterval = setInterval(() => {
-                            depth -= 1.5;
-                            if (depth <= 0) {
-                                depth = 0;
-                                clearInterval(withdrawInterval);
-                            }
-                            statusDepth.textContent = 'Depth: ' + depth.toFixed(1) + 'mm';
-                        }, 50);
+                        injectionEffect.classList.remove('active');
+                        injectionEffect.classList.add('complete');
+                        statusPhase.textContent = 'Done!';
 
                         setTimeout(() => {
-                            // Show small red dot where injection was
-                            injectionEffect.classList.remove('active');
-                            injectionEffect.classList.add('complete');
-                            statusPhase.textContent = 'Complete!';
-
-                            setTimeout(() => {
-                                // Reset everything
-                                btn.disabled = false;
-                                btn.textContent = 'Start Injection Simulation';
-                                syringeImage.style.transition = 'none';
-                                syringeImage.style.transform = 'translateY(-50%) rotate(90deg)';
-                                injectionEffect.classList.remove('complete');
-                                if (injectionSite) injectionSite.classList.remove('active');
-                                statusPhase.textContent = 'Ready';
-                                statusDepth.textContent = 'Depth: 0.0mm';
-                            }, 2000);
-                        }, 1500);
-                    }, 500);
-                }, 1500);
-            }, 2000);
-        }, 1500);
+                            // Reset everything
+                            btn.disabled = false;
+                            btn.textContent = 'Try Again';
+                            syringeImage.style.transition = 'none';
+                            syringeImage.style.transform = 'translateY(-50%) rotate(90deg)';
+                            injectionEffect.classList.remove('complete');
+                            if (injectionSite) injectionSite.classList.remove('active');
+                            statusPhase.textContent = 'Ready';
+                            timerValue.textContent = '0.00';
+                        }, 2500);
+                    }, 300);
+                }, 500);
+            }, 400);
+        }, 300);
     }
 
     function addStyles() {
@@ -1294,6 +1275,30 @@ var injection = injection || function() {
                     flex-direction: column;
                     align-items: center;
                     gap: 20px;
+                }
+
+                .injection-timer {
+                    display: flex;
+                    align-items: baseline;
+                    gap: 10px;
+                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+                    padding: 20px 40px;
+                    border-radius: 15px;
+                    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                }
+
+                .timer-value {
+                    font-size: 64px;
+                    font-weight: bold;
+                    color: #00ff88;
+                    font-family: 'Courier New', monospace;
+                    text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+                }
+
+                .timer-unit {
+                    font-size: 20px;
+                    color: #888;
+                    font-weight: normal;
                 }
 
                 .skin-container {
@@ -1765,9 +1770,15 @@ var injection = injection || function() {
 
                     <!-- Step 4: Simulation -->
                     <div class="injection-step" style="display: none;">
-                        <h1 class="injection-title">Injection Simulation</h1>
-                        <p class="injection-subtitle">Watch the injection process</p>
+                        <h1 class="injection-title">How Quick Is A Shot?</h1>
+                        <p class="injection-subtitle">Watch how fast an injection really is</p>
                         <div class="injection-skin-simulation">
+                            <!-- Timer Display -->
+                            <div class="injection-timer">
+                                <span class="timer-value">0.00</span>
+                                <span class="timer-unit">seconds</span>
+                            </div>
+
                             <!-- Skin Container -->
                             <div class="skin-container">
                                 <!-- Solid skin surface -->
@@ -1788,10 +1799,9 @@ var injection = injection || function() {
                             <!-- Status Display -->
                             <div class="injection-status">
                                 <div class="status-phase">Ready</div>
-                                <div class="status-depth">Depth: 0.0mm</div>
                             </div>
                         </div>
-                        <button id="start-simulation-btn" class="injection-btn">Start Injection Simulation</button>
+                        <button id="start-simulation-btn" class="injection-btn">Start Injection</button>
                     </div>
 
                     <!-- Step 5: Actual Size -->
