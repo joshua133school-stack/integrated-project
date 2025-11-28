@@ -1080,13 +1080,13 @@ var injection = injection || function() {
         // Phase 1: Syringe approaches skin (1.5 seconds)
         statusPhase.textContent = 'Approaching...';
         syringeImage.style.transition = 'transform 1.5s ease-out';
-        syringeImage.style.transform = 'translateX(60px) rotate(-30deg)';
+        syringeImage.style.transform = 'translateY(-50%) translateX(200px) rotate(90deg)';
 
         setTimeout(() => {
             // Phase 2: Needle penetrates skin (2 seconds)
             statusPhase.textContent = 'Inserting needle...';
             syringeImage.style.transition = 'transform 2s ease-in-out';
-            syringeImage.style.transform = 'translateX(140px) rotate(-30deg)';
+            syringeImage.style.transform = 'translateY(-50%) translateX(350px) rotate(90deg)';
 
             // Create skin dimple effect
             skinDimple.classList.add('active');
@@ -1116,7 +1116,7 @@ var injection = injection || function() {
                         // Phase 5: Withdraw needle (1.5 seconds)
                         statusPhase.textContent = 'Withdrawing...';
                         syringeImage.style.transition = 'transform 1.5s ease-in';
-                        syringeImage.style.transform = 'translateX(-200px) rotate(-30deg)';
+                        syringeImage.style.transform = 'translateY(-50%) translateX(-100px) rotate(90deg)';
 
                         // Reset skin dimple
                         skinDimple.classList.remove('active');
@@ -1142,7 +1142,7 @@ var injection = injection || function() {
                                 btn.disabled = false;
                                 btn.textContent = 'Start Injection Simulation';
                                 syringeImage.style.transition = 'none';
-                                syringeImage.style.transform = 'translateX(-200px) rotate(-30deg)';
+                                syringeImage.style.transform = 'translateY(-50%) rotate(90deg)';
                                 injectionEffect.classList.remove('complete');
                                 if (injectionSite) injectionSite.classList.remove('active');
                                 statusPhase.textContent = 'Ready';
@@ -1359,9 +1359,9 @@ var injection = injection || function() {
                 .syringe-image {
                     position: absolute;
                     top: 50%;
-                    left: -200px;
-                    transform: translateY(-50%) rotate(-30deg);
-                    width: 350px;
+                    left: -300px;
+                    transform: translateY(-50%) rotate(90deg);
+                    width: 280px;
                     height: auto;
                     z-index: 10;
                     filter: drop-shadow(2px 4px 8px rgba(0, 0, 0, 0.4));
