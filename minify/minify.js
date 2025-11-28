@@ -1,3 +1,72 @@
+// Poster ID to i18n translation key mapping
+var posterI18nMap = {
+    'plane': 'posters.plane',
+    'injection': 'posters.injection',
+    'wipertypo': 'posters.thunder',
+    'darkness': 'posters.darkness',
+    'surfacewaves': 'posters.ocean',
+    'rainingmen': 'posters.circles',
+    'ripples': 'posters.insects',
+    'flipclock': 'posters.heights',
+    'blendhue': 'posters.tightSpaces',
+    'triangulation': 'posters.knives',
+    'spiral': 'posters.injury',
+    'pixelated': 'posters.claustrophobia',
+    'universe': 'posters.socialEvents',
+    'cylinder': 'posters.germs',
+    'bokeh': 'posters.driving'
+};
+
+// Helper function to get translated poster title
+function getPosterTitle(posterId) {
+    var t = window.i18n ? window.i18n.t : function(k) { return k; };
+    var key = posterI18nMap[posterId];
+    if (key) {
+        var translation = t(key + '.title');
+        if (translation && translation !== key + '.title') {
+            return translation.toLowerCase();
+        }
+    }
+    return '';
+}
+
+// Helper function to get translated poster date/description
+function getPosterDate(posterId) {
+    var t = window.i18n ? window.i18n.t : function(k) { return k; };
+    var key = posterI18nMap[posterId];
+    if (key) {
+        var translation = t(key + '.date');
+        if (translation && translation !== key + '.date') {
+            return translation;
+        }
+    }
+    return '';
+}
+
+// Function to refresh all poster tile labels when language changes
+function refreshPosterTileLabels() {
+    var tileItems = document.querySelectorAll('.items[data-poster-id]');
+
+    tileItems.forEach(function(itemDiv) {
+        var posterId = itemDiv.getAttribute('data-poster-id');
+        if (posterId) {
+            var titleEl = itemDiv.querySelector('.item-txt-title');
+            var dateEl = itemDiv.querySelector('.item-txt-date');
+            if (titleEl) {
+                titleEl.innerHTML = getPosterTitle(posterId);
+            }
+            if (dateEl) {
+                dateEl.innerHTML = getPosterDate(posterId);
+            }
+        }
+    });
+}
+
+// Register language change listener when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('languageChanged', refreshPosterTileLabels);
+});
+
 var airplane = airplane || function() {
     var container, videoElement, isPlaying = false, fullscreenContainer;
 
@@ -3703,7 +3772,7 @@ Q=!1;S=0}function c(a,b,c){b%=360;0>b&&(b+=360);a.pos=b;if(190<b&&350>b){if(0==a
 "showme footer-black"}function h(a,b){Q=!0;S=0;U=a}function l(a,b){Q&&(S=a-U,U=a)}function n(){Q&&(Q=!1)}function r(a){a=a.currentTarget.getAttribute("data-id")|0;a=ConfigModel.configArr[M[a].bg].poster.id;"lock"!=a&&(Y=!0,S=0,Address.goSection(a))}function p(a){a=ConfigModel.convertIdToOrder(a);var b;a:{for(b=0;26>b;b++){var c=M[b];if(c.bg==a)break a}b=0}c=M[b].no;var d=M[b].item,e=fa[b];M[b].click=1;T.pos=D.posArr[c].pos;TweenLite.to(T,.6,{pos:270,ease:Cubic.easeOut,onUpdate:y,onUpdateParams:[c]});
 O=d;ConfigModel.load(c,a,e,d);ConfigModel.isWhite=1==ConfigModel.configArr[a].poster.white?1:0;1==ConfigModel.isWhite?Address.whiteLeft():Address.blackLeft();TweenLite.delayedCall(.42,u,[e])}function u(a){1==ConfigModel.isWhite?(Address.whiteTop(),a.className="item-txt white"):a.className="item-txt black"}function y(a){var b=T.pos,c;for(c=0;36>c;c++){var d=D.posArr[c];w(d,b-10*(a-c),c)}}function v(){Y||J||(requestAnimationFrame(v),z())}function z(){var a;S*=.9;var b=D.posArr[0];var c=b.pos+.1*S;for(a=
 0;36>a;a++)b=D.posArr[a],w(b,c+10*a,a)}function w(a,b,c){b=(b+360)%360;a.pos=b;if(10<b&&170>b)1==a.use&&(a.use=0,null!=a.item&&(a.item.use=0,a.item.bg=-1,B(a.item),a.item=null));else{if(0==a.use||null==a.item){a.use=1;if(170<b&&270>b){var d=1;var e=-1}else d=-1,e=1;d=D.posArr[x(c+d,36)];e=x(d.cur+e,N);a.cur=e;a.item=C(c,e)}null!=a.item&&A(a.item,b)}}function x(a,b){return(a+b*(Math.abs(a/10|0)+1))%b}function C(a,b){var c;for(c=0;c<P;c++){var d=M[c];if(0==d.use)return d.use=1,d.no=a,d.bg=b,a=ConfigModel.imgArr[b]+
-"_c.png",b=ConfigModel.configArr[b].poster,d.item.style.background=b.itemcolor+" url("+a+") no-repeat",ca[c].innerHTML=b.title.toLowerCase(),aa[c].innerHTML=b.date,d}}function B(a){a.item.style[da]="translate3d(-500px, -500px, 0px) rotate(0deg)"}function A(a,b){var c=270-b,d=Math.abs(c),e=100-d|0;d=1-.006*d;c=E(b+c*c*c*c*c*5e-9);a.item.style[da]="translate3d("+c.x+"px, "+c.y+"px, 0px) rotate("+(b+90)+"deg) scale("+d+")";a.item.style.zIndex=1==a.click?110:e}function E(a){return{x:900*Math.cos(a*R)+
+"_c.png",b=ConfigModel.configArr[b].poster,d.item.style.background=b.itemcolor+" url("+a+") no-repeat",d.item.setAttribute("data-poster-id",b.id),ca[c].innerHTML=getPosterTitle(b.id),aa[c].innerHTML=getPosterDate(b.id),d}}function B(a){a.item.style[da]="translate3d(-500px, -500px, 0px) rotate(0deg)"}function A(a,b){var c=270-b,d=Math.abs(c),e=100-d|0;d=1-.006*d;c=E(b+c*c*c*c*c*5e-9);a.item.style[da]="translate3d("+c.x+"px, "+c.y+"px, 0px) rotate("+(b+90)+"deg) scale("+d+")";a.item.style.zIndex=1==a.click?110:e}function E(a){return{x:900*Math.cos(a*R)+
 K-W,y:900*Math.sin(a*R)+L-V}}var D={posArr:[]},G,F,H,I,M=[],O,K,L,W=CMDetect.IMG_HALF_W,V=CMDetect.IMG_HALF_H,R=Math.PI/180,P,Q=!1,U=0,S=0,Y=!1,J=!1,N,T={pos:0},ca=[],aa=[],fa=[],ja,ea,ba=0,da=CMDetect.cssHead;D.init=function(){G=document.getElementById("pantone-loading");F=document.getElementById("pantone");H=document.getElementById("header");I=document.getElementById("footer");StageController.addResize("home",d);ja=Address.curSection;N=ConfigModel.total;ba=36-N;ea=ConfigModel.convertIdToOrder(ja);
 var g;for(g=0;26>g;g++){var h=document.createElement("div");h.id="items"+g;h.className="items";F.appendChild(h);M[g]={item:h,use:0,no:0,click:0,bg:-1};var k=g,l=M[g],n=document.createElement("div"),m=document.createElement("div");n.className="item-button";n.setAttribute("data-id",k);m.className="item-txt";m.innerHTML='<div class="item-txt-title"></div><div class="item-txt-date"></div>';h.appendChild(m);h.appendChild(n);$(n).on("click",r);fa[k]=m;ca[k]=m.getElementsByClassName("item-txt-title")[0];
 aa[k]=m.getElementsByClassName("item-txt-date")[0];B(l)}for(g=0;36>g;g++)D.posArr[g]={pos:10*g-90,use:0,cur:0,item:null,no:g};P=M.length;g=D.posArr[0];k=g.pos;for(h=0;36>h;h++)g=D.posArr[h],c(g,k+10*h,h);switch(Address.curURL){case Address.URL_HOME:g=.8;CMDetect.isDevice?(T.pos=0,g=1.2):T.pos=320;TweenLite.to(T,2,{pos:-90,ease:Back.easeOut,easeParams:[g],onUpdate:f,onUpdateParams:[0],onComplete:a});F.className="chand show-pantone";break;case Address.URL_SECTION:T.pos=0;J=!0;TweenLite.to(T,1,{pos:-90,

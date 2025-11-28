@@ -99,6 +99,25 @@ const translations = {
         langSwitch: {
             en: "EN",
             ko: "한국어"
+        },
+
+        // Poster tiles (main page)
+        posters: {
+            plane: { title: "Plane", date: "Fear of Airplanes" },
+            injection: { title: "Injection", date: "Fear of Injections" },
+            thunder: { title: "Thunder", date: "Fear of Lightning & Thunder" },
+            darkness: { title: "Darkness", date: "Fear of Darkness" },
+            ocean: { title: "Ocean", date: "Fear of Oceans" },
+            circles: { title: "Circles", date: "Fear of Circles" },
+            insects: { title: "Insects", date: "Fear of Insects" },
+            heights: { title: "Heights", date: "Fear of Heights" },
+            tightSpaces: { title: "Tight Spaces", date: "Fear of Dogs" },
+            knives: { title: "Knives", date: "Fear of Knives" },
+            injury: { title: "Injury", date: "Fear of Injury" },
+            claustrophobia: { title: "Tight Spaces", date: "Fear of Tight Spaces" },
+            socialEvents: { title: "Social Events", date: "Fear of Social Events" },
+            germs: { title: "Germs", date: "Fear of Germs" },
+            driving: { title: "Driving", date: "Fear of Driving" }
         }
     },
 
@@ -199,6 +218,25 @@ const translations = {
         langSwitch: {
             en: "EN",
             ko: "한국어"
+        },
+
+        // Poster tiles (main page)
+        posters: {
+            plane: { title: "비행기", date: "비행 공포증" },
+            injection: { title: "주사", date: "주사 공포증" },
+            thunder: { title: "천둥", date: "번개 및 천둥 공포증" },
+            darkness: { title: "어둠", date: "어둠 공포증" },
+            ocean: { title: "바다", date: "바다 공포증" },
+            circles: { title: "원", date: "원형 공포증" },
+            insects: { title: "곤충", date: "곤충 공포증" },
+            heights: { title: "높은 곳", date: "고소 공포증" },
+            tightSpaces: { title: "좁은 공간", date: "개 공포증" },
+            knives: { title: "칼", date: "칼 공포증" },
+            injury: { title: "부상", date: "부상 공포증" },
+            claustrophobia: { title: "좁은 공간", date: "폐소 공포증" },
+            socialEvents: { title: "사회적 행사", date: "사회 공포증" },
+            germs: { title: "세균", date: "세균 공포증" },
+            driving: { title: "운전", date: "운전 공포증" }
         }
     }
 };
