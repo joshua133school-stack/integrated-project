@@ -1065,89 +1065,105 @@ var injection = injection || function() {
 
     function startSimulation() {
         const btn = container.querySelector('#start-simulation-btn');
-        const needle = container.querySelector('.injection-sim-needle');
-        const syringe = container.querySelector('.injection-sim-syringe');
-        const plunger = container.querySelector('.injection-sim-plunger');
-        const skin = container.querySelector('.injection-sim-skin');
-        const depthIndicator = container.querySelector('.depth-indicator');
-        const depthValue = container.querySelector('.depth-value');
+        const syringeWrapper = container.querySelector('.syringe-wrapper');
+        const syringeLiquid = container.querySelector('.syringe-liquid');
+        const skinDimple = container.querySelector('.skin-dimple');
+        const injectionEffect = container.querySelector('.injection-effect');
+        const injectionSite = container.querySelector('.injection-site');
+        const statusPhase = container.querySelector('.status-phase');
+        const statusDepth = container.querySelector('.status-depth');
 
         btn.disabled = true;
         btn.textContent = 'Injecting...';
 
         let depth = 0;
 
-        // Phase 1: Needle approaches skin (1 second)
-        needle.style.transition = 'transform 1s ease-out';
-        syringe.style.transition = 'transform 1s ease-out';
-        needle.style.transform = 'translateX(80px)';
-        syringe.style.transform = 'translateX(80px)';
+        // Phase 1: Syringe approaches arm (1.5 seconds)
+        statusPhase.textContent = 'Approaching...';
+        syringeWrapper.style.transition = 'transform 1.5s ease-out';
+        syringeWrapper.style.transform = 'translateX(80px) rotate(-25deg)';
 
         setTimeout(() => {
-            // Phase 2: Needle penetrates skin slowly (2.5 seconds)
-            needle.style.transition = 'transform 2.5s ease-in-out';
-            syringe.style.transition = 'transform 2.5s ease-in-out';
-            needle.style.transform = 'translateX(150px)';
-            syringe.style.transform = 'translateX(150px)';
+            // Phase 2: Needle penetrates skin (2 seconds)
+            statusPhase.textContent = 'Inserting needle...';
+            syringeWrapper.style.transition = 'transform 2s ease-in-out';
+            syringeWrapper.style.transform = 'translateX(160px) rotate(-25deg)';
 
-            // Animate depth indicator
-            const depthInterval = setInterval(() => {
-                depth += 0.5;
-                if (depth > 25) depth = 25;
-                depthIndicator.style.top = (depth / 50 * 100) + '%';
-                depthValue.textContent = depth.toFixed(1) + 'mm';
-            }, 50);
+            // Create skin dimple effect
+            skinDimple.style.transition = 'r 0.5s ease-out';
+            skinDimple.setAttribute('r', '12');
 
             // Show injection site reaction
-            setTimeout(() => {
-                skin.classList.add('injecting');
-            }, 1500);
+            injectionSite.style.stroke = '#ff4444';
+            injectionSite.style.strokeWidth = '3';
+
+            // Animate depth
+            const depthInterval = setInterval(() => {
+                depth += 0.4;
+                if (depth > 20) depth = 20;
+                statusDepth.textContent = 'Depth: ' + depth.toFixed(1) + 'mm';
+            }, 80);
 
             setTimeout(() => {
                 clearInterval(depthInterval);
+                statusPhase.textContent = 'Injecting medication...';
 
-                // Phase 3: Push plunger to inject (1 second)
-                plunger.style.transition = 'transform 1s ease-in-out';
-                plunger.style.transform = 'translateX(30px)';
+                // Phase 3: Push plunger / inject liquid (1.5 seconds)
+                syringeLiquid.style.transition = 'height 1.5s ease-in-out';
+                syringeLiquid.style.height = '0%';
+
+                // Show injection spreading effect
+                injectionEffect.classList.add('active');
 
                 setTimeout(() => {
-                    // Phase 4: Slight pause (0.5 seconds)
-                    setTimeout(() => {
-                        // Phase 5: Needle withdraws (1.5 seconds)
-                        needle.style.transition = 'transform 1.5s ease-in';
-                        syringe.style.transition = 'transform 1.5s ease-in';
-                        needle.style.transform = 'translateX(-300px)';
-                        syringe.style.transform = 'translateX(-300px)';
+                    // Phase 4: Brief pause (0.5 seconds)
+                    statusPhase.textContent = 'Holding...';
 
-                        // Animate depth indicator back
+                    setTimeout(() => {
+                        // Phase 5: Withdraw needle (1.5 seconds)
+                        statusPhase.textContent = 'Withdrawing...';
+                        syringeWrapper.style.transition = 'transform 1.5s ease-in';
+                        syringeWrapper.style.transform = 'translateX(-150px) rotate(-25deg)';
+
+                        // Reset skin dimple
+                        skinDimple.style.transition = 'r 0.5s ease-out';
+                        skinDimple.setAttribute('r', '0');
+
+                        // Animate depth back
                         const withdrawInterval = setInterval(() => {
-                            depth -= 2;
+                            depth -= 1.5;
                             if (depth <= 0) {
                                 depth = 0;
                                 clearInterval(withdrawInterval);
                             }
-                            depthIndicator.style.top = (depth / 50 * 100) + '%';
-                            depthValue.textContent = depth.toFixed(1) + 'mm';
-                        }, 30);
+                            statusDepth.textContent = 'Depth: ' + depth.toFixed(1) + 'mm';
+                        }, 50);
 
                         setTimeout(() => {
-                            // Reset everything
-                            btn.disabled = false;
-                            btn.textContent = 'Start Injection Simulation';
-                            needle.style.transition = 'none';
-                            syringe.style.transition = 'none';
-                            plunger.style.transition = 'none';
-                            needle.style.transform = 'translateX(-300px)';
-                            syringe.style.transform = 'translateX(-300px)';
-                            plunger.style.transform = 'translateX(0)';
-                            skin.classList.remove('injecting');
-                            depthIndicator.style.top = '0%';
-                            depthValue.textContent = '0.0mm';
+                            // Show small red dot where injection was
+                            injectionEffect.classList.remove('active');
+                            injectionEffect.classList.add('complete');
+                            statusPhase.textContent = 'Complete!';
+
+                            setTimeout(() => {
+                                // Reset everything
+                                btn.disabled = false;
+                                btn.textContent = 'Start Injection Simulation';
+                                syringeWrapper.style.transition = 'none';
+                                syringeWrapper.style.transform = 'translateX(-150px) rotate(-25deg)';
+                                syringeLiquid.style.transition = 'none';
+                                syringeLiquid.style.height = '100%';
+                                injectionEffect.classList.remove('complete');
+                                injectionSite.style.stroke = '#ff6b6b';
+                                injectionSite.style.strokeWidth = '2';
+                                statusPhase.textContent = 'Ready';
+                                statusDepth.textContent = 'Depth: 0.0mm';
+                            }, 2000);
                         }, 1500);
                     }, 500);
-                }, 1000);
-            }, 2500);
-        }, 1000);
+                }, 1500);
+            }, 2000);
+        }, 1500);
     }
 
     function addStyles() {
@@ -1284,96 +1300,123 @@ var injection = injection || function() {
                     font-size: 14px;
                 }
 
-                .injection-simulation-wrapper {
+                .injection-arm-simulation {
                     display: flex;
-                    gap: 30px;
+                    flex-direction: column;
                     align-items: center;
+                    gap: 20px;
                 }
 
-                .injection-depth-graph {
-                    width: 200px;
-                    height: 400px;
-                    background: #fff;
-                    border: 2px solid #e0e0e0;
-                    border-radius: 15px;
-                    padding: 20px;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+                .arm-container {
                     position: relative;
-                }
-
-                .depth-graph-title {
-                    font-size: 14px;
-                    font-weight: bold;
-                    margin-bottom: 15px;
-                    text-align: center;
-                }
-
-                .depth-layers {
-                    position: relative;
-                    height: 280px;
-                    border: 2px solid #333;
-                    border-radius: 8px;
+                    width: 700px;
+                    height: 350px;
+                    background: linear-gradient(180deg, #e8f4f8 0%, #d0e8f0 100%);
+                    border-radius: 20px;
                     overflow: hidden;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
                 }
 
-                .skin-layer {
-                    position: relative;
-                    border-bottom: 1px solid #999;
-                    display: flex;
-                    align-items: center;
-                    padding-left: 10px;
-                    font-size: 11px;
-                    font-weight: 600;
+                .arm-svg {
+                    width: 100%;
+                    height: 100%;
                 }
 
-                .layer-epidermis {
-                    height: 10%;
-                    background: linear-gradient(180deg, #f5d5c8 0%, #f0cabb 100%);
+                .arm-vein {
+                    opacity: 0.6;
                 }
 
-                .layer-dermis {
-                    height: 20%;
-                    background: linear-gradient(180deg, #e8c4b8 0%, #ddb5a5 100%);
-                }
-
-                .layer-subcutaneous {
-                    height: 30%;
-                    background: linear-gradient(180deg, #f9e5a8 0%, #f7dd8e 100%);
-                }
-
-                .layer-muscle {
-                    height: 40%;
-                    background: linear-gradient(180deg, #d4959e 0%, #c8848d 100%);
-                    border-bottom: none;
-                }
-
-                .depth-indicator {
+                .syringe-wrapper {
                     position: absolute;
-                    left: -5px;
-                    top: 0;
-                    width: 10px;
-                    height: 3px;
-                    background: #ff0000;
-                    box-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
-                    transition: top 0.05s linear;
+                    top: 50%;
+                    left: -150px;
+                    transform: translateY(-50%) rotate(-25deg);
+                    width: 280px;
+                    height: 80px;
                     z-index: 10;
                 }
 
-                .depth-indicator::before {
-                    content: '→';
-                    position: absolute;
-                    right: -15px;
-                    top: -7px;
-                    font-size: 16px;
-                    color: #ff0000;
+                .syringe-image {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: contain;
+                    filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.3));
                 }
 
-                .depth-value {
-                    margin-top: 15px;
-                    text-align: center;
+                .syringe-liquid {
+                    position: absolute;
+                    bottom: 35%;
+                    left: 15%;
+                    width: 30%;
+                    height: 100%;
+                    background: linear-gradient(180deg, rgba(100, 180, 255, 0.6) 0%, rgba(80, 160, 240, 0.8) 100%);
+                    border-radius: 3px;
+                    pointer-events: none;
+                    display: none;
+                }
+
+                .injection-effect {
+                    position: absolute;
+                    top: 50%;
+                    left: 53%;
+                    transform: translate(-50%, -50%);
+                    width: 0;
+                    height: 0;
+                    border-radius: 50%;
+                    background: radial-gradient(circle, rgba(100, 180, 255, 0.4) 0%, transparent 70%);
+                    pointer-events: none;
+                    transition: all 0.5s ease-out;
+                }
+
+                .injection-effect.active {
+                    width: 80px;
+                    height: 80px;
+                    animation: injection-spread 1.5s ease-out forwards;
+                }
+
+                .injection-effect.complete {
+                    width: 8px;
+                    height: 8px;
+                    background: rgba(180, 50, 50, 0.7);
+                }
+
+                @keyframes injection-spread {
+                    0% {
+                        width: 10px;
+                        height: 10px;
+                        opacity: 0.8;
+                    }
+                    50% {
+                        width: 60px;
+                        height: 60px;
+                        opacity: 0.6;
+                    }
+                    100% {
+                        width: 80px;
+                        height: 80px;
+                        opacity: 0.3;
+                    }
+                }
+
+                .injection-status {
+                    display: flex;
+                    gap: 40px;
+                    background: #fff;
+                    padding: 15px 40px;
+                    border-radius: 30px;
+                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                }
+
+                .status-phase {
                     font-size: 18px;
                     font-weight: bold;
-                    color: #ff0000;
+                    color: #333;
+                }
+
+                .status-depth {
+                    font-size: 18px;
+                    font-weight: bold;
+                    color: #e74c3c;
                 }
 
                 .injection-simulation-container {
@@ -1710,40 +1753,71 @@ var injection = injection || function() {
                     <!-- Step 4: Simulation -->
                     <div class="injection-step" style="display: none;">
                         <h1 class="injection-title">Injection Simulation</h1>
-                        <p class="injection-subtitle">Watch the injection process in slow motion</p>
-                        <div class="injection-simulation-wrapper">
-                            <!-- Depth Graph -->
-                            <div class="injection-depth-graph">
-                                <div class="depth-graph-title">Injection Depth</div>
-                                <div class="depth-layers">
-                                    <div class="skin-layer layer-epidermis">Epidermis</div>
-                                    <div class="skin-layer layer-dermis">Dermis</div>
-                                    <div class="skin-layer layer-subcutaneous">Subcutaneous</div>
-                                    <div class="skin-layer layer-muscle">Muscle</div>
-                                    <div class="depth-indicator"></div>
+                        <p class="injection-subtitle">Watch the injection process on a realistic arm</p>
+                        <div class="injection-arm-simulation">
+                            <!-- Realistic Arm Container -->
+                            <div class="arm-container">
+                                <!-- Arm SVG -->
+                                <svg class="arm-svg" viewBox="0 0 600 300" preserveAspectRatio="xMidYMid meet">
+                                    <!-- Arm shape -->
+                                    <defs>
+                                        <linearGradient id="skinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                            <stop offset="0%" style="stop-color:#f5d0c5;stop-opacity:1" />
+                                            <stop offset="50%" style="stop-color:#e8c4b8;stop-opacity:1" />
+                                            <stop offset="100%" style="stop-color:#ddb5a5;stop-opacity:1" />
+                                        </linearGradient>
+                                        <linearGradient id="veinGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                            <stop offset="0%" style="stop-color:#7fa8c9;stop-opacity:0.4" />
+                                            <stop offset="50%" style="stop-color:#6b9bc4;stop-opacity:0.5" />
+                                            <stop offset="100%" style="stop-color:#7fa8c9;stop-opacity:0.4" />
+                                        </linearGradient>
+                                        <filter id="armShadow" x="-20%" y="-20%" width="140%" height="140%">
+                                            <feDropShadow dx="0" dy="5" stdDeviation="8" flood-opacity="0.3"/>
+                                        </filter>
+                                    </defs>
+
+                                    <!-- Upper arm -->
+                                    <ellipse cx="80" cy="150" rx="90" ry="120" fill="url(#skinGradient)" filter="url(#armShadow)"/>
+
+                                    <!-- Forearm -->
+                                    <path d="M 100 50 Q 200 30 400 60 Q 550 80 580 150 Q 550 220 400 240 Q 200 270 100 250 Z"
+                                          fill="url(#skinGradient)" filter="url(#armShadow)"/>
+
+                                    <!-- Veins -->
+                                    <path class="arm-vein" d="M 150 130 Q 250 120 350 135 Q 420 145 480 140"
+                                          stroke="url(#veinGradient)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                                    <path class="arm-vein" d="M 180 160 Q 280 155 380 165 Q 450 175 500 168"
+                                          stroke="url(#veinGradient)" stroke-width="3" fill="none" stroke-linecap="round"/>
+                                    <path class="arm-vein" d="M 200 145 Q 260 140 300 150"
+                                          stroke="url(#veinGradient)" stroke-width="2" fill="none" stroke-linecap="round"/>
+
+                                    <!-- Elbow crease -->
+                                    <path d="M 120 120 Q 140 150 120 180" stroke="#d4a89a" stroke-width="2" fill="none" opacity="0.5"/>
+
+                                    <!-- Injection site marker -->
+                                    <circle class="injection-site" cx="320" cy="150" r="8" fill="transparent" stroke="#ff6b6b" stroke-width="2" stroke-dasharray="4,4">
+                                        <animate attributeName="stroke-dashoffset" from="0" to="8" dur="1s" repeatCount="indefinite"/>
+                                    </circle>
+
+                                    <!-- Skin dimple (appears during injection) -->
+                                    <circle class="skin-dimple" cx="320" cy="150" r="0" fill="rgba(200,150,140,0.5)"/>
+                                </svg>
+
+                                <!-- Syringe Image -->
+                                <div class="syringe-wrapper">
+                                    <img class="syringe-image" src="data/images/injection3.webp" alt="Syringe"/>
+                                    <!-- Liquid in syringe -->
+                                    <div class="syringe-liquid"></div>
                                 </div>
-                                <div class="depth-value">0.0mm</div>
+
+                                <!-- Injection effect overlay -->
+                                <div class="injection-effect"></div>
                             </div>
-                            <!-- Simulation Container -->
-                            <div class="injection-simulation-container">
-                                <div class="injection-sim-skin">
-                                    <div class="skin-layers-visual">
-                                        <div class="visual-epidermis"></div>
-                                        <div class="visual-dermis"></div>
-                                        <div class="visual-subcutaneous"></div>
-                                        <div class="visual-muscle"></div>
-                                    </div>
-                                    <div class="injection-point">
-                                        <div class="injection-sim-needle"></div>
-                                        <div class="injection-sim-syringe">
-                                            <div class="syringe-barrel"></div>
-                                        </div>
-                                        <div class="injection-sim-plunger">
-                                            <div class="plunger-handle"></div>
-                                            <div class="plunger-rod"></div>
-                                        </div>
-                                    </div>
-                                </div>
+
+                            <!-- Status Display -->
+                            <div class="injection-status">
+                                <div class="status-phase">Ready</div>
+                                <div class="status-depth">Depth: 0.0mm</div>
                             </div>
                         </div>
                         <button id="start-simulation-btn" class="injection-btn">Start Injection Simulation</button>
