@@ -1319,7 +1319,7 @@ var injection = injection || function() {
                 }
 
                 .skin-container .syringe-image.inserted {
-                    clip-path: inset(55% 0 0 0);
+                    clip-path: inset(25% 0 0 0);
                 }
 
                 .skin-surface {
