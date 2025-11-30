@@ -101,20 +101,6 @@ const translations = {
             ko: "한국어"
         },
 
-        // Welcome screen
-        welcome: {
-            title: "Welcome to Oasis",
-            subtitle: "Interactive experiences for phobia awareness",
-            description: "Explore calming, interactive experiences designed to help you understand and manage common phobias through gentle exposure.",
-            tileLabel: "Sample Experience",
-            tileDescription: "Click on posters like this to start an experience",
-            screenshotLabel: "What you'll experience",
-            screenshotDescription: "Each poster opens a unique interactive journey",
-            chooseLanguage: "Choose your language",
-            enterButton: "Enter Oasis",
-            clickAnywhere: "Click anywhere to continue"
-        },
-
         // Poster tiles (main page)
         posters: {
             plane: { title: "Plane", date: "Fear of Airplanes" },
@@ -232,20 +218,6 @@ const translations = {
         langSwitch: {
             en: "EN",
             ko: "한국어"
-        },
-
-        // Welcome screen
-        welcome: {
-            title: "오아시스에 오신 것을 환영합니다",
-            subtitle: "공포증 인식을 위한 인터랙티브 경험",
-            description: "부드러운 노출을 통해 일반적인 공포증을 이해하고 관리하는 데 도움이 되도록 설계된 차분한 인터랙티브 경험을 탐험하세요.",
-            tileLabel: "샘플 경험",
-            tileDescription: "이와 같은 포스터를 클릭하여 경험을 시작하세요",
-            screenshotLabel: "경험하게 될 것",
-            screenshotDescription: "각 포스터는 고유한 인터랙티브 여정을 엽니다",
-            chooseLanguage: "언어를 선택하세요",
-            enterButton: "오아시스 입장",
-            clickAnywhere: "계속하려면 아무 곳이나 클릭하세요"
         },
 
         // Poster tiles (main page)
