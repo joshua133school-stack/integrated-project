@@ -118,22 +118,20 @@ var Developing = Developing || function() {
 }();
 
 var FireflyTown = FireflyTown || function() {
-    var container, canvas, ctx;
+    var container;
+    var scene, camera, renderer, playerMesh;
     var animationId = null;
     var isPaused = false;
+    var THREE = null;
 
     // Player state
-    var player = { x: 0, y: 0, speed: 3, isMoving: false };
-    var keys = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false };
+    var player = { x: 0, z: 0, speed: 0.3, isMoving: false, rotation: 0 };
+    var keys = { w: false, a: false, s: false, d: false };
 
     // World objects
-    var houses = [];
-    var trees = [];
     var fireflies = [];
-    var stars = [];
-
-    // Camera offset (follows player)
-    var camera = { x: 0, y: 0 };
+    var fireflyMeshes = [];
+    var clock = null;
 
     function addStyles() {
         if (!document.getElementById('firefly-town-styles')) {
@@ -149,15 +147,12 @@ var FireflyTown = FireflyTown || function() {
                     right: 0;\
                     bottom: 0;\
                     overflow: hidden;\
-                    background: linear-gradient(to bottom, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);\
+                    background: #000;\
                 }\
-                .firefly-town-canvas {\
+                .firefly-town-container canvas {\
                     width: 100%;\
                     height: 100%;\
                     display: block;\
-                    position: absolute;\
-                    top: 0;\
-                    left: 0;\
                 }\
                 .firefly-town-instructions {\
                     position: absolute;\
@@ -171,100 +166,269 @@ var FireflyTown = FireflyTown || function() {
                     text-transform: lowercase;\
                     pointer-events: none;\
                     transition: opacity 2s ease;\
+                    z-index: 10;\
                 }\
             ';
             document.head.appendChild(style);
         }
     }
 
-    function initWorld() {
-        // Create houses scattered around
+    function loadThreeJS(callback) {
+        if (window.THREE) {
+            THREE = window.THREE;
+            callback();
+            return;
+        }
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
+        script.onload = function() {
+            THREE = window.THREE;
+            callback();
+        };
+        document.head.appendChild(script);
+    }
+
+    function createScene() {
+        var wrapper = container.querySelector('.firefly-town-container');
+        var w = wrapper.clientWidth || window.innerWidth;
+        var h = wrapper.clientHeight || window.innerHeight;
+
+        // Scene
+        scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x050510);
+        scene.fog = new THREE.Fog(0x050510, 20, 100);
+
+        // Camera
+        camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 1000);
+        camera.position.set(0, 8, 12);
+        camera.lookAt(0, 0, 0);
+
+        // Renderer
+        renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(w, h);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        wrapper.appendChild(renderer.domElement);
+
+        // Ambient light (very dim)
+        var ambient = new THREE.AmbientLight(0x111122, 0.3);
+        scene.add(ambient);
+
+        // Moon light
+        var moonLight = new THREE.DirectionalLight(0x6677aa, 0.4);
+        moonLight.position.set(50, 100, 50);
+        scene.add(moonLight);
+
+        // Ground
+        var groundGeo = new THREE.PlaneGeometry(200, 200);
+        var groundMat = new THREE.MeshLambertMaterial({ color: 0x0a150a });
+        var ground = new THREE.Mesh(groundGeo, groundMat);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = 0;
+        scene.add(ground);
+
+        // Create houses
         var housePositions = [
-            { x: -300, y: -200 }, { x: 200, y: -350 }, { x: -450, y: 100 },
-            { x: 350, y: 150 }, { x: -150, y: 300 }, { x: 500, y: -100 },
-            { x: -500, y: -400 }, { x: 100, y: 450 }, { x: 400, y: 400 }
+            { x: -15, z: -10 }, { x: 10, z: -18 }, { x: -22, z: 5 },
+            { x: 18, z: 8 }, { x: -8, z: 15 }, { x: 25, z: -5 },
+            { x: -25, z: -20 }, { x: 5, z: 22 }, { x: 20, z: 20 }
         ];
-        houses = housePositions.map(function(pos) {
-            return {
-                x: pos.x,
-                y: pos.y,
-                width: 60 + Math.random() * 40,
-                height: 50 + Math.random() * 30,
-                roofHeight: 30 + Math.random() * 20,
-                color: ['#2d1f1f', '#1f2d1f', '#1f1f2d', '#2d2d1f'][Math.floor(Math.random() * 4)],
-                roofColor: ['#4a3030', '#304a30', '#30304a', '#4a4a30'][Math.floor(Math.random() * 4)],
-                hasLight: Math.random() > 0.3,
-                lightFlicker: Math.random() * Math.PI * 2
-            };
+        housePositions.forEach(function(pos) {
+            createHouse(pos.x, pos.z);
         });
 
         // Create trees
-        for (var i = 0; i < 40; i++) {
-            trees.push({
-                x: (Math.random() - 0.5) * 1200,
-                y: (Math.random() - 0.5) * 1000,
-                trunkHeight: 20 + Math.random() * 15,
-                canopyRadius: 25 + Math.random() * 20,
-                trunkColor: '#1a1208',
-                canopyColor: ['#0d1f0d', '#0f220f', '#0a1a0a'][Math.floor(Math.random() * 3)],
-                sway: Math.random() * Math.PI * 2
-            });
+        for (var i = 0; i < 50; i++) {
+            var tx = (Math.random() - 0.5) * 80;
+            var tz = (Math.random() - 0.5) * 80;
+            if (Math.abs(tx) > 5 || Math.abs(tz) > 5) {
+                createTree(tx, tz);
+            }
         }
 
         // Create stars
-        for (var j = 0; j < 100; j++) {
-            stars.push({
-                x: Math.random() * 2000 - 1000,
-                y: Math.random() * 600 - 500,
-                size: Math.random() * 2 + 0.5,
-                twinkle: Math.random() * Math.PI * 2,
-                twinkleSpeed: 0.02 + Math.random() * 0.03
-            });
+        createStars();
+
+        // Create moon
+        createMoon();
+
+        // Create player
+        createPlayer();
+
+        // Clock for animations
+        clock = new THREE.Clock();
+    }
+
+    function createHouse(x, z) {
+        var group = new THREE.Group();
+        var width = 3 + Math.random() * 2;
+        var height = 2.5 + Math.random() * 1.5;
+        var depth = 3 + Math.random() * 2;
+
+        // House body
+        var bodyGeo = new THREE.BoxGeometry(width, height, depth);
+        var bodyMat = new THREE.MeshLambertMaterial({ color: 0x1a1510 });
+        var body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = height / 2;
+        group.add(body);
+
+        // Roof
+        var roofGeo = new THREE.ConeGeometry(Math.max(width, depth) * 0.8, 2, 4);
+        var roofMat = new THREE.MeshLambertMaterial({ color: 0x2a1a15 });
+        var roof = new THREE.Mesh(roofGeo, roofMat);
+        roof.position.y = height + 1;
+        roof.rotation.y = Math.PI / 4;
+        group.add(roof);
+
+        // Window with light
+        if (Math.random() > 0.3) {
+            var windowGeo = new THREE.PlaneGeometry(0.8, 0.8);
+            var windowMat = new THREE.MeshBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0.9 });
+            var windowMesh = new THREE.Mesh(windowGeo, windowMat);
+            windowMesh.position.set(0, height * 0.5, depth / 2 + 0.01);
+            group.add(windowMesh);
+
+            var windowLight = new THREE.PointLight(0xffaa44, 0.5, 8);
+            windowLight.position.set(0, height * 0.5, depth / 2 + 1);
+            group.add(windowLight);
         }
+
+        group.position.set(x, 0, z);
+        group.rotation.y = Math.random() * Math.PI * 2;
+        scene.add(group);
+    }
+
+    function createTree(x, z) {
+        var group = new THREE.Group();
+        var trunkHeight = 1.5 + Math.random() * 1;
+        var canopyRadius = 1.5 + Math.random() * 1;
+
+        var trunkGeo = new THREE.CylinderGeometry(0.15, 0.2, trunkHeight, 8);
+        var trunkMat = new THREE.MeshLambertMaterial({ color: 0x1a1008 });
+        var trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.y = trunkHeight / 2;
+        group.add(trunk);
+
+        var canopyGeo = new THREE.SphereGeometry(canopyRadius, 8, 6);
+        var canopyMat = new THREE.MeshLambertMaterial({ color: 0x0a1a0a });
+        var canopy = new THREE.Mesh(canopyGeo, canopyMat);
+        canopy.position.y = trunkHeight + canopyRadius * 0.6;
+        group.add(canopy);
+
+        group.position.set(x, 0, z);
+        scene.add(group);
+    }
+
+    function createStars() {
+        var starGeo = new THREE.BufferGeometry();
+        var starPositions = [];
+        for (var i = 0; i < 500; i++) {
+            var theta = Math.random() * Math.PI * 2;
+            var phi = Math.random() * Math.PI * 0.4;
+            var r = 150;
+            starPositions.push(r * Math.sin(phi) * Math.cos(theta), r * Math.cos(phi) + 20, r * Math.sin(phi) * Math.sin(theta));
+        }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPositions, 3));
+        var starMat = new THREE.PointsMaterial({ color: 0xffffee, size: 0.5, sizeAttenuation: true });
+        var stars = new THREE.Points(starGeo, starMat);
+        scene.add(stars);
+    }
+
+    function createMoon() {
+        var moonGeo = new THREE.SphereGeometry(5, 32, 32);
+        var moonMat = new THREE.MeshBasicMaterial({ color: 0xffffdd });
+        var moon = new THREE.Mesh(moonGeo, moonMat);
+        moon.position.set(60, 80, -80);
+        scene.add(moon);
+    }
+
+    function createPlayer() {
+        var group = new THREE.Group();
+
+        var bodyGeo = new THREE.CapsuleGeometry(0.3, 0.8, 4, 8);
+        var bodyMat = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
+        var body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.position.y = 0.7;
+        group.add(body);
+
+        var headGeo = new THREE.SphereGeometry(0.25, 16, 12);
+        var headMat = new THREE.MeshLambertMaterial({ color: 0x3a3a4a });
+        var head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = 1.35;
+        group.add(head);
+
+        var lanternLight = new THREE.PointLight(0xffdd99, 0.8, 10);
+        lanternLight.position.set(0.4, 0.8, 0);
+        group.add(lanternLight);
+
+        playerMesh = group;
+        playerMesh.position.set(0, 0, 0);
+        scene.add(playerMesh);
     }
 
     function spawnFirefly() {
-        if (fireflies.length < 150) {
+        if (fireflies.length < 100) {
             var angle = Math.random() * Math.PI * 2;
-            var dist = 30 + Math.random() * 50;
-            fireflies.push({
+            var dist = 2 + Math.random() * 4;
+            var firefly = {
                 x: player.x + Math.cos(angle) * dist,
-                y: player.y + Math.sin(angle) * dist,
-                vx: (Math.random() - 0.5) * 1.5,
-                vy: (Math.random() - 0.5) * 1.5 - 0.5,
+                y: 0.5 + Math.random() * 2,
+                z: player.z + Math.sin(angle) * dist,
+                vx: (Math.random() - 0.5) * 0.02,
+                vy: 0.01 + Math.random() * 0.02,
+                vz: (Math.random() - 0.5) * 0.02,
                 life: 1,
-                decay: 0.002 + Math.random() * 0.003,
-                size: 2 + Math.random() * 3,
-                pulse: Math.random() * Math.PI * 2,
-                pulseSpeed: 0.05 + Math.random() * 0.05,
-                hue: 50 + Math.random() * 20 // Yellow-green range
-            });
+                decay: 0.003 + Math.random() * 0.004,
+                pulse: Math.random() * Math.PI * 2
+            };
+
+            var fireflyGeo = new THREE.SphereGeometry(0.08, 8, 6);
+            var fireflyMat = new THREE.MeshBasicMaterial({ color: 0xffff66, transparent: true, opacity: 1 });
+            var fireflyMesh = new THREE.Mesh(fireflyGeo, fireflyMat);
+            fireflyMesh.position.set(firefly.x, firefly.y, firefly.z);
+
+            var glowLight = new THREE.PointLight(0xaaff44, 0.3, 3);
+            fireflyMesh.add(glowLight);
+
+            scene.add(fireflyMesh);
+            fireflies.push(firefly);
+            fireflyMeshes.push(fireflyMesh);
         }
     }
 
     function updatePlayer() {
-        var dx = 0, dy = 0;
-        if (keys.w || keys.up) dy -= 1;
-        if (keys.s || keys.down) dy += 1;
-        if (keys.a || keys.left) dx -= 1;
-        if (keys.d || keys.right) dx += 1;
+        var dx = 0, dz = 0;
+        if (keys.w) dz -= 1;
+        if (keys.s) dz += 1;
+        if (keys.a) dx -= 1;
+        if (keys.d) dx += 1;
 
-        player.isMoving = (dx !== 0 || dy !== 0);
+        player.isMoving = (dx !== 0 || dz !== 0);
 
         if (player.isMoving) {
-            var len = Math.sqrt(dx * dx + dy * dy);
+            var len = Math.sqrt(dx * dx + dz * dz);
             player.x += (dx / len) * player.speed;
-            player.y += (dy / len) * player.speed;
+            player.z += (dz / len) * player.speed;
+            player.rotation = Math.atan2(dx, dz);
 
-            // Spawn fireflies when moving
-            if (Math.random() < 0.4) {
+            if (Math.random() < 0.3) {
                 spawnFirefly();
             }
         }
 
-        // Smooth camera follow
-        camera.x += (player.x - camera.x) * 0.08;
-        camera.y += (player.y - camera.y) * 0.08;
+        if (playerMesh) {
+            playerMesh.position.x = player.x;
+            playerMesh.position.z = player.z;
+            playerMesh.rotation.y = player.rotation;
+        }
+
+        // Third-person camera follow
+        var targetCamX = player.x;
+        var targetCamZ = player.z + 12;
+        var targetCamY = 8;
+        camera.position.x += (targetCamX - camera.position.x) * 0.05;
+        camera.position.z += (targetCamZ - camera.position.z) * 0.05;
+        camera.position.y += (targetCamY - camera.position.y) * 0.05;
+        camera.lookAt(player.x, 1, player.z);
     }
 
     function updateFireflies() {
@@ -272,223 +436,65 @@ var FireflyTown = FireflyTown || function() {
             var f = fireflies[i];
             f.x += f.vx;
             f.y += f.vy;
-            f.vy -= 0.01; // Float upward
-            f.vx += (Math.random() - 0.5) * 0.1;
-            f.vy += (Math.random() - 0.5) * 0.1;
-            f.pulse += f.pulseSpeed;
+            f.z += f.vz;
+            f.vx += (Math.random() - 0.5) * 0.005;
+            f.vz += (Math.random() - 0.5) * 0.005;
+            f.pulse += 0.1;
             f.life -= f.decay;
 
-            if (f.life <= 0) {
-                fireflies.splice(i, 1);
-            }
-        }
-    }
-
-    function render(time) {
-        var w = canvas.width;
-        var h = canvas.height;
-
-        // Clear with night sky gradient
-        var gradient = ctx.createLinearGradient(0, 0, 0, h);
-        gradient.addColorStop(0, '#050510');
-        gradient.addColorStop(0.4, '#0a0a1a');
-        gradient.addColorStop(1, '#101825');
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, w, h);
-
-        var cx = w / 2 - camera.x;
-        var cy = h / 2 - camera.y;
-
-        // Draw stars (fixed in sky, slight parallax)
-        stars.forEach(function(star) {
-            star.twinkle += star.twinkleSpeed;
-            var brightness = 0.3 + Math.sin(star.twinkle) * 0.3 + 0.4;
-            ctx.fillStyle = 'rgba(255, 255, 230, ' + brightness + ')';
-            ctx.beginPath();
-            ctx.arc(star.x + camera.x * 0.1 + w/2, star.y + camera.y * 0.05 + h/3, star.size, 0, Math.PI * 2);
-            ctx.fill();
-        });
-
-        // Draw moon
-        ctx.fillStyle = 'rgba(255, 255, 230, 0.9)';
-        ctx.beginPath();
-        ctx.arc(w - 100 + camera.x * 0.05, 80 + camera.y * 0.02, 40, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = '#050510';
-        ctx.beginPath();
-        ctx.arc(w - 85 + camera.x * 0.05, 75 + camera.y * 0.02, 35, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Draw ground
-        ctx.fillStyle = '#0a120a';
-        ctx.fillRect(0, h * 0.6, w, h * 0.4);
-
-        // Draw grass texture
-        ctx.strokeStyle = '#0d180d';
-        for (var g = 0; g < 200; g++) {
-            var gx = ((g * 37 + camera.x * 0.5) % w + w) % w;
-            var gy = h * 0.6 + (g * 13 % (h * 0.35));
-            ctx.beginPath();
-            ctx.moveTo(gx, gy);
-            ctx.lineTo(gx + Math.sin(time * 0.001 + g) * 3, gy - 5 - Math.random() * 5);
-            ctx.stroke();
-        }
-
-        // Sort objects by Y for proper depth
-        var allObjects = [];
-        houses.forEach(function(h) { allObjects.push({ type: 'house', obj: h, y: h.y }); });
-        trees.forEach(function(t) { allObjects.push({ type: 'tree', obj: t, y: t.y }); });
-        allObjects.push({ type: 'player', obj: player, y: player.y });
-        allObjects.sort(function(a, b) { return a.y - b.y; });
-
-        // Draw all objects
-        allObjects.forEach(function(item) {
-            var screenX, screenY;
-
-            if (item.type === 'house') {
-                var house = item.obj;
-                screenX = house.x + cx;
-                screenY = house.y + cy;
-
-                // House body
-                ctx.fillStyle = house.color;
-                ctx.fillRect(screenX - house.width/2, screenY - house.height, house.width, house.height);
-
-                // Roof
-                ctx.fillStyle = house.roofColor;
-                ctx.beginPath();
-                ctx.moveTo(screenX - house.width/2 - 10, screenY - house.height);
-                ctx.lineTo(screenX, screenY - house.height - house.roofHeight);
-                ctx.lineTo(screenX + house.width/2 + 10, screenY - house.height);
-                ctx.closePath();
-                ctx.fill();
-
-                // Window with light
-                if (house.hasLight) {
-                    house.lightFlicker += 0.05;
-                    var lightBrightness = 0.6 + Math.sin(house.lightFlicker) * 0.2;
-                    ctx.fillStyle = 'rgba(255, 200, 100, ' + lightBrightness + ')';
-                    ctx.fillRect(screenX - 10, screenY - house.height + 15, 20, 20);
-
-                    // Light glow
-                    var glowGrad = ctx.createRadialGradient(screenX, screenY - house.height + 25, 0, screenX, screenY - house.height + 25, 60);
-                    glowGrad.addColorStop(0, 'rgba(255, 200, 100, 0.15)');
-                    glowGrad.addColorStop(1, 'rgba(255, 200, 100, 0)');
-                    ctx.fillStyle = glowGrad;
-                    ctx.fillRect(screenX - 60, screenY - house.height - 35, 120, 120);
-                }
-            }
-            else if (item.type === 'tree') {
-                var tree = item.obj;
-                screenX = tree.x + cx;
-                screenY = tree.y + cy;
-                tree.sway += 0.02;
-                var swayOffset = Math.sin(tree.sway) * 2;
-
-                // Trunk
-                ctx.fillStyle = tree.trunkColor;
-                ctx.fillRect(screenX - 4, screenY - tree.trunkHeight, 8, tree.trunkHeight);
-
-                // Canopy
-                ctx.fillStyle = tree.canopyColor;
-                ctx.beginPath();
-                ctx.arc(screenX + swayOffset, screenY - tree.trunkHeight - tree.canopyRadius * 0.7, tree.canopyRadius, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            else if (item.type === 'player') {
-                screenX = player.x + cx;
-                screenY = player.y + cy;
-
-                // Player shadow
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-                ctx.beginPath();
-                ctx.ellipse(screenX, screenY + 2, 12, 5, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Player body (simple figure)
-                ctx.fillStyle = '#2a2a3a';
-                ctx.beginPath();
-                ctx.ellipse(screenX, screenY - 15, 10, 15, 0, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Player head
-                ctx.fillStyle = '#3a3a4a';
-                ctx.beginPath();
-                ctx.arc(screenX, screenY - 35, 8, 0, Math.PI * 2);
-                ctx.fill();
-
-                // Lantern glow around player
-                var playerGlow = ctx.createRadialGradient(screenX, screenY - 20, 0, screenX, screenY - 20, 80);
-                playerGlow.addColorStop(0, 'rgba(255, 220, 150, 0.1)');
-                playerGlow.addColorStop(1, 'rgba(255, 220, 150, 0)');
-                ctx.fillStyle = playerGlow;
-                ctx.beginPath();
-                ctx.arc(screenX, screenY - 20, 80, 0, Math.PI * 2);
-                ctx.fill();
-            }
-        });
-
-        // Draw fireflies
-        fireflies.forEach(function(f) {
-            var fx = f.x + cx;
-            var fy = f.y + cy;
+            var mesh = fireflyMeshes[i];
+            mesh.position.set(f.x, f.y, f.z);
             var pulse = 0.5 + Math.sin(f.pulse) * 0.5;
-            var alpha = f.life * pulse;
+            mesh.material.opacity = f.life * pulse;
+            if (mesh.children[0]) mesh.children[0].intensity = 0.3 * f.life * pulse;
 
-            // Glow
-            var glowSize = f.size * 4;
-            var glow = ctx.createRadialGradient(fx, fy, 0, fx, fy, glowSize);
-            glow.addColorStop(0, 'rgba(255, 255, 100, ' + (alpha * 0.8) + ')');
-            glow.addColorStop(0.5, 'rgba(200, 255, 50, ' + (alpha * 0.3) + ')');
-            glow.addColorStop(1, 'rgba(150, 255, 50, 0)');
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(fx, fy, glowSize, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Core
-            ctx.fillStyle = 'rgba(255, 255, 200, ' + alpha + ')';
-            ctx.beginPath();
-            ctx.arc(fx, fy, f.size * 0.5, 0, Math.PI * 2);
-            ctx.fill();
-        });
+            if (f.life <= 0) {
+                scene.remove(mesh);
+                mesh.geometry.dispose();
+                mesh.material.dispose();
+                fireflies.splice(i, 1);
+                fireflyMeshes.splice(i, 1);
+            }
+        }
     }
 
-    function gameLoop(time) {
-        if (!isPaused) {
-            updatePlayer();
-            updateFireflies();
-            render(time);
+    function gameLoop() {
+        if (isPaused) {
+            animationId = requestAnimationFrame(gameLoop);
+            return;
         }
+        updatePlayer();
+        updateFireflies();
+        renderer.render(scene, camera);
         animationId = requestAnimationFrame(gameLoop);
     }
 
     function handleKeyDown(e) {
         var key = e.key.toLowerCase();
-        if (key === 'w' || key === 'arrowup') { keys.w = true; keys.up = true; }
-        if (key === 's' || key === 'arrowdown') { keys.s = true; keys.down = true; }
-        if (key === 'a' || key === 'arrowleft') { keys.a = true; keys.left = true; }
-        if (key === 'd' || key === 'arrowright') { keys.d = true; keys.right = true; }
+        if (key === 'w' || key === 'arrowup') keys.w = true;
+        if (key === 's' || key === 'arrowdown') keys.s = true;
+        if (key === 'a' || key === 'arrowleft') keys.a = true;
+        if (key === 'd' || key === 'arrowright') keys.d = true;
     }
 
     function handleKeyUp(e) {
         var key = e.key.toLowerCase();
-        if (key === 'w' || key === 'arrowup') { keys.w = false; keys.up = false; }
-        if (key === 's' || key === 'arrowdown') { keys.s = false; keys.down = false; }
-        if (key === 'a' || key === 'arrowleft') { keys.a = false; keys.left = false; }
-        if (key === 'd' || key === 'arrowright') { keys.d = false; keys.right = false; }
+        if (key === 'w' || key === 'arrowup') keys.w = false;
+        if (key === 's' || key === 'arrowdown') keys.s = false;
+        if (key === 'a' || key === 'arrowleft') keys.a = false;
+        if (key === 'd' || key === 'arrowright') keys.d = false;
     }
 
-    function resizeCanvas() {
-        if (canvas && container) {
+    function handleResize() {
+        if (renderer && camera && container) {
             var wrapper = container.querySelector('.firefly-town-container');
-            var w = wrapper ? wrapper.clientWidth : container.clientWidth;
-            var h = wrapper ? wrapper.clientHeight : container.clientHeight;
-            // Fallback to window size if container has no size
+            var w = wrapper ? wrapper.clientWidth : window.innerWidth;
+            var h = wrapper ? wrapper.clientHeight : window.innerHeight;
             if (w === 0) w = window.innerWidth;
             if (h === 0) h = window.innerHeight;
-            canvas.width = w;
-            canvas.height = h;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
         }
     }
 
@@ -499,38 +505,26 @@ var FireflyTown = FireflyTown || function() {
 
             container.innerHTML = '\
                 <div class="firefly-town-container">\
-                    <canvas class="firefly-town-canvas"></canvas>\
                     <div class="firefly-town-instructions">use wasd or arrow keys to walk</div>\
                 </div>\
             ';
 
-            canvas = container.querySelector('.firefly-town-canvas');
-            ctx = canvas.getContext('2d');
-
-            // Reset state
-            player = { x: 0, y: 0, speed: 3, isMoving: false };
-            camera = { x: 0, y: 0 };
+            player = { x: 0, z: 0, speed: 0.3, isMoving: false, rotation: 0 };
             fireflies = [];
-            houses = [];
-            trees = [];
-            stars = [];
+            fireflyMeshes = [];
 
-            initWorld();
-
-            window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('resize', handleResize);
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('keyup', handleKeyUp);
 
-            // Delay resize and start to allow DOM to render
-            setTimeout(function() {
-                resizeCanvas();
-                isPaused = false;
-                if (!animationId) {
-                    gameLoop(0);
-                }
-            }, 100);
+            loadThreeJS(function() {
+                setTimeout(function() {
+                    createScene();
+                    isPaused = false;
+                    gameLoop();
+                }, 100);
+            });
 
-            // Fade out instructions after 5 seconds
             setTimeout(function() {
                 var instr = container.querySelector('.firefly-town-instructions');
                 if (instr) instr.style.opacity = '0';
@@ -538,10 +532,6 @@ var FireflyTown = FireflyTown || function() {
         },
         start: function() {
             isPaused = false;
-            resizeCanvas();
-            if (!animationId) {
-                gameLoop(0);
-            }
         },
         dispose: function() {
             isPaused = true;
@@ -549,9 +539,15 @@ var FireflyTown = FireflyTown || function() {
                 cancelAnimationFrame(animationId);
                 animationId = null;
             }
-            window.removeEventListener('resize', resizeCanvas);
+            window.removeEventListener('resize', handleResize);
             window.removeEventListener('keydown', handleKeyDown);
             window.removeEventListener('keyup', handleKeyUp);
+            if (renderer) renderer.dispose();
+            fireflies = [];
+            fireflyMeshes = [];
+            scene = null;
+            camera = null;
+            renderer = null;
             if (container) container.innerHTML = '';
         },
         pause: function() {
