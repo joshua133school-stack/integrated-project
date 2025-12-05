@@ -143,7 +143,11 @@ var FireflyTown = FireflyTown || function() {
                 .firefly-town-container {\
                     width: 100%;\
                     height: 100%;\
-                    position: relative;\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
+                    right: 0;\
+                    bottom: 0;\
                     overflow: hidden;\
                     background: linear-gradient(to bottom, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);\
                 }\
@@ -151,6 +155,9 @@ var FireflyTown = FireflyTown || function() {
                     width: 100%;\
                     height: 100%;\
                     display: block;\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
                 }\
                 .firefly-town-instructions {\
                     position: absolute;\
@@ -474,8 +481,14 @@ var FireflyTown = FireflyTown || function() {
 
     function resizeCanvas() {
         if (canvas && container) {
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            var wrapper = container.querySelector('.firefly-town-container');
+            var w = wrapper ? wrapper.clientWidth : container.clientWidth;
+            var h = wrapper ? wrapper.clientHeight : container.clientHeight;
+            // Fallback to window size if container has no size
+            if (w === 0) w = window.innerWidth;
+            if (h === 0) h = window.innerHeight;
+            canvas.width = w;
+            canvas.height = h;
         }
     }
 
@@ -503,11 +516,19 @@ var FireflyTown = FireflyTown || function() {
             stars = [];
 
             initWorld();
-            resizeCanvas();
 
             window.addEventListener('resize', resizeCanvas);
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('keyup', handleKeyUp);
+
+            // Delay resize and start to allow DOM to render
+            setTimeout(function() {
+                resizeCanvas();
+                isPaused = false;
+                if (!animationId) {
+                    gameLoop(0);
+                }
+            }, 100);
 
             // Fade out instructions after 5 seconds
             setTimeout(function() {
@@ -517,6 +538,7 @@ var FireflyTown = FireflyTown || function() {
         },
         start: function() {
             isPaused = false;
+            resizeCanvas();
             if (!animationId) {
                 gameLoop(0);
             }
