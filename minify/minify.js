@@ -81,20 +81,20 @@ var Developing = Developing || function() {
                     display: flex;\
                     justify-content: center;\
                     align-items: center;\
-                    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);\
+                    background: #fff;\
                     position: relative;\
                     overflow: hidden;\
                 }\
                 .developing-text {\
                     font-family: "Crimson Text", Georgia, serif;\
                     font-size: 48px;\
-                    color: rgba(255, 255, 255, 0.9);\
+                    color: #000;\
                     letter-spacing: 8px;\
                     text-transform: lowercase;\
                     animation: developingPulse 2s ease-in-out infinite;\
                 }\
                 @keyframes developingPulse {\
-                    0%, 100% { opacity: 0.6; }\
+                    0%, 100% { opacity: 0.4; }\
                     50% { opacity: 1; }\
                 }\
             ';
