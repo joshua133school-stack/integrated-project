@@ -117,6 +117,430 @@ var Developing = Developing || function() {
     };
 }();
 
+var FireflyTown = FireflyTown || function() {
+    var container, canvas, ctx;
+    var animationId = null;
+    var isPaused = false;
+
+    // Player state
+    var player = { x: 0, y: 0, speed: 3, isMoving: false };
+    var keys = { w: false, a: false, s: false, d: false, up: false, down: false, left: false, right: false };
+
+    // World objects
+    var houses = [];
+    var trees = [];
+    var fireflies = [];
+    var stars = [];
+
+    // Camera offset (follows player)
+    var camera = { x: 0, y: 0 };
+
+    function addStyles() {
+        if (!document.getElementById('firefly-town-styles')) {
+            var style = document.createElement('style');
+            style.id = 'firefly-town-styles';
+            style.innerHTML = '\
+                .firefly-town-container {\
+                    width: 100%;\
+                    height: 100%;\
+                    position: relative;\
+                    overflow: hidden;\
+                    background: linear-gradient(to bottom, #0a0a1a 0%, #1a1a2e 50%, #16213e 100%);\
+                }\
+                .firefly-town-canvas {\
+                    width: 100%;\
+                    height: 100%;\
+                    display: block;\
+                }\
+                .firefly-town-instructions {\
+                    position: absolute;\
+                    bottom: 20px;\
+                    left: 50%;\
+                    transform: translateX(-50%);\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 16px;\
+                    color: rgba(255, 255, 200, 0.7);\
+                    letter-spacing: 2px;\
+                    text-transform: lowercase;\
+                    pointer-events: none;\
+                    transition: opacity 2s ease;\
+                }\
+            ';
+            document.head.appendChild(style);
+        }
+    }
+
+    function initWorld() {
+        // Create houses scattered around
+        var housePositions = [
+            { x: -300, y: -200 }, { x: 200, y: -350 }, { x: -450, y: 100 },
+            { x: 350, y: 150 }, { x: -150, y: 300 }, { x: 500, y: -100 },
+            { x: -500, y: -400 }, { x: 100, y: 450 }, { x: 400, y: 400 }
+        ];
+        houses = housePositions.map(function(pos) {
+            return {
+                x: pos.x,
+                y: pos.y,
+                width: 60 + Math.random() * 40,
+                height: 50 + Math.random() * 30,
+                roofHeight: 30 + Math.random() * 20,
+                color: ['#2d1f1f', '#1f2d1f', '#1f1f2d', '#2d2d1f'][Math.floor(Math.random() * 4)],
+                roofColor: ['#4a3030', '#304a30', '#30304a', '#4a4a30'][Math.floor(Math.random() * 4)],
+                hasLight: Math.random() > 0.3,
+                lightFlicker: Math.random() * Math.PI * 2
+            };
+        });
+
+        // Create trees
+        for (var i = 0; i < 40; i++) {
+            trees.push({
+                x: (Math.random() - 0.5) * 1200,
+                y: (Math.random() - 0.5) * 1000,
+                trunkHeight: 20 + Math.random() * 15,
+                canopyRadius: 25 + Math.random() * 20,
+                trunkColor: '#1a1208',
+                canopyColor: ['#0d1f0d', '#0f220f', '#0a1a0a'][Math.floor(Math.random() * 3)],
+                sway: Math.random() * Math.PI * 2
+            });
+        }
+
+        // Create stars
+        for (var j = 0; j < 100; j++) {
+            stars.push({
+                x: Math.random() * 2000 - 1000,
+                y: Math.random() * 600 - 500,
+                size: Math.random() * 2 + 0.5,
+                twinkle: Math.random() * Math.PI * 2,
+                twinkleSpeed: 0.02 + Math.random() * 0.03
+            });
+        }
+    }
+
+    function spawnFirefly() {
+        if (fireflies.length < 150) {
+            var angle = Math.random() * Math.PI * 2;
+            var dist = 30 + Math.random() * 50;
+            fireflies.push({
+                x: player.x + Math.cos(angle) * dist,
+                y: player.y + Math.sin(angle) * dist,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: (Math.random() - 0.5) * 1.5 - 0.5,
+                life: 1,
+                decay: 0.002 + Math.random() * 0.003,
+                size: 2 + Math.random() * 3,
+                pulse: Math.random() * Math.PI * 2,
+                pulseSpeed: 0.05 + Math.random() * 0.05,
+                hue: 50 + Math.random() * 20 // Yellow-green range
+            });
+        }
+    }
+
+    function updatePlayer() {
+        var dx = 0, dy = 0;
+        if (keys.w || keys.up) dy -= 1;
+        if (keys.s || keys.down) dy += 1;
+        if (keys.a || keys.left) dx -= 1;
+        if (keys.d || keys.right) dx += 1;
+
+        player.isMoving = (dx !== 0 || dy !== 0);
+
+        if (player.isMoving) {
+            var len = Math.sqrt(dx * dx + dy * dy);
+            player.x += (dx / len) * player.speed;
+            player.y += (dy / len) * player.speed;
+
+            // Spawn fireflies when moving
+            if (Math.random() < 0.4) {
+                spawnFirefly();
+            }
+        }
+
+        // Smooth camera follow
+        camera.x += (player.x - camera.x) * 0.08;
+        camera.y += (player.y - camera.y) * 0.08;
+    }
+
+    function updateFireflies() {
+        for (var i = fireflies.length - 1; i >= 0; i--) {
+            var f = fireflies[i];
+            f.x += f.vx;
+            f.y += f.vy;
+            f.vy -= 0.01; // Float upward
+            f.vx += (Math.random() - 0.5) * 0.1;
+            f.vy += (Math.random() - 0.5) * 0.1;
+            f.pulse += f.pulseSpeed;
+            f.life -= f.decay;
+
+            if (f.life <= 0) {
+                fireflies.splice(i, 1);
+            }
+        }
+    }
+
+    function render(time) {
+        var w = canvas.width;
+        var h = canvas.height;
+
+        // Clear with night sky gradient
+        var gradient = ctx.createLinearGradient(0, 0, 0, h);
+        gradient.addColorStop(0, '#050510');
+        gradient.addColorStop(0.4, '#0a0a1a');
+        gradient.addColorStop(1, '#101825');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, w, h);
+
+        var cx = w / 2 - camera.x;
+        var cy = h / 2 - camera.y;
+
+        // Draw stars (fixed in sky, slight parallax)
+        stars.forEach(function(star) {
+            star.twinkle += star.twinkleSpeed;
+            var brightness = 0.3 + Math.sin(star.twinkle) * 0.3 + 0.4;
+            ctx.fillStyle = 'rgba(255, 255, 230, ' + brightness + ')';
+            ctx.beginPath();
+            ctx.arc(star.x + camera.x * 0.1 + w/2, star.y + camera.y * 0.05 + h/3, star.size, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Draw moon
+        ctx.fillStyle = 'rgba(255, 255, 230, 0.9)';
+        ctx.beginPath();
+        ctx.arc(w - 100 + camera.x * 0.05, 80 + camera.y * 0.02, 40, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#050510';
+        ctx.beginPath();
+        ctx.arc(w - 85 + camera.x * 0.05, 75 + camera.y * 0.02, 35, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Draw ground
+        ctx.fillStyle = '#0a120a';
+        ctx.fillRect(0, h * 0.6, w, h * 0.4);
+
+        // Draw grass texture
+        ctx.strokeStyle = '#0d180d';
+        for (var g = 0; g < 200; g++) {
+            var gx = ((g * 37 + camera.x * 0.5) % w + w) % w;
+            var gy = h * 0.6 + (g * 13 % (h * 0.35));
+            ctx.beginPath();
+            ctx.moveTo(gx, gy);
+            ctx.lineTo(gx + Math.sin(time * 0.001 + g) * 3, gy - 5 - Math.random() * 5);
+            ctx.stroke();
+        }
+
+        // Sort objects by Y for proper depth
+        var allObjects = [];
+        houses.forEach(function(h) { allObjects.push({ type: 'house', obj: h, y: h.y }); });
+        trees.forEach(function(t) { allObjects.push({ type: 'tree', obj: t, y: t.y }); });
+        allObjects.push({ type: 'player', obj: player, y: player.y });
+        allObjects.sort(function(a, b) { return a.y - b.y; });
+
+        // Draw all objects
+        allObjects.forEach(function(item) {
+            var screenX, screenY;
+
+            if (item.type === 'house') {
+                var house = item.obj;
+                screenX = house.x + cx;
+                screenY = house.y + cy;
+
+                // House body
+                ctx.fillStyle = house.color;
+                ctx.fillRect(screenX - house.width/2, screenY - house.height, house.width, house.height);
+
+                // Roof
+                ctx.fillStyle = house.roofColor;
+                ctx.beginPath();
+                ctx.moveTo(screenX - house.width/2 - 10, screenY - house.height);
+                ctx.lineTo(screenX, screenY - house.height - house.roofHeight);
+                ctx.lineTo(screenX + house.width/2 + 10, screenY - house.height);
+                ctx.closePath();
+                ctx.fill();
+
+                // Window with light
+                if (house.hasLight) {
+                    house.lightFlicker += 0.05;
+                    var lightBrightness = 0.6 + Math.sin(house.lightFlicker) * 0.2;
+                    ctx.fillStyle = 'rgba(255, 200, 100, ' + lightBrightness + ')';
+                    ctx.fillRect(screenX - 10, screenY - house.height + 15, 20, 20);
+
+                    // Light glow
+                    var glowGrad = ctx.createRadialGradient(screenX, screenY - house.height + 25, 0, screenX, screenY - house.height + 25, 60);
+                    glowGrad.addColorStop(0, 'rgba(255, 200, 100, 0.15)');
+                    glowGrad.addColorStop(1, 'rgba(255, 200, 100, 0)');
+                    ctx.fillStyle = glowGrad;
+                    ctx.fillRect(screenX - 60, screenY - house.height - 35, 120, 120);
+                }
+            }
+            else if (item.type === 'tree') {
+                var tree = item.obj;
+                screenX = tree.x + cx;
+                screenY = tree.y + cy;
+                tree.sway += 0.02;
+                var swayOffset = Math.sin(tree.sway) * 2;
+
+                // Trunk
+                ctx.fillStyle = tree.trunkColor;
+                ctx.fillRect(screenX - 4, screenY - tree.trunkHeight, 8, tree.trunkHeight);
+
+                // Canopy
+                ctx.fillStyle = tree.canopyColor;
+                ctx.beginPath();
+                ctx.arc(screenX + swayOffset, screenY - tree.trunkHeight - tree.canopyRadius * 0.7, tree.canopyRadius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            else if (item.type === 'player') {
+                screenX = player.x + cx;
+                screenY = player.y + cy;
+
+                // Player shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(screenX, screenY + 2, 12, 5, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Player body (simple figure)
+                ctx.fillStyle = '#2a2a3a';
+                ctx.beginPath();
+                ctx.ellipse(screenX, screenY - 15, 10, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Player head
+                ctx.fillStyle = '#3a3a4a';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY - 35, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Lantern glow around player
+                var playerGlow = ctx.createRadialGradient(screenX, screenY - 20, 0, screenX, screenY - 20, 80);
+                playerGlow.addColorStop(0, 'rgba(255, 220, 150, 0.1)');
+                playerGlow.addColorStop(1, 'rgba(255, 220, 150, 0)');
+                ctx.fillStyle = playerGlow;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY - 20, 80, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+
+        // Draw fireflies
+        fireflies.forEach(function(f) {
+            var fx = f.x + cx;
+            var fy = f.y + cy;
+            var pulse = 0.5 + Math.sin(f.pulse) * 0.5;
+            var alpha = f.life * pulse;
+
+            // Glow
+            var glowSize = f.size * 4;
+            var glow = ctx.createRadialGradient(fx, fy, 0, fx, fy, glowSize);
+            glow.addColorStop(0, 'rgba(255, 255, 100, ' + (alpha * 0.8) + ')');
+            glow.addColorStop(0.5, 'rgba(200, 255, 50, ' + (alpha * 0.3) + ')');
+            glow.addColorStop(1, 'rgba(150, 255, 50, 0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(fx, fy, glowSize, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Core
+            ctx.fillStyle = 'rgba(255, 255, 200, ' + alpha + ')';
+            ctx.beginPath();
+            ctx.arc(fx, fy, f.size * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+        });
+    }
+
+    function gameLoop(time) {
+        if (!isPaused) {
+            updatePlayer();
+            updateFireflies();
+            render(time);
+        }
+        animationId = requestAnimationFrame(gameLoop);
+    }
+
+    function handleKeyDown(e) {
+        var key = e.key.toLowerCase();
+        if (key === 'w' || key === 'arrowup') { keys.w = true; keys.up = true; }
+        if (key === 's' || key === 'arrowdown') { keys.s = true; keys.down = true; }
+        if (key === 'a' || key === 'arrowleft') { keys.a = true; keys.left = true; }
+        if (key === 'd' || key === 'arrowright') { keys.d = true; keys.right = true; }
+    }
+
+    function handleKeyUp(e) {
+        var key = e.key.toLowerCase();
+        if (key === 'w' || key === 'arrowup') { keys.w = false; keys.up = false; }
+        if (key === 's' || key === 'arrowdown') { keys.s = false; keys.down = false; }
+        if (key === 'a' || key === 'arrowleft') { keys.a = false; keys.left = false; }
+        if (key === 'd' || key === 'arrowright') { keys.d = false; keys.right = false; }
+    }
+
+    function resizeCanvas() {
+        if (canvas && container) {
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+        }
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            addStyles();
+
+            container.innerHTML = '\
+                <div class="firefly-town-container">\
+                    <canvas class="firefly-town-canvas"></canvas>\
+                    <div class="firefly-town-instructions">use wasd or arrow keys to walk</div>\
+                </div>\
+            ';
+
+            canvas = container.querySelector('.firefly-town-canvas');
+            ctx = canvas.getContext('2d');
+
+            // Reset state
+            player = { x: 0, y: 0, speed: 3, isMoving: false };
+            camera = { x: 0, y: 0 };
+            fireflies = [];
+            houses = [];
+            trees = [];
+            stars = [];
+
+            initWorld();
+            resizeCanvas();
+
+            window.addEventListener('resize', resizeCanvas);
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+
+            // Fade out instructions after 5 seconds
+            setTimeout(function() {
+                var instr = container.querySelector('.firefly-town-instructions');
+                if (instr) instr.style.opacity = '0';
+            }, 5000);
+        },
+        start: function() {
+            isPaused = false;
+            if (!animationId) {
+                gameLoop(0);
+            }
+        },
+        dispose: function() {
+            isPaused = true;
+            if (animationId) {
+                cancelAnimationFrame(animationId);
+                animationId = null;
+            }
+            window.removeEventListener('resize', resizeCanvas);
+            window.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keyup', handleKeyUp);
+            if (container) container.innerHTML = '';
+        },
+        pause: function() {
+            isPaused = true;
+        },
+        resume: function() {
+            isPaused = false;
+        }
+    };
+}();
+
 var airplane = airplane || function() {
     var container, videoElement, isPlaying = false, fullscreenContainer;
 
@@ -3995,7 +4419,7 @@ Y.appendChild(CMDetect.circleMask);N=document.getElementById("triangulation-guid
 title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"injection",classfn:injection,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:thunderClass,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp","data/images/4.webp","data/images/5.webp","data/images/6.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:Darkness,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:OceanBioluminescent,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:FireflyTown,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
 title:"Ocean",date:"Fear of Oceans",img:"data/poster/ocean",itemcolor:"#259ab3",bgcolor:"#001a33",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"circles",date:"Fear of Circles",img:"data/poster/circle",itemcolor:"#29a5c0",bgcolor:"#ddd",preload:["contents/rainingmen/rain.png"],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"ripples",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Insects",date:"Fear of Insects",img:"data/poster/insect",itemcolor:"#80b23c",bgcolor:"#8fc600",preload:["contents/ripple/ripple-mask.png","contents/ripple/ripple1.png","contents/ripple/ripple2.png"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"flipclock",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
