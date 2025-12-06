@@ -180,7 +180,7 @@ var FireflyTown = FireflyTown || function() {
             return;
         }
         var script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js';
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js';
         script.onload = function() {
             THREE = window.THREE;
             callback();
@@ -344,22 +344,19 @@ var FireflyTown = FireflyTown || function() {
     function createPlayer() {
         var group = new THREE.Group();
 
-        // Body (cylinder instead of capsule for compatibility)
-        var bodyGeo = new THREE.CylinderGeometry(0.3, 0.3, 1, 12);
+        var bodyGeo = new THREE.CapsuleGeometry(0.3, 0.8, 4, 8);
         var bodyMat = new THREE.MeshLambertMaterial({ color: 0x2a2a3a });
         var body = new THREE.Mesh(bodyGeo, bodyMat);
         body.position.y = 0.7;
         group.add(body);
 
-        // Head
-        var headGeo = new THREE.SphereGeometry(0.28, 16, 12);
+        var headGeo = new THREE.SphereGeometry(0.25, 16, 12);
         var headMat = new THREE.MeshLambertMaterial({ color: 0x3a3a4a });
         var head = new THREE.Mesh(headGeo, headMat);
-        head.position.y = 1.45;
+        head.position.y = 1.35;
         group.add(head);
 
-        // Lantern light
-        var lanternLight = new THREE.PointLight(0xffdd99, 1, 12);
+        var lanternLight = new THREE.PointLight(0xffdd99, 0.8, 10);
         lanternLight.position.set(0.4, 0.8, 0);
         group.add(lanternLight);
 
