@@ -149,10 +149,28 @@ body {
 
     <div id="check"></div>
 
-    <!-- Three.js for 3D game -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+    <!-- Three.js for 3D game - try multiple CDNs -->
+    <script>
+    (function(){
+        var cdns = [
+            'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js',
+            'https://unpkg.com/three@0.152.0/build/three.min.js',
+            'https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js'
+        ];
+        var loaded = false;
+        function tryLoad(index) {
+            if (loaded || index >= cdns.length) return;
+            var script = document.createElement('script');
+            script.src = cdns[index];
+            script.onload = function() { loaded = true; console.log('Three.js loaded from:', cdns[index]); };
+            script.onerror = function() { console.warn('Failed to load Three.js from:', cdns[index]); tryLoad(index + 1); };
+            document.head.appendChild(script);
+        }
+        tryLoad(0);
+    })();
+    </script>
 
-    <script src="minify/minify.js?id=5"></script>
+    <script src="minify/minify.js?id=7"></script>
 
 <script>
 // Preload critical images immediately - don't wait for window.load

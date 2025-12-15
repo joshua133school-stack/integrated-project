@@ -4314,7 +4314,7 @@ function b(a){ShareTooltip.show()}function e(a){ShareTooltip.hide()}function h()
 C,B,A,E,D,G,F,H,I=!0,M={no:0},O=1,K=-1,L="";u.init=function(){var h=new MobileDetect(window.navigator.userAgent);h.phone()?(CMDetect.isMobile=!0,CMDetect.isDevice=!0):h.mobile()?(CMDetect.isTablet=!0,CMDetect.isDevice=!0):(CMDetect.isTablet=!1,CMDetect.isDevice=!1);z=document.getElementById("preloader");v=document.getElementById("block");y=document.getElementById("root");E=document.getElementById("container");x=document.getElementById("footer");C=document.getElementById("header");$(E).append('<div id="loader"><div id="loading-txt">LOADING&nbsp;&nbsp;<span id="loading-num">0</span>%</div></div>');
 CMDetect.isMobile?y.className="mobile":CMDetect.isTablet&&(y.className="tablet");CMDetect.isDevice?(x.innerHTML='<div id="foot-touch">about oasis</div>',D=$("#foot-touch")):(CMDetect.isIE?(x.innerHTML='<div id="foot-bigcon"><div id="foot-web-about">about oasis</div></div>'):
 (x.innerHTML='<div id="foot-bigcon"><div id="foot-web-about">about oasis</div></div><div id="foot-smallcon"><div id="foot-full" class="foot-full-full">fullscreen</div></div>',y.webkitRequestFullscreen?document.addEventListener("webkitfullscreenchange",function(){document.webkitIsFullScreen?
-f():a()},!1):y.mozRequestFullScreen&&document.addEventListener("mozfullscreenchange",function(){document.mozFullScreen?f():a()},!1),H=document.getElementById("foot-full"),$(H).on("click",c)),D=$("#foot-web-about"));w=document.getElementById("loading-num");StageController.init(900);h=CloseButton.init();A=h.right;CircleAniamtion.init(A,h.close);
+f():a()},!1):y.mozRequestFullScreen&&document.addEventListener("mozfullscreenchange",function(){document.mozFullScreen?f():a()},!1),H=document.getElementById("foot-full"),$(H).on("click",c)),D=$("#foot-web-about"));w=document.getElementById("loading-num");StageController.init(900);h=CloseButton.init();A=h.right;B=h.close;CircleAniamtion.init(A,h.close);
 About.init();D.on("click",l);hasher.changed.add(g);hasher.initialized.add(g);hasher.prependHash="!/";h=ConfigModel.init().join("");z.innerHTML=h;var k=$(z).imagesLoaded();k.progress(function(a,b,c,e){a=(c.length+e.length)/b.length;TweenLite.killTweensOf(M);TweenLite.to(M,.3,{no:a,onUpdate:d,ease:Cubic.easeOut})});k.always(function(){z.innerHTML="";k=null})};u.able=function(){I=!0;v.style.display="none"};u.unable=p;u.goHome=h;u.goSection=r;u.closePopup=function(){L==u.URL_SECTION?
 r(u.curSection):h()};u.goScreenSaver=function(a){hasher.setHash(u.URL_SCREENSAVER+"/"+a)};u.whiteTop=function(){0!=O&&(O=0,C.className="showme header-white",x.className="showme footer-white")};u.blackTop=function(){1!=O&&(O=1,C.className="showme header-black",x.className="showme footer-black")};u.whiteLeft=function(){0!=K&&(K=0,B.className="white",A.className="right-pos white")};u.blackLeft=function(){1!=K&&(K=1,B.className="black",A.className="right-pos black")};return u}(),Sheeps=Sheeps||function(){function d(){if(!b){a:{var a;
 for(a=0;a<l;a++){var c=h[a];if(!c.show){c.reset();break a}}c=new TheSheep(n);h.push(c);l=h.length}TweenLite.delayedCall(1+Math.random(),d)}}function m(){e=StageController.stageHeight;var a;for(a=0;a<l;a++){var b=h[a];b.resize(e)}}function g(a){if(!b&&(requestAnimationFrame(g),r||(r=a),34<a-r))for(r=a,a=0;a<l;a++){var c=h[a];c.loop()}}function k(){StageController.addDown("thesheep",c);StageController.addMove("thesheep",f);StageController.addUp("thesheep",a)}function q(){StageController.removeDown("thesheep");
@@ -4358,21 +4358,54 @@ var time=0;
 
 function loadThreeJS(callback){
     var attempts=0;
-    var maxAttempts=20;
+    var maxAttempts=50;
+    var cdnIndex=0;
+    var cdns=[
+        'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js',
+        'https://unpkg.com/three@0.152.0/build/three.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js'
+    ];
+    var loadingScript=false;
+    function tryLoadCDN(){
+        if(cdnIndex>=cdns.length){
+            console.error('All Three.js CDNs failed');
+            var errDiv=document.getElementById('darkness-canvas-container');
+            if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Failed to load Three.js from all sources.<br>Please check your internet connection.</div>';
+            return;
+        }
+        loadingScript=true;
+        var script=document.createElement('script');
+        script.src=cdns[cdnIndex];
+        script.onload=function(){
+            if(window.THREE){
+                THREE=window.THREE;
+                console.log('Three.js loaded from:',cdns[cdnIndex]);
+                callback();
+            }else{
+                cdnIndex++;
+                tryLoadCDN();
+            }
+        };
+        script.onerror=function(){
+            console.warn('Failed:',cdns[cdnIndex]);
+            cdnIndex++;
+            tryLoadCDN();
+        };
+        document.head.appendChild(script);
+    }
     function checkThree(){
         if(window.THREE){
             THREE=window.THREE;
-            console.log('Three.js loaded successfully');
+            console.log('Three.js already loaded');
             callback();
             return;
         }
         attempts++;
         if(attempts<maxAttempts){
             setTimeout(checkThree,100);
-        }else{
-            console.error('Three.js not available after waiting');
-            var errDiv=document.getElementById('darkness-canvas-container');
-            if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Three.js library not available.<br>Please refresh the page.</div>';
+        }else if(!loadingScript){
+            console.log('Three.js not found, trying CDNs...');
+            tryLoadCDN();
         }
     }
     checkThree();
