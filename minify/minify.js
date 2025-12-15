@@ -4357,23 +4357,25 @@ var editorMode=false,editorObjects=[],editorSelected=null,editorHighlighted=null
 var time=0;
 
 function loadThreeJS(callback){
-    if(window.THREE){
-        THREE=window.THREE;
-        callback();
-        return;
+    var attempts=0;
+    var maxAttempts=20;
+    function checkThree(){
+        if(window.THREE){
+            THREE=window.THREE;
+            console.log('Three.js loaded successfully');
+            callback();
+            return;
+        }
+        attempts++;
+        if(attempts<maxAttempts){
+            setTimeout(checkThree,100);
+        }else{
+            console.error('Three.js not available after waiting');
+            var errDiv=document.getElementById('darkness-canvas-container');
+            if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Three.js library not available.<br>Please refresh the page.</div>';
+        }
     }
-    var script=document.createElement('script');
-    script.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js';
-    script.onload=function(){
-        THREE=window.THREE;
-        callback();
-    };
-    script.onerror=function(){
-        console.error('Failed to load Three.js');
-        var errDiv=document.getElementById('darkness-canvas-container');
-        if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Failed to load Three.js library.</div>';
-    };
-    document.head.appendChild(script);
+    checkThree();
 }
 
 function init(parentElement){
