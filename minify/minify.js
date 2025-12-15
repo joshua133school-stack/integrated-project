@@ -4544,7 +4544,8 @@ function createHouse(){
     camera.position.set(0,1.6,3);cameraYaw=Math.PI;cameraPitch=0;updateCamera();
     
     createLivingRoom();createBedroom();createKitchen();createHallway();createCreepyEyes();
-    var ambient=new THREE.AmbientLight(0x404060,0.15);scene.add(ambient);
+    var ambient=new THREE.AmbientLight(0x8080a0,0.5);scene.add(ambient);
+    var dirLight=new THREE.DirectionalLight(0xffffff,0.4);dirLight.position.set(5,10,5);scene.add(dirLight);
     updateLightsUI();
 }
 
