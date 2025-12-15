@@ -4502,6 +4502,10 @@ function updateCamera(){
 function createHouse(){
     scene=new THREE.Scene();
     scene.background=new THREE.Color(0x1a1a2e);
+    console.log('Creating house scene');
+    var testCube=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),new THREE.MeshBasicMaterial({color:0xff0000}));
+    testCube.position.set(0,1,6);scene.add(testCube);
+    console.log('Added test cube at z=6, camera will be at z=3 facing +Z');
     var W=HOUSE.width,D=HOUSE.depth,H=HOUSE.height,T=HOUSE.wallThick;
     var floorMat=new THREE.MeshLambertMaterial({color:0x6a5040});
     var ceilingMat=new THREE.MeshLambertMaterial({color:0xfafafa});
