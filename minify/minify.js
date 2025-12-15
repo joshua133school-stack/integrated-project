@@ -4365,7 +4365,14 @@ function init(parentElement){
 }
 
 function start(){
-    if(typeof THREE==='undefined'){console.error('Three.js not loaded');return;}
+    console.log('Darkness start called. THREE type:', typeof THREE, 'window.THREE:', !!window.THREE);
+    if(typeof THREE==='undefined'||!window.THREE){
+        console.error('Three.js not loaded');
+        var errDiv=document.getElementById('darkness-canvas-container');
+        if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Three.js library not loaded.<br>Try refreshing the page or check if other 3D tiles work.</div>';
+        return;
+    }
+    console.log('THREE is available, initializing...');
     State.velocity=new THREE.Vector3();
     State.phase='intro';
     State.locked=false;
