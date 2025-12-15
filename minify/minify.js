@@ -4358,21 +4358,54 @@ var time=0;
 
 function loadThreeJS(callback){
     var attempts=0;
-    var maxAttempts=20;
+    var maxAttempts=50;
+    var cdnIndex=0;
+    var cdns=[
+        'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js',
+        'https://unpkg.com/three@0.152.0/build/three.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js'
+    ];
+    var loadingScript=false;
+    function tryLoadCDN(){
+        if(cdnIndex>=cdns.length){
+            console.error('All Three.js CDNs failed');
+            var errDiv=document.getElementById('darkness-canvas-container');
+            if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Failed to load Three.js from all sources.<br>Please check your internet connection.</div>';
+            return;
+        }
+        loadingScript=true;
+        var script=document.createElement('script');
+        script.src=cdns[cdnIndex];
+        script.onload=function(){
+            if(window.THREE){
+                THREE=window.THREE;
+                console.log('Three.js loaded from:',cdns[cdnIndex]);
+                callback();
+            }else{
+                cdnIndex++;
+                tryLoadCDN();
+            }
+        };
+        script.onerror=function(){
+            console.warn('Failed:',cdns[cdnIndex]);
+            cdnIndex++;
+            tryLoadCDN();
+        };
+        document.head.appendChild(script);
+    }
     function checkThree(){
         if(window.THREE){
             THREE=window.THREE;
-            console.log('Three.js loaded successfully');
+            console.log('Three.js already loaded');
             callback();
             return;
         }
         attempts++;
         if(attempts<maxAttempts){
             setTimeout(checkThree,100);
-        }else{
-            console.error('Three.js not available after waiting');
-            var errDiv=document.getElementById('darkness-canvas-container');
-            if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Three.js library not available.<br>Please refresh the page.</div>';
+        }else if(!loadingScript){
+            console.log('Three.js not found, trying CDNs...');
+            tryLoadCDN();
         }
     }
     checkThree();
