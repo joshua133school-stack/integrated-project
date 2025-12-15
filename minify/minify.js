@@ -4540,11 +4540,7 @@ function loadThreeJS(callback){
             });
             document.addEventListener('click', onClick);
             
-            //window.addEventListener('resize', () => {
-                camera.aspect = stageWidth / stageHeight;
-                camera.updateProjectionMatrix();
-                renderer.setSize(stageWidth, stageHeight);
-            });
+            // Resize handled by StageController
 
             createHouse();
             scene.add(camera);  // Add camera to scene so flashlight works
@@ -9121,9 +9117,6 @@ function loadThreeJS(callback){
         function hidePrompt() {
             document.getElementById('darkness-prompt').classList.remove('visible');
         }
-
-        
-    </script>
 
 function moduleInit(parentElement){
     container=parentElement;
