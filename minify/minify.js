@@ -4348,12 +4348,33 @@ this.rotate},dispose:function(){this.stage.removeChild(this.mc);this.mc.destroy(
 
 var Darkness=Darkness||function(){
 var container,stageWidth,stageHeight,isPaused=false,animationId=null;
+var THREE = null;
 var HOUSE={width:32,depth:18,height:3.5,wallThick:0.2,bedroomWallX:-6,kitchenWallX:8,doorWidth:1.2,doorHeight:2.4};
 var State={phase:'intro',locked:false,canMove:true,canLook:true,canInteract:true,keys:{w:false,a:false,s:false,d:false},velocity:null,lightsOn:[],totalLights:0,electronicsRevealed:false,showElectronicsOutline:false,ledsActive:false,showSwitchOutline:false,starCount:0,caught:false};
 var scene,camera,renderer,cameraYaw=0,cameraPitch=0,lights=[],lamps=[],lightSwitches=[],electronics=[],bed=null,raycaster,interactables=[],creepyEyes=null,flashlight=null;
 var isDreamScene=false,groundObjects=[],houseObjects=[],fireflies=[],colliders=[],animals=[],streamMesh=null,fallProgress=0,targetPitch=0,audioCtx,masterGain,stars2D=[],sheep=[],chaserSheep=null;
 var editorMode=false,editorObjects=[],editorSelected=null,editorHighlighted=null,editorGrabbing=false,editorChanges=[],editorObjectCounter=0;
 var time=0;
+
+function loadThreeJS(callback){
+    if(window.THREE){
+        THREE=window.THREE;
+        callback();
+        return;
+    }
+    var script=document.createElement('script');
+    script.src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js';
+    script.onload=function(){
+        THREE=window.THREE;
+        callback();
+    };
+    script.onerror=function(){
+        console.error('Failed to load Three.js');
+        var errDiv=document.getElementById('darkness-canvas-container');
+        if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Failed to load Three.js library.</div>';
+    };
+    document.head.appendChild(script);
+}
 
 function init(parentElement){
     container=parentElement;
@@ -4365,14 +4386,11 @@ function init(parentElement){
 }
 
 function start(){
-    console.log('Darkness start called. THREE type:', typeof THREE, 'window.THREE:', !!window.THREE);
-    if(typeof THREE==='undefined'||!window.THREE){
-        console.error('Three.js not loaded');
-        var errDiv=document.getElementById('darkness-canvas-container');
-        if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Three.js library not loaded.<br>Try refreshing the page or check if other 3D tiles work.</div>';
-        return;
-    }
-    console.log('THREE is available, initializing...');
+    loadThreeJS(initScene);
+}
+
+function initScene(){
+    console.log('Darkness initScene called. THREE:', !!THREE);
     State.velocity=new THREE.Vector3();
     State.phase='intro';
     State.locked=false;
