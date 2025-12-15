@@ -4359,7 +4359,7 @@ function init(parentElement){
     container=parentElement;
     stageWidth=StageController.stageWidth;
     stageHeight=StageController.stageHeight;
-    parentElement.innerHTML='<div id="darkness-con" class="contents-data" style="position:relative;overflow:hidden;"><div id="canvas-container" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;"></div><div class="prompt-overlay" id="prompt" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:1.8rem;text-align:center;pointer-events:none;z-index:50;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 20px rgba(255,255,255,0.5);font-family:Georgia,serif;"></div><div id="crosshair" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;z-index:40;pointer-events:none;"><div style="position:absolute;background:rgba(255,255,255,0.5);width:2px;height:20px;left:9px;"></div><div style="position:absolute;background:rgba(255,255,255,0.5);width:20px;height:2px;top:9px;"></div></div><div id="interaction-hint" style="position:absolute;bottom:100px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.8);font-size:1rem;z-index:50;opacity:0;transition:opacity 0.3s ease;text-shadow:0 2px 4px rgba(0,0,0,0.8);"></div><div id="lights-remaining" style="position:absolute;top:20px;right:20px;color:rgba(255,255,255,0.7);font-size:1rem;z-index:50;"></div><div id="fade-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;background:black;z-index:100;opacity:0;pointer-events:none;transition:opacity 1s ease;"></div><div id="star-count" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);color:white;font-size:1.5rem;z-index:50;display:none;text-shadow:0 0 10px rgba(255,255,255,0.5);">Stars: <span id="count">0</span></div><div id="scene-indicator" style="display:none;"></div></div>';
+    parentElement.innerHTML='<div id="darkness-con" class="contents-data" style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;background:#1a1a2e;"><div id="darkness-canvas-container" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;"></div><div class="prompt-overlay" id="darkness-prompt" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:1.8rem;text-align:center;pointer-events:none;z-index:50;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 20px rgba(255,255,255,0.5);font-family:Georgia,serif;"></div><div id="darkness-crosshair" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;z-index:40;pointer-events:none;"><div style="position:absolute;background:rgba(255,255,255,0.5);width:2px;height:20px;left:9px;"></div><div style="position:absolute;background:rgba(255,255,255,0.5);width:20px;height:2px;top:9px;"></div></div><div id="darkness-interaction-hint" style="position:absolute;bottom:100px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.8);font-size:1rem;z-index:50;opacity:0;transition:opacity 0.3s ease;text-shadow:0 2px 4px rgba(0,0,0,0.8);"></div><div id="darkness-lights-remaining" style="position:absolute;top:20px;right:20px;color:rgba(255,255,255,0.7);font-size:1rem;z-index:50;"></div><div id="darkness-fade-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;background:black;z-index:100;opacity:0;pointer-events:none;transition:opacity 1s ease;"></div><div id="darkness-star-count" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);color:white;font-size:1.5rem;z-index:50;display:none;text-shadow:0 0 10px rgba(255,255,255,0.5);">Stars: <span id="darkness-count">0</span></div></div>';
     isPaused=false;
     StageController.addResize("Darkness",handleResize);
 }
@@ -4380,14 +4380,22 @@ function start(){
     groundObjects=[];houseObjects=[];fireflies=[];colliders=[];animals=[];sheep=[];stars2D=[];
     lights=[];lamps=[];lightSwitches=[];electronics=[];interactables=[];editorObjects=[];
     editorObjectCounter=0;cameraYaw=0;cameraPitch=0;time=0;
-    
-    var canvasContainer=container.querySelector('#canvas-container');
-    renderer=new THREE.WebGLRenderer({antialias:true});
+
+    var canvasContainer=document.getElementById('darkness-canvas-container');
+    if(!canvasContainer){console.error('Canvas container not found');return;}
+    renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+    renderer.setClearColor(0x1a1a2e);
     renderer.setSize(stageWidth,stageHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
     renderer.shadowMap.enabled=true;
-    canvasContainer.appendChild(renderer.domElement);
-    
+    var canvas=renderer.domElement;
+    canvas.style.display='block';
+    canvas.style.position='absolute';
+    canvas.style.top='0';
+    canvas.style.left='0';
+    canvas.style.zIndex='1';
+    canvasContainer.appendChild(canvas);
+
     camera=new THREE.PerspectiveCamera(70,stageWidth/stageHeight,0.1,100);
     flashlight=new THREE.SpotLight(0xffffee,2,20,Math.PI/6,0.3,1);
     flashlight.visible=false;
@@ -4395,7 +4403,7 @@ function start(){
     flashlight.position.set(0,0,0);
     flashlight.target.position.set(0,0,-1);
     camera.add(flashlight.target);
-    
+
     createHouse();
     scene.add(camera);
     setupEventListeners();
@@ -4462,7 +4470,7 @@ function onClick(e){
     if(isPaused)return;
     if(State.phase==='drawing'){addStar3D(e.clientX,e.clientY);return;}
     if(!State.locked){
-        var canvasEl=container.querySelector('#canvas-container canvas');
+        var canvasEl=document.getElementById('darkness-canvas-container').querySelector('canvas');
         if(canvasEl)canvasEl.requestPointerLock();
         if(State.phase==='dream_lookUp'){setTimeout(function(){showPrompt('Look up at the stars...');},100);}
         return;
@@ -4812,7 +4820,7 @@ function toggleLight(room){
 }
 
 function updateLightsUI(){
-    var el=container.querySelector('#lights-remaining');
+    var el=document.getElementById('darkness-lights-remaining');
     if(!el)return;
     if(State.phase==='turnOffLights'||State.phase==='turnOffLights2'){
         el.textContent='Lights on: '+State.lightsOn.length;el.style.display='block';
@@ -4840,8 +4848,8 @@ function checkPhaseProgress(){
     }
 }
 
-function showPrompt(text){var el=container.querySelector('#prompt');if(el){el.innerHTML=text;el.style.opacity='1';}}
-function hidePrompt(){var el=container.querySelector('#prompt');if(el)el.style.opacity='0';}
+function showPrompt(text){var el=document.getElementById('darkness-prompt');if(el){el.innerHTML=text;el.style.opacity='1';}}
+function hidePrompt(){var el=document.getElementById('darkness-prompt');if(el)el.style.opacity='0';}
 
 function startIntro(){
     State.phase='intro';showPrompt("Click to start");
@@ -4878,7 +4886,7 @@ function goToBed(firstTime){
 
 function startSleepSequence(){
     hidePrompt();
-    var fadeEl=container.querySelector('#fade-overlay');
+    var fadeEl=document.getElementById('darkness-fade-overlay');
     var blinkCount=0;var maxBlinks=4;
     function doBlink(){
         if(blinkCount>=maxBlinks){showCreepyEyes();return;}
@@ -4899,7 +4907,7 @@ function showCreepyEyes(){
     });
     showElectronics();State.ledsActive=true;
     setTimeout(function(){
-        var fadeEl=container.querySelector('#fade-overlay');
+        var fadeEl=document.getElementById('darkness-fade-overlay');
         fadeEl.style.transition='opacity 0.2s ease';fadeEl.style.opacity='1';
         setTimeout(function(){
             creepyEyes.visible=false;
@@ -4923,7 +4931,7 @@ function showElectronics(){electronics.forEach(function(e){e.visible=true;if(e.u
 function hideElectronics(){electronics.forEach(function(e){e.visible=false;if(e.userData.glow)e.userData.glow.intensity=0;});State.electronicsRevealed=false;State.ledsActive=false;}
 
 function startDreamTransition(){
-    var fadeEl=container.querySelector('#fade-overlay');
+    var fadeEl=document.getElementById('darkness-fade-overlay');
     fadeEl.style.transition='opacity 2s ease';fadeEl.style.opacity='1';
     setTimeout(function(){
         cleanupHouse();
@@ -4950,7 +4958,7 @@ function createDreamScene(){
     camera.position.set(0,getTerrainHeight(0,15)+1.7,15);cameraYaw=Math.PI;cameraPitch=0;updateCamera();
     initAudio();playNoise('highpass',3000,0.015);
     setTimeout(function(){
-        var fadeEl=container.querySelector('#fade-overlay');
+        var fadeEl=document.getElementById('darkness-fade-overlay');
         fadeEl.classList.remove('visible');
         showPrompt('A peaceful dream...');
         setTimeout(function(){hidePrompt();State.phase='dream_lookUp';showPrompt('Look up at the stars...');},4000);
@@ -5070,7 +5078,7 @@ function updateFalling(dt){
 function startStarDrawing(){
     State.phase='drawing';State.canMove=false;State.canLook=false;
     document.exitPointerLock();document.body.style.cursor='crosshair';
-    var starCountEl=container.querySelector('#star-count');if(starCountEl)starCountEl.style.display='block';
+    var starCountEl=document.getElementById('darkness-star-count');if(starCountEl)starCountEl.style.display='block';
     showPrompt('Click to create stars in space');setTimeout(hidePrompt,4000);
 }
 
@@ -5090,14 +5098,14 @@ function addStar3D(screenX,screenY){
     if(Math.random()<0.2){var light=new THREE.PointLight(starColor,0.4,15+distance/10);light.position.copy(starPos);scene.add(light);}
     star.userData.phase=Math.random()*Math.PI*2;star.userData.twinkleSpeed=2+Math.random()*3;
     stars2D.push(star);State.starCount++;
-    var countEl=container.querySelector('#count');if(countEl)countEl.textContent=State.starCount;
+    var countEl=document.getElementById('darkness-count');if(countEl)countEl.textContent=State.starCount;
     playTwinkle();
     if(State.starCount>=30&&State.phase==='drawing'){setTimeout(startSheepTransformation,500);}
 }
 
 function startSheepTransformation(){
     State.phase='transforming';
-    var starCountEl=container.querySelector('#star-count');if(starCountEl)starCountEl.style.display='none';
+    var starCountEl=document.getElementById('darkness-star-count');if(starCountEl)starCountEl.style.display='none';
     hidePrompt();scene.background=new THREE.Color(0xffffff);
     setTimeout(transformStarsToSheep,150);
 }
@@ -5123,7 +5131,7 @@ function transformStarsToSheep(){
     setTimeout(function(){if(State.phase==='sheep'&&!State.caught&&!chaserSheep)spawnChaserSheep();},15000);
     State.phase='sheep';State.canMove=true;State.canLook=true;
     document.body.style.cursor='default';
-    var canvasEl=container.querySelector('#canvas-container canvas');if(canvasEl)canvasEl.requestPointerLock();
+    var canvasEl=document.getElementById('darkness-canvas-container').querySelector('canvas');if(canvasEl)canvasEl.requestPointerLock();
 }
 
 function createSheep3D(){
@@ -5297,7 +5305,7 @@ function dispose(){
     removeEventListeners();
     if(audioCtx){try{audioCtx.close();}catch(e){}audioCtx=null;}
     if(renderer){
-        var canvasContainer=container.querySelector('#canvas-container');
+        var canvasContainer=document.getElementById('darkness-canvas-container');
         if(canvasContainer&&renderer.domElement&&renderer.domElement.parentNode===canvasContainer){
             canvasContainer.removeChild(renderer.domElement);
         }
