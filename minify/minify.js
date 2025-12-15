@@ -4348,1074 +4348,4836 @@ this.rotate},dispose:function(){this.stage.removeChild(this.mc);this.mc.destroy(
 
 var Darkness=Darkness||function(){
 var container,stageWidth,stageHeight,isPaused=false,animationId=null;
-var THREE = null;
-var HOUSE={width:32,depth:18,height:3.5,wallThick:0.2,bedroomWallX:-6,kitchenWallX:8,doorWidth:1.2,doorHeight:2.4};
-var State={phase:'intro',locked:false,canMove:true,canLook:true,canInteract:true,keys:{w:false,a:false,s:false,d:false},velocity:null,lightsOn:[],totalLights:0,electronicsRevealed:false,showElectronicsOutline:false,ledsActive:false,showSwitchOutline:false,starCount:0,caught:false};
-var scene,camera,renderer,cameraYaw=0,cameraPitch=0,lights=[],lamps=[],lightSwitches=[],electronics=[],bed=null,raycaster,interactables=[],creepyEyes=null,flashlight=null;
-var isDreamScene=false,groundObjects=[],houseObjects=[],fireflies=[],colliders=[],animals=[],streamMesh=null,fallProgress=0,targetPitch=0,audioCtx,masterGain,stars2D=[],sheep=[],chaserSheep=null;
-var editorMode=false,editorObjects=[],editorSelected=null,editorHighlighted=null,editorGrabbing=false,editorChanges=[],editorObjectCounter=0;
-var time=0;
+var THREE=null;
 
 function loadThreeJS(callback){
     var attempts=0;
     var maxAttempts=50;
-    var cdnIndex=0;
     var cdns=[
         'https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js',
         'https://unpkg.com/three@0.152.0/build/three.min.js',
         'https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js'
     ];
-    var loadingScript=false;
-    function tryLoadCDN(){
-        if(cdnIndex>=cdns.length){
+    function tryLoadCDN(index){
+        if(index>=cdns.length){
             console.error('All Three.js CDNs failed');
-            var errDiv=document.getElementById('darkness-canvas-container');
-            if(errDiv)errDiv.innerHTML='<div style="color:#ff6666;padding:40px;text-align:center;font-size:16px;">Failed to load Three.js from all sources.<br>Please check your internet connection.</div>';
             return;
         }
-        loadingScript=true;
         var script=document.createElement('script');
-        script.src=cdns[cdnIndex];
+        script.src=cdns[index];
         script.onload=function(){
-            if(window.THREE){
-                THREE=window.THREE;
-                console.log('Three.js loaded from:',cdns[cdnIndex]);
-                callback();
-            }else{
-                cdnIndex++;
-                tryLoadCDN();
-            }
+            if(window.THREE){THREE=window.THREE;callback();}
+            else{tryLoadCDN(index+1);}
         };
-        script.onerror=function(){
-            console.warn('Failed:',cdns[cdnIndex]);
-            cdnIndex++;
-            tryLoadCDN();
-        };
+        script.onerror=function(){tryLoadCDN(index+1);};
         document.head.appendChild(script);
     }
-    function checkThree(){
-        if(window.THREE){
-            THREE=window.THREE;
-            console.log('Three.js already loaded');
-            callback();
-            return;
-        }
+    function check(){
+        if(window.THREE){THREE=window.THREE;callback();return;}
         attempts++;
-        if(attempts<maxAttempts){
-            setTimeout(checkThree,100);
-        }else if(!loadingScript){
-            console.log('Three.js not found, trying CDNs...');
-            tryLoadCDN();
-        }
+        if(attempts<maxAttempts){setTimeout(check,100);}
+        else{tryLoadCDN(0);}
     }
-    checkThree();
+    check();
 }
 
-function init(parentElement){
+        // House dimensions
+        var HOUSE = {
+            width: 32,   // x: -16 to 16
+            depth: 18,   // z: -9 to 9 (reduced front area)
+            height: 3.5,
+            wallThick: 0.2,
+            // Room dividers
+            bedroomWallX: -6,
+            kitchenWallX: 8,
+            doorWidth: 1.2,
+            doorHeight: 2.4
+        };
+
+        var State = {
+            phase: 'intro',
+            locked: false,
+            canMove: true,
+            canLook: true,
+            canInteract: true,
+            keys: { w: false, a: false, s: false, d: false },
+            velocity: null,
+            lightsOn: [],
+            totalLights: 0,
+            electronicsRevealed: false,
+            showElectronicsOutline: false,
+            ledsActive: false,
+            showSwitchOutline: false
+        };
+
+        var scene, camera, renderer;
+        var cameraYaw = 0, cameraPitch = 0;
+        var lights = [];
+        var lamps = [];
+        var lightSwitches = [];
+        var electronics = [];
+        var bed = null;
+        var raycaster, interactables = [];
+        var creepyEyes = null;  // The scary eyes at the door
+        var flashlight = null;  // Player's flashlight
+        
+        // Dream scene variables
+        var isDreamScene = false;
+        var groundObjects = [];
+        var houseObjects = [];
+        var fireflies = [];
+        var colliders = [];
+        var animals = [];
+        var streamMesh = null;
+        var fallProgress = 0;
+        var targetPitch = 0;
+        var audioCtx, masterGain;
+        var stars2D = [];
+        var sheep = [];
+        var chaserSheep = null;
+        
+        // Editor mode
+        var editorMode = false;
+        var editorObjects = [];  // All editable objects
+        var editorSelected = null;
+        var editorHighlighted = null;
+        var editorGrabbing = false;
+        var editorChanges = [];
+
+        function init() {
+            State.velocity = new THREE.Vector3();
+            raycaster = new THREE.Raycaster();
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(stageWidth, stageHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            document.getElementById('darkness-canvas-container').appendChild(renderer.domElement);
+
+            camera = new THREE.PerspectiveCamera(70, stageWidth / stageHeight, 0.1, 100);
+
+            // Create flashlight (attached to camera)
+            flashlight = new THREE.SpotLight(0xffffee, 2, 20, Math.PI / 6, 0.3, 1);
+            flashlight.visible = false;  // Hidden until player wakes up
+            camera.add(flashlight);
+            flashlight.position.set(0, 0, 0);
+            flashlight.target.position.set(0, 0, -1);
+            camera.add(flashlight.target);
+
+            document.addEventListener('pointerlockchange', () => {
+                State.locked = document.pointerLockElement !== null;
+            });
+            
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('keydown', e => {
+                // Toggle editor mode with Tab
+                if (e.code === 'Tab') {
+                    e.preventDefault();
+                    toggleEditorMode();
+                    return;
+                }
+                
+                // Editor mode controls
+                if (editorMode) {
+                    // E to select object under crosshair
+                    if (e.code === 'KeyE') {
+                        editorSelectUnderCrosshair();
+                    }
+                    // G to grab/move
+                    if (e.code === 'KeyG' && editorSelected) {
+                        editorGrabbing = !editorGrabbing;
+                        updateEditorUI();
+                    }
+                    // Escape to deselect
+                    if (e.code === 'Escape') {
+                        editorDeselect();
+                    }
+                    // Arrow keys to move selected object
+                    if (editorSelected && editorGrabbing) {
+                        var step = e.shiftKey ? 0.5 : 0.1;
+                        var moved = false;
+                        if (e.code === 'ArrowLeft') { editorSelected.position.x -= step; moved = true; }
+                        if (e.code === 'ArrowRight') { editorSelected.position.x += step; moved = true; }
+                        if (e.code === 'ArrowUp') { editorSelected.position.z -= step; moved = true; }
+                        if (e.code === 'ArrowDown') { editorSelected.position.z += step; moved = true; }
+                        if (e.code === 'PageUp') { editorSelected.position.y += step; moved = true; }
+                        if (e.code === 'PageDown') { editorSelected.position.y -= step; moved = true; }
+                        if (moved) {
+                            editorLogChange(editorSelected);
+                            updateEditorUI();
+                        }
+                        return;
+                    }
+                }
+                
+                // Normal movement (when not grabbing)
+                if (!editorGrabbing) {
+                    if (e.code === 'KeyW') State.keys.w = true;
+                    if (e.code === 'KeyA') State.keys.a = true;
+                    if (e.code === 'KeyS') State.keys.s = true;
+                    if (e.code === 'KeyD') State.keys.d = true;
+                    if (e.code === 'KeyF' && flashlight && (State.phase === 'scared' || State.phase === 'turnOnLights' || State.phase === 'turnOffLights2' || State.phase === 'goToBed2')) {
+                        flashlight.visible = !flashlight.visible;
+                    }
+                }
+                // Arrow keys for movement when not in grab mode
+                if (!editorMode || !editorGrabbing) {
+                    if (e.code === 'ArrowUp') State.keys.w = true;
+                    if (e.code === 'ArrowLeft') State.keys.a = true;
+                    if (e.code === 'ArrowDown') State.keys.s = true;
+                    if (e.code === 'ArrowRight') State.keys.d = true;
+                }
+            });
+            document.addEventListener('keyup', e => {
+                if (e.code === 'KeyW') State.keys.w = false;
+                if (e.code === 'KeyA') State.keys.a = false;
+                if (e.code === 'KeyS') State.keys.s = false;
+                if (e.code === 'KeyD') State.keys.d = false;
+                if (e.code === 'ArrowUp') State.keys.w = false;
+                if (e.code === 'ArrowLeft') State.keys.a = false;
+                if (e.code === 'ArrowDown') State.keys.s = false;
+                if (e.code === 'ArrowRight') State.keys.d = false;
+            });
+            document.addEventListener('click', onClick);
+            
+            //window.addEventListener('resize', () => {
+                camera.aspect = stageWidth / stageHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(stageWidth, stageHeight);
+            });
+
+            createHouse();
+            scene.add(camera);  // Add camera to scene so flashlight works
+            startIntro();
+            animate();
+        }
+
+        function createHouse() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+
+            var W = HOUSE.width;
+            var D = HOUSE.depth;
+            var H = HOUSE.height;
+            var T = HOUSE.wallThick;
+
+            // Materials
+            var floorMat = new THREE.MeshLambertMaterial({ color: 0x6a5040 });
+            var ceilingMat = new THREE.MeshLambertMaterial({ color: 0xfafafa });
+            var wallMat = new THREE.MeshLambertMaterial({ color: 0xe8e0d5 });
+            var bedroomWallMat = new THREE.MeshLambertMaterial({ color: 0xd5dde8 });
+            var kitchenWallMat = new THREE.MeshLambertMaterial({ color: 0xf0ebe5 });
+
+            // ============ FLOOR ============
+            var floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = 0;
+            scene.add(floor);
+
+            // Floor plank lines
+            for (var x = -W/2; x < W/2; x += 0.6) {
+                var line = new THREE.Mesh(
+                    new THREE.PlaneGeometry(0.02, D),
+                    new THREE.MeshLambertMaterial({ color: 0x4a3020 })
+                );
+                line.rotation.x = -Math.PI / 2;
+                line.position.set(x, 0.002, 0);
+                scene.add(line);
+            }
+
+            // ============ CEILING ============
+            var ceiling = new THREE.Mesh(new THREE.PlaneGeometry(W, D), ceilingMat);
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = H;
+            scene.add(ceiling);
+
+            // ============ OUTER WALLS ============
+            // Position walls so inner face is at room boundary
+            // Back wall (north, z = -D/2)
+            addWall(0, H/2, -D/2 - T/2, W + T, H, T, wallMat);
+            // Front wall (south, z = D/2)
+            addWall(0, H/2, D/2 + T/2, W + T, H, T, wallMat);
+            // Left wall (west, x = -W/2)
+            addWall(-W/2 - T/2, H/2, 0, T, H, D + T, bedroomWallMat);
+            // Right wall (east, x = W/2)
+            addWall(W/2 + T/2, H/2, 0, T, H, D + T, kitchenWallMat);
+
+            // ============ INTERIOR WALLS ============
+            var bedroomX = HOUSE.bedroomWallX;  // -6
+            var kitchenX = HOUSE.kitchenWallX;  // 8
+            var doorW = HOUSE.doorWidth;  // 1.2
+            var doorH = HOUSE.doorHeight; // 2.4
+            var doorZ = -3; // Door center position along z
+            var wallT = 0.25; // Interior wall thickness
+
+            // --- BEDROOM WALL (x = bedroomX = -6) ---
+            // Wall from back (z=-14) to door opening (z = doorZ - doorW/2 = -3.6)
+            var bedroomBackLen = (D/2) - Math.abs(doorZ) - doorW/2;  // 14 - 3 - 0.6 = 10.4
+            var bedroomBackZ = -D/2 + bedroomBackLen/2;  // -14 + 5.2 = -8.8
+            addWall(bedroomX, H/2, bedroomBackZ, wallT, H, bedroomBackLen, wallMat);
+            
+            // Wall above door
+            var aboveDoorH = H - doorH;  // 3.5 - 2.4 = 1.1
+            addWall(bedroomX, doorH + aboveDoorH/2, doorZ, wallT, aboveDoorH, doorW + 0.3, wallMat);
+            
+            // Wall from door (z = doorZ + doorW/2 = -2.4) to front (z=14)
+            var bedroomFrontLen = D/2 + doorZ + doorW/2;  // 14 + (-3) + 0.6 = 11.6... wait
+            // Actually: from z = -2.4 to z = 14 = 16.4
+            var bedroomFrontStart = doorZ + doorW/2;  // -2.4
+            var bedroomFrontEnd = D/2;  // 14
+            var bedroomFrontLenCalc = bedroomFrontEnd - bedroomFrontStart;  // 16.4
+            var bedroomFrontZ = bedroomFrontStart + bedroomFrontLenCalc/2;  // -2.4 + 8.2 = 5.8
+            addWall(bedroomX, H/2, bedroomFrontZ, wallT, H, bedroomFrontLenCalc, wallMat);
+            
+            // Door frame
+            addDoorFrame(bedroomX, doorZ, 'bedroom');
+
+            // --- KITCHEN WALL (x = kitchenX = 8) ---
+            // Wall from back to doorway only (open plan after that)
+            addWall(kitchenX, H/2, bedroomBackZ, wallT, H, bedroomBackLen, wallMat);
+            
+            // No wall above doorway - fully open to living/dining area
+            // No door frame either
+
+            // ============ WINDOWS ============
+            addWindow(0, 1.8, D/2 - 0.15, 2, 1.5, 0); // Living room front wall (moved inside slightly)
+            addWindow(-W/2 + 0.15, 1.8, -6, 1.8, 1.4, Math.PI/2); // Bedroom left wall (moved inside slightly)
+            addWindow(12, 1.8, -D/2 + 0.15, 1.5, 1.2, 0); // Kitchen back wall (moved inside slightly)
+
+            // ============ CAMERA START ============
+            camera.position.set(0, 1.6, 3);
+            cameraYaw = Math.PI;
+            cameraPitch = 0;
+            updateCamera();
+
+            // ============ ROOM CONTENTS ============
+            createLivingRoom();
+            createBedroom();
+            createKitchen();
+            createHallway();
+            createCreepyEyes();
+
+            // Ambient light
+            var ambient = new THREE.AmbientLight(0x404060, 0.15);
+            scene.add(ambient);
+
+            updateLightsUI();
+        }
+
+        function addWall(x, y, z, w, h, d, mat) {
+            var wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            wall.position.set(x, y, z);
+            scene.add(wall);
+            return wall;
+        }
+
+        function addDoorFrame(x, z, name) {
+            var frameMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            var doorW = HOUSE.doorWidth;
+            var doorH = HOUSE.doorHeight;
+            
+            // Left frame
+            var left = new THREE.Mesh(new THREE.BoxGeometry(0.08, doorH, 0.12), frameMat);
+            left.position.set(x, doorH/2, z - doorW/2);
+            scene.add(left);
+            
+            // Right frame
+            var right = new THREE.Mesh(new THREE.BoxGeometry(0.08, doorH, 0.12), frameMat);
+            right.position.set(x, doorH/2, z + doorW/2);
+            scene.add(right);
+            
+            // Top frame
+            var top = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, doorW + 0.16), frameMat);
+            top.position.set(x, doorH + 0.04, z);
+            scene.add(top);
+
+            // Add actual door for bedroom
+            if (name === 'bedroom') {
+                var doorMat = new THREE.MeshLambertMaterial({ color: 0xf5f0e8 });
+                var door = new THREE.Mesh(new THREE.BoxGeometry(0.05, doorH - 0.1, doorW - 0.1), doorMat);
+                door.position.set(x, doorH/2, z);
+                scene.add(door);
+            }
+        }
+
+        function addWindow(x, y, z, w, h, rotY) {
+            var group = new THREE.Group();
+            var frameMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            
+            // Glass - blue tint, visible from both sides
+            var glass = new THREE.Mesh(
+                new THREE.PlaneGeometry(w, h),
+                new THREE.MeshBasicMaterial({ color: 0x4a6a8a, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+            );
+            group.add(glass);
+            
+            // Frame
+            var frameT = 0.06;
+            var topF = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, frameT, 0.08), frameMat);
+            topF.position.y = h/2;
+            group.add(topF);
+            
+            var bottomF = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, frameT, 0.08), frameMat);
+            bottomF.position.y = -h/2;
+            group.add(bottomF);
+            
+            var leftF = new THREE.Mesh(new THREE.BoxGeometry(frameT, h, 0.08), frameMat);
+            leftF.position.x = -w/2;
+            group.add(leftF);
+            
+            var rightF = new THREE.Mesh(new THREE.BoxGeometry(frameT, h, 0.08), frameMat);
+            rightF.position.x = w/2;
+            group.add(rightF);
+            
+            // Cross bars
+            var crossH = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, 0.04), frameMat);
+            crossH.position.z = 0.02;
+            group.add(crossH);
+            
+            var crossV = new THREE.Mesh(new THREE.BoxGeometry(0.04, h, 0.04), frameMat);
+            crossV.position.z = 0.02;
+            group.add(crossV);
+            
+            // Sill
+            var sill = new THREE.Mesh(new THREE.BoxGeometry(w + 0.2, 0.05, 0.15), frameMat);
+            sill.position.set(0, -h/2 - 0.03, 0.08);
+            group.add(sill);
+            
+            group.position.set(x, y, z);
+            group.rotation.y = rotY;
+            scene.add(group);
+        }
+
+        function createLivingRoom() {
+            var darkWood = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+            var lightWood = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+            var fabric = new THREE.MeshLambertMaterial({ color: 0x5a6478 });
+            var cushion = new THREE.MeshLambertMaterial({ color: 0x7a8a9a });
+            var metal = new THREE.MeshLambertMaterial({ color: 0x888888 });
+
+            // === TV SETUP (against back wall, z=-9, need margin) ===
+            var tvZ = -8.4;  // depth 0.5, back at -8.65
+            addBox(0, 0.3, tvZ, 2.5, 0.6, 0.5, darkWood); // Stand
+            addBox(0, 1.25, tvZ, 2.2, 1.3, 0.1, new THREE.MeshLambertMaterial({ color: 0x111111 })); // TV
+            var screen = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.1), new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
+            screen.position.set(0, 1.25, tvZ + 0.06);
+            scene.add(screen);
+            createElectronic(0.95, 0.55, tvZ + 0.26, 'TV standby');
+
+            // Router on TV stand
+            addBox(-0.8, 0.65, tvZ + 0.1, 0.3, 0.05, 0.2, new THREE.MeshLambertMaterial({ color: 0x222222 }));
+            createElectronic(-0.85, 0.68, tvZ + 0.2, 'Router LED');
+            createElectronic(-0.75, 0.68, tvZ + 0.2, 'Router LED 2');
+
+            // === COUCH (facing TV) ===
+            var couchX = 0, couchZ = -4;
+            addBox(couchX, 0.35, couchZ, 3.2, 0.5, 1.1, fabric);
+            addBox(couchX, 0.85, couchZ + 0.55, 3.2, 0.7, 0.2, fabric);
+            addBox(couchX - 1.5, 0.55, couchZ, 0.2, 0.5, 1.1, fabric);
+            addBox(couchX + 1.5, 0.55, couchZ, 0.2, 0.5, 1.1, fabric);
+            for (var i = -1; i <= 1; i++) {
+                addBox(couchX + i, 0.65, couchZ - 0.1, 0.9, 0.15, 0.85, cushion);
+            }
+            // Throw pillows
+            addBox(couchX - 1.2, 0.75, couchZ - 0.2, 0.35, 0.35, 0.1, new THREE.MeshLambertMaterial({ color: 0x8a5a4a }));
+            addBox(couchX + 1.2, 0.75, couchZ - 0.2, 0.35, 0.35, 0.1, new THREE.MeshLambertMaterial({ color: 0x5a7a6a }));
+
+            // === COFFEE TABLE ===
+            var ctZ = -6;
+            addBox(0, 0.4, ctZ, 1.4, 0.06, 0.8, lightWood);
+            addBox(-0.55, 0.18, ctZ - 0.3, 0.05, 0.35, 0.05, metal);
+            addBox(0.55, 0.18, ctZ - 0.3, 0.05, 0.35, 0.05, metal);
+            addBox(-0.55, 0.18, ctZ + 0.3, 0.05, 0.35, 0.05, metal);
+            addBox(0.55, 0.18, ctZ + 0.3, 0.05, 0.35, 0.05, metal);
+            // Books on coffee table
+            addBox(0.3, 0.46, ctZ, 0.3, 0.08, 0.22, new THREE.MeshLambertMaterial({ color: 0x2f4f4f }));
+            addBox(0.25, 0.52, ctZ, 0.25, 0.06, 0.18, new THREE.MeshLambertMaterial({ color: 0x8b0000 }));
+
+            // === SIDE TABLE + TABLE LAMP (right of couch) ===
+            var stX = 2.3, stZ = -4;
+            addBox(stX, 0.3, stZ, 0.5, 0.6, 0.5, darkWood);
+            createTableLamp(stX, 0.6, stZ, 'living');
+
+            // === FLOOR LAMP (left of couch) ===
+            createFloorLamp(-2.5, 0, -4, 'living');
+
+            // === BOOKSHELF (open front, back against wall) ===
+            // Back panel (thin, against wall)
+            addBox(7, 1.1, -8.6, 0.4, 2.2, 0.1, darkWood);
+            // Left side
+            addBox(6.8, 1.1, -8.1, 0.05, 2.2, 1.1, darkWood);
+            // Right side
+            addBox(7.2, 1.1, -8.1, 0.05, 2.2, 1.1, darkWood);
+            // Top
+            addBox(7, 2.2, -8.1, 0.45, 0.05, 1.1, darkWood);
+            // Shelves
+            for (var s = 0; s < 4; s++) {
+                addBox(7, 0.15 + s * 0.55, -8.1, 0.38, 0.04, 1.0, darkWood);
+            }
+            // Books (on shelves, spines facing out toward room)
+            var bookColors = [0x8b4513, 0x2f4f4f, 0x8b0000, 0x006400, 0x4a4a8a, 0x654321];
+            for (var shelf = 0; shelf < 4; shelf++) {
+                for (var b = 0; b < 4; b++) {
+                    var bookH = 0.22 + Math.random() * 0.12;
+                    addBox(7, 0.17 + shelf * 0.55 + bookH/2, -7.8 + b * 0.22,
+                        0.18, bookH, 0.05,
+                        new THREE.MeshLambertMaterial({ color: bookColors[Math.floor(Math.random() * bookColors.length)] }));
+                }
+            }
+
+            // === FLOOR LAMP by bookshelf ===
+            createFloorLamp(6.9, 0, -7, 'living');
+
+            // === RUG ===
+            var rug = new THREE.Mesh(new THREE.PlaneGeometry(5, 3), new THREE.MeshLambertMaterial({ color: 0x6a5a4a }));
+            rug.rotation.x = -Math.PI / 2;
+            rug.position.set(0, 0.01, -5);
+            rug.name = `LR_Rug_${editorObjectCounter++}`;
+            rug.userData.editable = true;
+            rug.userData.type = 'rug';
+            scene.add(rug);
+            editorObjects.push(rug);
+
+            // === PLANT REMOVED ===
+
+            // === ARMCHAIR facing TV (left side of room) ===
+            // Back faces +z (towards front of house), seat faces TV at -z
+            var armchairX = -4, armchairZ = -5;
+            addBox(armchairX, 0.35, armchairZ, 1.0, 0.5, 1.0, fabric, 'LR_Armchair_Seat');
+            addBox(armchairX, 0.85, armchairZ + 0.45, 1.0, 0.7, 0.15, fabric, 'LR_Armchair_Back'); // back towards +z
+            addBox(armchairX - 0.45, 0.55, armchairZ, 0.12, 0.4, 1.0, fabric, 'LR_Armchair_ArmL');
+            addBox(armchairX + 0.45, 0.55, armchairZ, 0.12, 0.4, 1.0, fabric, 'LR_Armchair_ArmR');
+            addBox(armchairX, 0.62, armchairZ - 0.05, 0.85, 0.12, 0.85, cushion, 'LR_Armchair_Cushion');
+            
+            // === SIDE TABLE next to armchair ===
+            addBox(armchairX + 1, 0.35, armchairZ, 0.45, 0.7, 0.45, darkWood, 'LR_Armchair_SideTable');
+            // Small decorative item on table
+            var smallVase = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.12, 8),
+                new THREE.MeshLambertMaterial({ color: 0x4a7a6a }));
+            smallVase.position.set(armchairX + 1, 0.76, armchairZ);
+            scene.add(smallVase);
+
+            // === OTTOMAN/FOOTSTOOL in front of couch ===
+            addBox(0, 0.25, -5, 0.7, 0.35, 0.5, new THREE.MeshLambertMaterial({ color: 0x5a5a68 }), 'LR_Ottoman');
+            addBox(0, 0.45, -5, 0.65, 0.08, 0.45, cushion, 'LR_Ottoman_Cushion');
+
+            // === MEDIA CONSOLE under TV ===
+            addBox(-1.8, 0.25, tvZ, 0.8, 0.5, 0.4, darkWood, 'LR_MediaConsole_L');
+            addBox(1.8, 0.25, tvZ, 0.8, 0.5, 0.4, darkWood, 'LR_MediaConsole_R');
+            // Game console with LED
+            addBox(-1.8, 0.55, tvZ + 0.1, 0.35, 0.08, 0.25, new THREE.MeshLambertMaterial({ color: 0x1a1a1a }), 'LR_GameConsole');
+            createElectronic(-1.65, 0.6, tvZ + 0.2, 'Game console LED');
+            // Cable box / streaming device
+            addBox(1.8, 0.55, tvZ + 0.1, 0.25, 0.05, 0.2, new THREE.MeshLambertMaterial({ color: 0x1a1a1a }), 'LR_CableBox');
+            createElectronic(1.9, 0.58, tvZ + 0.2, 'Cable box LED');
+            // Power strip on floor (near media console)
+            addBox(-2.2, 0.03, tvZ + 0.2, 0.4, 0.04, 0.1, new THREE.MeshLambertMaterial({ color: 0xf5f5f5 }), 'LR_PowerStrip');
+            createElectronic(-2.35, 0.06, tvZ + 0.22, 'Power strip LED');
+            createElectronic(-2.25, 0.06, tvZ + 0.22, 'Power strip LED 2');
+            createElectronic(-2.05, 0.06, tvZ + 0.22, 'Power strip LED 3');
+            // Smart speaker near couch
+            addBox(2.5, 0.65, stZ, 0.1, 0.2, 0.1, new THREE.MeshLambertMaterial({ color: 0x2a2a2a }), 'LR_SmartSpeaker');
+            createElectronic(2.5, 0.76, stZ + 0.03, 'Smart speaker LED');
+            // Smoke detector on ceiling
+            createElectronic(0, HOUSE.height - 0.1, -5, 'Smoke detector LED');
+            createElectronic(-11, HOUSE.height - 0.1, -3, 'Bedroom smoke detector');
+            createElectronic(12, HOUSE.height - 0.1, 0, 'Kitchen smoke detector');
+
+            // === CORNER SHELF REMOVED ===
+
+            // === ACCENT CHAIR (against bedroom wall, back faces -x) ===
+            var accentX = -5.5, accentZ = 2;
+            var accentFabric = new THREE.MeshLambertMaterial({ color: 0x7a6a5a });
+            addBox(accentX, 0.35, accentZ, 0.9, 0.5, 0.9, accentFabric, 'LR_AccentChair_Seat');
+            addBox(accentX - 0.4, 0.85, accentZ, 0.15, 0.7, 0.9, accentFabric, 'LR_AccentChair_Back'); // back faces -x (wall)
+            addBox(accentX, 0.55, accentZ - 0.4, 0.9, 0.4, 0.1, accentFabric, 'LR_AccentChair_ArmL');
+            addBox(accentX, 0.55, accentZ + 0.4, 0.9, 0.4, 0.1, accentFabric, 'LR_AccentChair_ArmR');
+            // Small round side table (to the right of chair)
+            var roundTable = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.04, 16), lightWood);
+            roundTable.position.set(accentX, 0.5, accentZ + 1);
+            scene.add(roundTable);
+            var roundTableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.06, 0.48, 8), darkWood);
+            roundTableLeg.position.set(accentX, 0.24, accentZ + 1);
+            scene.add(roundTableLeg);
+
+            // === FLOOR LAMP near accent chair (to the left) ===
+            createFloorLamp(accentX, 0, accentZ - 1.2, 'living');
+
+            // === ENTRY RUG REMOVED ===
+
+            // === MAGAZINE RACK beside couch ===
+            addBox(-2.2, 0.25, -4, 0.15, 0.5, 0.35, metal, 'LR_MagRack_Frame');
+            addBox(-2.2, 0.25, -4.12, 0.12, 0.45, 0.04, metal, 'LR_MagRack_Back');
+            // Magazines
+            addBox(-2.2, 0.35, -4.05, 0.02, 0.3, 0.22, new THREE.MeshLambertMaterial({ color: 0xaa3030 }), 'LR_Magazine1');
+            addBox(-2.18, 0.33, -4.05, 0.02, 0.3, 0.22, new THREE.MeshLambertMaterial({ color: 0x3060aa }), 'LR_Magazine2');
+
+            // === THROW BLANKET draped on couch armrest ===
+            addBox(1.55, 0.7, -4.3, 0.15, 0.35, 0.6, new THREE.MeshLambertMaterial({ color: 0x9a7a6a }), 'LR_ThrowBlanket');
+
+            // === WALL ART on back wall ===
+            addBox(-3, 2.2, -8.8, 1.2, 0.8, 0.04, darkWood, 'LR_WallArt_Frame');
+            addBox(-3, 2.2, -8.77, 1.1, 0.7, 0.02, new THREE.MeshLambertMaterial({ color: 0x5a7a9a }), 'LR_WallArt_Canvas');
+
+            // === FIREPLACE AREA (on front wall, moved to x=10.5) ===
+            var fpX = 10.5, fpZ = 8.7;
+            var brick = new THREE.MeshLambertMaterial({ color: 0x8b4513 });
+            var stone = new THREE.MeshLambertMaterial({ color: 0x696969 });
+            var mantel = new THREE.MeshLambertMaterial({ color: 0xf5f5f0 });
+            
+            // Fireplace surround/frame (against front wall)
+            addBox(fpX, 0.6, fpZ, 1.6, 1.2, 0.3, brick);
+            // Opening (dark)
+            addBox(fpX, 0.5, fpZ - 0.05, 1.1, 0.8, 0.15, new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
+            // Hearth (floor extension)
+            addBox(fpX, 0.08, fpZ - 0.4, 1.8, 0.16, 0.6, stone);
+            // Mantel shelf
+            addBox(fpX, 1.25, fpZ - 0.1, 1.8, 0.08, 0.25, mantel);
+            // Mantel decorations
+            var vase1 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.07, 0.18, 12),
+                new THREE.MeshLambertMaterial({ color: 0x4a6a8a }));
+            vase1.position.set(fpX - 0.6, 1.38, fpZ - 0.1);
+            scene.add(vase1);
+            var vase2 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.15, 12),
+                new THREE.MeshLambertMaterial({ color: 0x8a6a4a }));
+            vase2.position.set(fpX + 0.5, 1.36, fpZ - 0.1);
+            scene.add(vase2);
+            // Picture frame on mantel
+            addBox(fpX, 1.42, fpZ - 0.08, 0.25, 0.2, 0.03, darkWood);
+            // Clock above fireplace
+            var fpClock = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.04, 24),
+                new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+            fpClock.rotation.x = Math.PI / 2;
+            fpClock.position.set(fpX, 1.8, fpZ - 0.02);
+            scene.add(fpClock);
+            var fpClockFace = new THREE.Mesh(new THREE.CircleGeometry(0.2, 24),
+                new THREE.MeshLambertMaterial({ color: 0xf5f5f0 }));
+            fpClockFace.position.set(fpX, 1.8, fpZ - 0.04);
+            scene.add(fpClockFace);
+            
+            // Fire glow (subtle orange point light)
+            var fireGlow = new THREE.PointLight(0xff6622, 0.5, 5);
+            fireGlow.position.set(fpX, 0.4, fpZ - 0.3);
+            scene.add(fireGlow);
+            
+            // Fake fire logs
+            var logMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+            var log1 = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), logMat);
+            log1.rotation.z = Math.PI / 2;
+            log1.rotation.x = 0.2;
+            log1.position.set(fpX - 0.15, 0.22, fpZ - 0.1);
+            scene.add(log1);
+            var log2 = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.45, 8), logMat);
+            log2.rotation.z = Math.PI / 2;
+            log2.rotation.x = -0.3;
+            log2.position.set(fpX + 0.1, 0.25, fpZ - 0.1);
+            scene.add(log2);
+            
+            // Fireplace screen
+            addBox(fpX, 0.5, fpZ - 0.18, 1.05, 0.75, 0.02, new THREE.MeshLambertMaterial({ 
+                color: 0x222222, transparent: true, opacity: 0.3 
+            }));
+            
+            // === FIREPLACE AREA RUG ===
+            var fpRug = new THREE.Mesh(new THREE.PlaneGeometry(3.5, 2.5),
+                new THREE.MeshLambertMaterial({ color: 0x6a3a3a }));
+            fpRug.rotation.x = -Math.PI / 2;
+            fpRug.position.set(fpX, 0.015, fpZ - 1.8);
+            fpRug.name = `FP_Rug_${editorObjectCounter++}`;
+            fpRug.userData.editable = true;
+            fpRug.userData.type = 'rug';
+            scene.add(fpRug);
+            editorObjects.push(fpRug);
+            
+            // === TWO COZY ARMCHAIRS facing fireplace ===
+            var cozyFabric = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
+            var cozyCushion = new THREE.MeshLambertMaterial({ color: 0x6a5a4a });
+            
+            // Chair 1 (left, angled towards fireplace)
+            var chair1X = 9.1, chair1Z = 6;
+            addBox(chair1X, 0.35, chair1Z, 0.95, 0.45, 0.95, cozyFabric);
+            addBox(chair1X, 0.75, chair1Z - 0.35, 0.95, 0.65, 0.15, cozyFabric); // back
+            addBox(chair1X - 0.4, 0.55, chair1Z, 0.12, 0.4, 0.95, cozyFabric); // arm
+            addBox(chair1X + 0.4, 0.55, chair1Z, 0.12, 0.4, 0.95, cozyFabric); // arm
+            addBox(chair1X, 0.62, chair1Z + 0.05, 0.8, 0.12, 0.8, cozyCushion); // seat cushion
+            
+            // Chair 2 (right, angled towards fireplace)  
+            var chair2X = 11.6, chair2Z = 6;
+            addBox(chair2X, 0.35, chair2Z, 0.95, 0.45, 0.95, cozyFabric);
+            addBox(chair2X, 0.75, chair2Z - 0.35, 0.95, 0.65, 0.15, cozyFabric);
+            addBox(chair2X - 0.4, 0.55, chair2Z, 0.12, 0.4, 0.95, cozyFabric);
+            addBox(chair2X + 0.4, 0.55, chair2Z, 0.12, 0.4, 0.95, cozyFabric);
+            addBox(chair2X, 0.62, chair2Z + 0.05, 0.8, 0.12, 0.8, cozyCushion);
+            
+            // Small round coffee table between chairs
+            var fpTable = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.05, 16), lightWood);
+            fpTable.position.set(fpX, 0.42, 6);
+            scene.add(fpTable);
+            var fpTableLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.4, 8), darkWood);
+            fpTableLeg.position.set(fpX, 0.2, 6);
+            scene.add(fpTableLeg);
+            // Books and candle on table
+            addBox(fpX + 0.1, 0.48, 6, 0.2, 0.06, 0.15, new THREE.MeshLambertMaterial({ color: 0x2f4f4f }));
+            var fpCandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.12, 8),
+                new THREE.MeshLambertMaterial({ color: 0xf5f0e0 }));
+            fpCandle.position.set(fpX - 0.12, 0.51, 6);
+            scene.add(fpCandle);
+
+            // === FLOOR LAMP near fireplace ===
+            createFloorLamp(fpX - 2.5, 0, 6.5, 'living');
+
+            // === WALL CLOCK ===
+            var clock = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.05, 24), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+            clock.rotation.x = Math.PI / 2;
+            clock.position.set(4, 2.2, -8.8);
+            scene.add(clock);
+
+            // === CEILING LIGHT ===
+            createCeilingLight(0, HOUSE.height - 0.1, -2, 'living');
+
+            // === LIGHT SWITCH (on bedroom wall, living room side, near bedroom door) ===
+            createLightSwitch(-5.8, 1.2, -1.5, 'living', Math.PI/2);
+        }
+
+        function createTableLamp(x, y, z, room) {
+            var lampGroup = new THREE.Group();
+            var baseMat = new THREE.MeshLambertMaterial({ color: 0x4a4a4a });
+            var shadeMat = new THREE.MeshLambertMaterial({ color: 0xf5e6d3, side: THREE.DoubleSide });
+            
+            // Base
+            var base = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.04, 16), baseMat);
+            base.position.y = 0.02;
+            lampGroup.add(base);
+            
+            // Pole
+            var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.35, 8), baseMat);
+            pole.position.y = 0.22;
+            lampGroup.add(pole);
+            
+            // Shade
+            var shade = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 0.2, 16), shadeMat);
+            shade.position.y = 0.48;
+            lampGroup.add(shade);
+            
+            // Bulb glow
+            var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), 
+                new THREE.MeshBasicMaterial({ color: 0xffffee, transparent: true, opacity: 0.8 }));
+            bulb.position.y = 0.42;
+            bulb.userData.shade = true;
+            lampGroup.add(bulb);
+            
+            lampGroup.position.set(x, y, z);
+            scene.add(lampGroup);
+            
+            // Light
+            var light = new THREE.PointLight(0xfff5e6, 0.6, 8);
+            light.position.set(x, y + 0.5, z);
+            scene.add(light);
+            
+            lamps.push({ light, bulb, room, group: lampGroup });
+        }
+
+        function createFloorLamp(x, y, z, room) {
+            var lampGroup = new THREE.Group();
+            var baseMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+            var shadeMat = new THREE.MeshLambertMaterial({ color: 0xf0e0c8, side: THREE.DoubleSide });
+            
+            // Base
+            var base = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.18, 0.04, 16), baseMat);
+            base.position.y = 0.02;
+            lampGroup.add(base);
+            
+            // Pole
+            var pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 1.5, 8), baseMat);
+            pole.position.y = 0.77;
+            lampGroup.add(pole);
+            
+            // Shade
+            var shade = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 0.3, 16), shadeMat);
+            shade.position.y = 1.6;
+            lampGroup.add(shade);
+            
+            // Bulb
+            var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffffee, transparent: true, opacity: 0.8 }));
+            bulb.position.y = 1.5;
+            bulb.userData.shade = true;
+            lampGroup.add(bulb);
+            
+            lampGroup.position.set(x, y, z);
+            lampGroup.name = `FloorLamp_${room}_${editorObjectCounter++}`;
+            lampGroup.userData.editable = true;
+            lampGroup.userData.type = 'floorLamp';
+            lampGroup.userData.originalPos = { x, y, z };
+            scene.add(lampGroup);
+            editorObjects.push(lampGroup);
+            
+            // Light
+            var light = new THREE.PointLight(0xfff5e6, 0.8, 10);
+            light.position.set(x, y + 1.6, z);
+            scene.add(light);
+            
+            lamps.push({ light, bulb, room, group: lampGroup });
+        }
+
+        function createPlant(x, y, z) {
+            var plantGroup = new THREE.Group();
+            
+            var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.12, 0.25, 12),
+                new THREE.MeshLambertMaterial({ color: 0x8a6a4a }));
+            pot.position.y = 0.125;
+            plantGroup.add(pot);
+            
+            var plant = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8),
+                new THREE.MeshLambertMaterial({ color: 0x3a8a3a }));
+            plant.position.y = 0.45;
+            plantGroup.add(plant);
+            
+            plantGroup.position.set(x, y, z);
+            plantGroup.name = `Plant_${editorObjectCounter++}`;
+            plantGroup.userData.editable = true;
+            plantGroup.userData.type = 'plant';
+            scene.add(plantGroup);
+            editorObjects.push(plantGroup);
+        }
+
+        function createBedroom() {
+            var darkWood = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
+            var lightWood = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+            var bedding = new THREE.MeshLambertMaterial({ color: 0xf0e8e0 });
+            var blanket = new THREE.MeshLambertMaterial({ color: 0x5a6a7a });
+            var pillow = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            var fabric = new THREE.MeshLambertMaterial({ color: 0x6a5a7a });
+
+            // Bed positioned against left wall (wall at x = -16)
+            var wallX = -HOUSE.width/2;  // -16
+            var bedZ = -2.4;  // Moved to new position
+            var bedFrameWidth = 2.2;
+            var bedX = -14.9;  // New position
+
+            // === BED ===
+            addBox(bedX, 0.2, bedZ, bedFrameWidth, 0.4, 2.6, darkWood); // Frame
+            addBox(wallX + 0.1, 0.9, bedZ, 0.15, 1.2, 2.6, darkWood); // Headboard against wall
+            addBox(bedX + bedFrameWidth/2 - 0.05, 0.45, bedZ, 0.1, 0.6, 2.6, darkWood); // Footboard
+            addBox(bedX, 0.5, bedZ, 2, 0.25, 2.4, bedding); // Mattress
+            addBox(bedX + 0.3, 0.68, bedZ, 1.4, 0.1, 2, blanket); // Blanket
+            addBox(wallX + 0.5, 0.68, bedZ - 0.6, 0.5, 0.15, 0.7, pillow); // Pillows near headboard
+            addBox(wallX + 0.5, 0.68, bedZ + 0.6, 0.5, 0.15, 0.7, pillow);
+
+            // Store bed for interaction
+            bed = new THREE.Group();
+            bed.position.set(bedX, 0.5, bedZ);
+            bed.userData.type = 'bed';
+            interactables.push(bed);
+
+            // === NIGHTSTANDS (beside bed, against wall) ===
+            var nsX = wallX + 0.35;  // Against wall
+            var ns1Z = bedZ + 1.55;  // Left side of bed
+            addBox(nsX, 0.3, ns1Z, 0.5, 0.6, 0.45, darkWood);
+            addBox(nsX + 0.26, 0.25, ns1Z, 0.15, 0.03, 0.02, new THREE.MeshLambertMaterial({ color: 0x888888 }));
+            createTableLamp(nsX, 0.6, ns1Z, 'bedroom');
+            addBox(nsX + 0.1, 0.65, ns1Z - 0.1, 0.15, 0.1, 0.08, new THREE.MeshLambertMaterial({ color: 0x1a1a1a }));
+            createElectronic(nsX + 0.1, 0.67, ns1Z - 0.05, 'Alarm clock');
+
+            var ns2Z = bedZ - 1.55;  // Right side of bed
+            addBox(nsX, 0.3, ns2Z, 0.5, 0.6, 0.45, darkWood);
+            addBox(nsX + 0.26, 0.25, ns2Z, 0.15, 0.03, 0.02, new THREE.MeshLambertMaterial({ color: 0x888888 }));
+            createElectronic(nsX + 0.1, 0.62, ns2Z, 'Charger LED');
+            addBox(nsX - 0.05, 0.65, ns2Z, 0.12, 0.15, 0.02, new THREE.MeshLambertMaterial({ color: 0x4a6a8a }));
+
+            // === DRESSER ===
+            var dresserX = -10.6, dresserZ = -8.8;
+            addBox(dresserX, 0.5, dresserZ, 1.4, 1, 0.5, darkWood);
+            for (var i = 0; i < 3; i++) {
+                addBox(dresserX, 0.25 + i * 0.32, dresserZ + 0.26, 0.25, 0.03, 0.02, new THREE.MeshLambertMaterial({ color: 0x888888 }));
+            }
+            // Mirror above dresser
+            addBox(dresserX, 1.8, dresserZ - 0.05, 1, 1.2, 0.05, darkWood);
+            var mirror = new THREE.Mesh(new THREE.PlaneGeometry(0.85, 1),
+                new THREE.MeshBasicMaterial({ color: 0x8090a0 }));
+            mirror.position.set(dresserX, 1.8, dresserZ - 0.01);
+            scene.add(mirror);
+
+            // === WARDROBE ===
+            addBox(-14.8, 1.2, -8.7, 1.4, 2.4, 0.7, darkWood);
+            addBox(-14.8, 1.2, -8.34, 0.02, 2.2, 0.02, new THREE.MeshLambertMaterial({ color: 0x3a2a1a })); // Door line
+            // Handles
+            addBox(-15.2, 1.2, -8.34, 0.04, 0.15, 0.03, new THREE.MeshLambertMaterial({ color: 0x888888 }));
+            addBox(-14.4, 1.2, -8.34, 0.04, 0.15, 0.03, new THREE.MeshLambertMaterial({ color: 0x888888 }));
+
+            // === READING CHAIR + FLOOR LAMP ===
+            var chairX = -8.4, chairZ = -8.6;
+            addBox(chairX, 0.35, chairZ, 0.9, 0.5, 0.9, fabric);
+            addBox(chairX, 0.8, chairZ - 0.4, 0.9, 0.6, 0.15, fabric);
+            addBox(chairX - 0.4, 0.5, chairZ, 0.12, 0.35, 0.9, fabric);
+            addBox(chairX + 0.4, 0.5, chairZ, 0.12, 0.35, 0.9, fabric);
+            // Small side table
+            addBox(chairX + 0.8, 0.3, chairZ, 0.4, 0.6, 0.4, lightWood);
+            // Floor lamp next to chair
+            createFloorLamp(chairX - 1, 0, chairZ, 'bedroom');
+
+            // === DESK AREA (inside bedroom, front section against left wall) ===
+            var deskWallX = -HOUSE.width/2;  // -16 (left wall)
+            var deskZ = 4;
+            // Desk against the left wall
+            addBox(deskWallX + 0.35, 0.75, deskZ, 0.6, 0.05, 1.2, lightWood); // Desk top
+            addBox(deskWallX + 0.35, 0.375, deskZ - 0.5, 0.55, 0.7, 0.05, lightWood); // Back leg
+            addBox(deskWallX + 0.35, 0.375, deskZ + 0.5, 0.55, 0.7, 0.05, lightWood); // Front leg
+            // Desk chair (facing desk)
+            addBox(deskWallX + 1, 0.4, deskZ, 0.5, 0.08, 0.5, new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+            addBox(deskWallX + 1.2, 0.75, deskZ, 0.08, 0.6, 0.5, new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+            // Desk lamp
+            createTableLamp(deskWallX + 0.4, 0.78, deskZ - 0.35, 'bedroom');
+            // Laptop (closed) with charging LED
+            addBox(deskWallX + 0.35, 0.8, deskZ + 0.15, 0.25, 0.02, 0.35, new THREE.MeshLambertMaterial({ color: 0x4a4a4a }));
+            createElectronic(deskWallX + 0.2, 0.81, deskZ + 0.3, 'Laptop charging LED');
+            // Air purifier near desk
+            addBox(deskWallX + 0.3, 0.25, deskZ + 1, 0.25, 0.5, 0.2, new THREE.MeshLambertMaterial({ color: 0xf0f0f0 }), 'BR_AirPurifier');
+            createElectronic(deskWallX + 0.35, 0.52, deskZ + 1.08, 'Air purifier LED');
+            // Power bank on nightstand
+            createElectronic(-15.55, 0.65, -0.7, 'Power bank LED');
+            
+            // === WALL LAMPS above desk ===
+            createWallSconce(deskWallX + 0.15, 2, deskZ - 0.4, 'bedroom', Math.PI/2);
+            createWallSconce(deskWallX + 0.15, 2, deskZ + 0.4, 'bedroom', Math.PI/2);
+
+            // === RUG ===
+            var rug = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), new THREE.MeshLambertMaterial({ color: 0x7a6a5a }));
+            rug.rotation.x = -Math.PI / 2;
+            rug.position.set(bedX + 1.8, 0.01, bedZ);
+            rug.name = `BR_Rug_${editorObjectCounter++}`;
+            rug.userData.editable = true;
+            rug.userData.type = 'rug';
+            scene.add(rug);
+            editorObjects.push(rug);
+
+            // === BENCH AT FOOT OF BED (facing bed, back towards +x) ===
+            var benchX = bedX + bedFrameWidth/2 + 0.8;  // In front of footboard
+            addBox(benchX, 0.3, bedZ, 0.5, 0.45, 1.8, fabric, 'BR_Bench_Seat');
+            addBox(benchX, 0.35, bedZ, 0.45, 0.08, 1.7, new THREE.MeshLambertMaterial({ color: 0x7a6a8a }), 'BR_Bench_Cushion');
+            // Bench has no back - it's a simple ottoman-style bench
+
+            // === LAUNDRY BASKET in corner ===
+            var basket = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.5, 12),
+                new THREE.MeshLambertMaterial({ color: 0x8a7a6a }));
+            basket.position.set(-7.5, 0.25, -7.5);
+            basket.name = `BR_LaundryBasket_${editorObjectCounter++}`;
+            basket.userData.editable = true;
+            basket.userData.type = 'basket';
+            scene.add(basket);
+            editorObjects.push(basket);
+
+            // === SMALL BOOKCASE against bedroom wall (near door) ===
+            // Against bedroom wall (x = -6), facing into bedroom (-x direction)
+            var bookcaseX = -6.4, bookcaseZ = -1;
+            // Back panel (against wall)
+            addBox(bookcaseX + 0.15, 0.7, bookcaseZ, 0.05, 1.4, 0.8, darkWood, 'BR_Bookcase_Back');
+            // Left side
+            addBox(bookcaseX, 0.7, bookcaseZ - 0.38, 0.35, 1.4, 0.05, darkWood, 'BR_Bookcase_SideL');
+            // Right side
+            addBox(bookcaseX, 0.7, bookcaseZ + 0.38, 0.35, 1.4, 0.05, darkWood, 'BR_Bookcase_SideR');
+            // Shelves
+            addBox(bookcaseX, 0.35, bookcaseZ, 0.32, 0.03, 0.75, darkWood, 'BR_Bookcase_Shelf1');
+            addBox(bookcaseX, 0.7, bookcaseZ, 0.32, 0.03, 0.75, darkWood, 'BR_Bookcase_Shelf2');
+            addBox(bookcaseX, 1.05, bookcaseZ, 0.32, 0.03, 0.75, darkWood, 'BR_Bookcase_Shelf3');
+            addBox(bookcaseX, 1.4, bookcaseZ, 0.32, 0.03, 0.75, darkWood, 'BR_Bookcase_Top');
+            // Some books (spines facing -x into room)
+            addBox(bookcaseX - 0.1, 0.52, bookcaseZ - 0.2, 0.15, 0.3, 0.05, new THREE.MeshLambertMaterial({ color: 0x8b4513 }), 'BR_Book1');
+            addBox(bookcaseX - 0.1, 0.52, bookcaseZ - 0.1, 0.15, 0.28, 0.05, new THREE.MeshLambertMaterial({ color: 0x2f4f4f }), 'BR_Book2');
+            addBox(bookcaseX - 0.1, 0.52, bookcaseZ + 0.1, 0.15, 0.32, 0.05, new THREE.MeshLambertMaterial({ color: 0x8b0000 }), 'BR_Book3');
+            // Small plant on top
+            createPlant(bookcaseX - 0.05, 1.4, bookcaseZ);
+
+            // === FULL-LENGTH MIRROR on wall (between wardrobe and corner) ===
+            // Against back wall (z = -9), facing +z into room
+            addBox(-12.5, 1.2, -8.5, 0.6, 1.8, 0.05, darkWood, 'BR_MirrorFrame');
+            var fullMirror = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 1.6),
+                new THREE.MeshBasicMaterial({ color: 0x8090a0 }));
+            fullMirror.position.set(-12.5, 1.2, -8.47);
+            scene.add(fullMirror);
+
+            // === BEDROOM RUG (second one, near reading area) ===
+            var rug2 = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), new THREE.MeshLambertMaterial({ color: 0x6a5a6a }));
+            rug2.rotation.x = -Math.PI / 2;
+            rug2.position.set(-8.4, 0.01, -8.6);
+            rug2.name = `BR_Rug2_${editorObjectCounter++}`;
+            rug2.userData.editable = true;
+            rug2.userData.type = 'rug';
+            scene.add(rug2);
+            editorObjects.push(rug2);
+
+            // === CEILING LIGHT ===
+            createCeilingLight(-11, HOUSE.height - 0.1, -2, 'bedroom');
+
+            // === LIGHT SWITCH (on bedroom wall, bedroom side, near door) ===
+            createLightSwitch(-6.2, 1.2, -2.2, 'bedroom', -Math.PI/2);
+        }
+
+        function createKitchen() {
+            var counter = new THREE.MeshLambertMaterial({ color: 0x9099a0 });
+            var cabinet = new THREE.MeshLambertMaterial({ color: 0xf5f5f5 });
+            var appliance = new THREE.MeshLambertMaterial({ color: 0xdcdcdc });
+            var darkWood = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+            var metal = new THREE.MeshLambertMaterial({ color: 0x888888 });
+
+            // === L-SHAPED COUNTER ===
+            addBox(12, 0.45, -8.2, 6, 0.9, 0.7, cabinet);
+            addBox(12, 0.93, -8.2, 6.1, 0.06, 0.75, counter);
+            addBox(HOUSE.width/2 - 0.4, 0.45, -5, 0.7, 0.9, 4, cabinet);
+            addBox(HOUSE.width/2 - 0.4, 0.93, -5, 0.75, 0.06, 4.1, counter);
+
+            // === UPPER CABINETS (depth 0.4, back wall at z=-9) ===
+            addBox(11, 2.4, -8.4, 4.5, 0.8, 0.4, cabinet);
+            // Cabinet handles
+            for (var i = 0; i < 3; i++) {
+                addBox(9.5 + i * 1.5, 2.3, -8.19, 0.2, 0.03, 0.03, metal);
+            }
+
+            // === STOVE ===
+            addBox(10, 0.5, -8.2, 0.9, 1, 0.7, appliance);
+            addBox(10, 0.98, -8.2, 0.85, 0.03, 0.65, new THREE.MeshLambertMaterial({ color: 0x222222 }));
+            for (var bx = 0; bx < 2; bx++) {
+                for (var bz = 0; bz < 2; bz++) {
+                    var burner = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.02, 16),
+                        new THREE.MeshLambertMaterial({ color: 0x333333 }));
+                    burner.position.set(9.8 + bx * 0.35, 1.01, -8.35 + bz * 0.3);
+                    scene.add(burner);
+                }
+            }
+            // Oven door handle
+            addBox(10, 0.5, -7.84, 0.5, 0.03, 0.03, metal);
+
+            // === RANGE HOOD ===
+            addBox(10, 2.6, -8.3, 0.9, 0.4, 0.5, appliance);
+
+            // === SINK ===
+            addBox(12.5, 0.88, -8.2, 0.7, 0.15, 0.5, new THREE.MeshLambertMaterial({ color: 0x666666 }));
+            var faucet = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.3, 8), metal);
+            faucet.position.set(12.5, 1.1, -8.5);
+            scene.add(faucet);
+            var faucetSpout = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.15, 8), metal);
+            faucetSpout.rotation.x = Math.PI / 2;
+            faucetSpout.position.set(12.5, 1.2, -8.35);
+            scene.add(faucetSpout);
+
+            // === REFRIGERATOR ===
+            addBox(HOUSE.width/2 - 0.5, 1.1, -7.8, 1, 2.2, 0.9, appliance);
+            addBox(HOUSE.width/2 - 1, 1.6, -7.34, 0.03, 0.4, 0.04, metal);
+            addBox(HOUSE.width/2 - 1, 0.5, -7.34, 0.03, 0.3, 0.04, metal);
+            // Fridge light indicator
+            createElectronic(HOUSE.width/2 - 0.9, 1.9, -7.34, 'Fridge LED');
+
+            // === MICROWAVE ===
+            addBox(13.5, 1.15, -8.05, 0.55, 0.35, 0.4, appliance);
+            addBox(13.5, 1.15, -7.84, 0.4, 0.28, 0.02, new THREE.MeshBasicMaterial({ color: 0x111111 }));
+            createElectronic(13.72, 1.2, -7.84, 'Microwave clock');
+
+            // === COFFEE MAKER ===
+            addBox(HOUSE.width/2 - 0.45, 1.15, -3, 0.25, 0.4, 0.3, new THREE.MeshLambertMaterial({ color: 0x222222 }));
+            createElectronic(HOUSE.width/2 - 0.55, 1.0, -2.85, 'Coffee maker');
+
+            // === TOASTER ===
+            addBox(14.5, 1.0, -8.05, 0.25, 0.2, 0.15, new THREE.MeshLambertMaterial({ color: 0xcccccc }));
+            
+            // Oven/stove clock display
+            createElectronic(10.3, 1.5, -7.85, 'Oven clock');
+            // Dishwasher indicator (under counter)
+            createElectronic(11, 0.6, -7.85, 'Dishwasher LED');
+            // Range hood light
+            createElectronic(10, 2.35, -8.05, 'Range hood LED');
+
+            // === BAR STOOLS at side counter (facing counter, backs towards -x) ===
+            // Counter is at x = 15.6, stools positioned at x = 14.8
+            var stoolX = 14.8;
+            var stoolMat = new THREE.MeshLambertMaterial({ color: 0x4a4a4a });
+            var stoolSeatMat = new THREE.MeshLambertMaterial({ color: 0x6a5a4a });
+            
+            // Stool 1
+            addBox(stoolX, 0.35, -3, 0.35, 0.7, 0.35, stoolMat, 'KT_Stool1_Legs');
+            addBox(stoolX, 0.73, -3, 0.4, 0.06, 0.4, stoolSeatMat, 'KT_Stool1_Seat');
+            // Small backrest (facing +x towards counter)
+            addBox(stoolX - 0.17, 0.9, -3, 0.04, 0.3, 0.35, stoolMat, 'KT_Stool1_Back');
+            
+            // Stool 2
+            addBox(stoolX, 0.35, -4.2, 0.35, 0.7, 0.35, stoolMat, 'KT_Stool2_Legs');
+            addBox(stoolX, 0.73, -4.2, 0.4, 0.06, 0.4, stoolSeatMat, 'KT_Stool2_Seat');
+            addBox(stoolX - 0.17, 0.9, -4.2, 0.04, 0.3, 0.35, stoolMat, 'KT_Stool2_Back');
+
+            // === KITCHEN ISLAND/PREP TABLE ===
+            var islandX = 11.5, islandZ = -5;
+            addBox(islandX, 0.45, islandZ, 1.2, 0.9, 0.7, cabinet, 'KT_Island_Base');
+            addBox(islandX, 0.93, islandZ, 1.3, 0.06, 0.8, counter, 'KT_Island_Top');
+            // Cutting board on island
+            addBox(islandX - 0.2, 0.98, islandZ, 0.35, 0.02, 0.25, new THREE.MeshLambertMaterial({ color: 0x8b7355 }), 'KT_CuttingBoard');
+            // Knife block
+            addBox(islandX + 0.4, 1.1, islandZ + 0.2, 0.15, 0.3, 0.1, new THREE.MeshLambertMaterial({ color: 0x3a2a1a }), 'KT_KnifeBlock');
+
+            // === TRASH BIN ===
+            var trashBin = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.15, 0.5, 12),
+                new THREE.MeshLambertMaterial({ color: 0x4a4a4a }));
+            trashBin.position.set(9, 0.25, -7.5);
+            trashBin.name = `KT_TrashBin_${editorObjectCounter++}`;
+            trashBin.userData.editable = true;
+            trashBin.userData.type = 'furniture';
+            scene.add(trashBin);
+            editorObjects.push(trashBin);
+
+            // === PAPER TOWEL HOLDER on counter ===
+            var towelHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 12),
+                new THREE.MeshLambertMaterial({ color: 0xf5f5f5 }));
+            towelHolder.position.set(14, 1.15, -8);
+            scene.add(towelHolder);
+            var towelRoll = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.25, 12),
+                new THREE.MeshLambertMaterial({ color: 0xeeeeee }));
+            towelRoll.position.set(14, 1.25, -8);
+            scene.add(towelRoll);
+
+            // === SPICE RACK on counter near stove ===
+            addBox(10.7, 1.05, -8.1, 0.3, 0.2, 0.12, new THREE.MeshLambertMaterial({ color: 0x5a4a3a }), 'KT_SpiceRack');
+
+            // === LARGE DINING TABLE (in open area connecting to living room) ===
+            var tableX = 11.1, tableZ = 1.2;
+            var tableW = 2.4, tableD = 1.2;
+            // Table top
+            addBox(tableX, 0.76, tableZ, tableW, 0.06, tableD, darkWood);
+            // Table legs
+            addBox(tableX - tableW/2 + 0.1, 0.38, tableZ - tableD/2 + 0.1, 0.08, 0.7, 0.08, darkWood);
+            addBox(tableX + tableW/2 - 0.1, 0.38, tableZ - tableD/2 + 0.1, 0.08, 0.7, 0.08, darkWood);
+            addBox(tableX - tableW/2 + 0.1, 0.38, tableZ + tableD/2 - 0.1, 0.08, 0.7, 0.08, darkWood);
+            addBox(tableX + tableW/2 - 0.1, 0.38, tableZ + tableD/2 - 0.1, 0.08, 0.7, 0.08, darkWood);
+            
+            // 6 Chairs - 2 on each long side, 1 on each short side
+            var chairMat = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
+            var chairFabric = new THREE.MeshLambertMaterial({ color: 0x8a7a6a });
+            
+            // Left side chairs (2)
+            for (var i = -1; i <= 1; i += 2) {
+                var cz = tableZ + i * 0.4;
+                addBox(tableX - tableW/2 - 0.5, 0.45, cz, 0.45, 0.05, 0.45, chairMat);
+                addBox(tableX - tableW/2 - 0.5, 0.5, cz, 0.4, 0.06, 0.4, chairFabric); // cushion
+                addBox(tableX - tableW/2 - 0.7, 0.8, cz, 0.05, 0.65, 0.45, chairMat);
+                // legs
+                addBox(tableX - tableW/2 - 0.7, 0.21, cz - 0.18, 0.04, 0.42, 0.04, chairMat);
+                addBox(tableX - tableW/2 - 0.3, 0.21, cz - 0.18, 0.04, 0.42, 0.04, chairMat);
+                addBox(tableX - tableW/2 - 0.7, 0.21, cz + 0.18, 0.04, 0.42, 0.04, chairMat);
+                addBox(tableX - tableW/2 - 0.3, 0.21, cz + 0.18, 0.04, 0.42, 0.04, chairMat);
+            }
+            
+            // Right side chairs (2)
+            for (var i = -1; i <= 1; i += 2) {
+                var cz = tableZ + i * 0.4;
+                addBox(tableX + tableW/2 + 0.5, 0.45, cz, 0.45, 0.05, 0.45, chairMat);
+                addBox(tableX + tableW/2 + 0.5, 0.5, cz, 0.4, 0.06, 0.4, chairFabric);
+                addBox(tableX + tableW/2 + 0.7, 0.8, cz, 0.05, 0.65, 0.45, chairMat);
+                // legs
+                addBox(tableX + tableW/2 + 0.3, 0.21, cz - 0.18, 0.04, 0.42, 0.04, chairMat);
+                addBox(tableX + tableW/2 + 0.7, 0.21, cz - 0.18, 0.04, 0.42, 0.04, chairMat);
+                addBox(tableX + tableW/2 + 0.3, 0.21, cz + 0.18, 0.04, 0.42, 0.04, chairMat);
+                addBox(tableX + tableW/2 + 0.7, 0.21, cz + 0.18, 0.04, 0.42, 0.04, chairMat);
+            }
+            
+            // End chairs (head and foot of table)
+            // Back end
+            addBox(tableX, 0.45, tableZ - tableD/2 - 0.5, 0.45, 0.05, 0.45, chairMat);
+            addBox(tableX, 0.5, tableZ - tableD/2 - 0.5, 0.4, 0.06, 0.4, chairFabric);
+            addBox(tableX, 0.8, tableZ - tableD/2 - 0.7, 0.45, 0.65, 0.05, chairMat);
+            // Front end
+            addBox(tableX, 0.45, tableZ + tableD/2 + 0.5, 0.45, 0.05, 0.45, chairMat);
+            addBox(tableX, 0.5, tableZ + tableD/2 + 0.5, 0.4, 0.06, 0.4, chairFabric);
+            addBox(tableX, 0.8, tableZ + tableD/2 + 0.7, 0.45, 0.65, 0.05, chairMat);
+            
+            // Centerpiece - candles and flowers
+            var vase = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.2, 12),
+                new THREE.MeshLambertMaterial({ color: 0xf5f5f0 }));
+            vase.position.set(tableX, 0.89, tableZ);
+            scene.add(vase);
+            // Flowers
+            var flowers = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8),
+                new THREE.MeshLambertMaterial({ color: 0xaa5577 }));
+            flowers.position.set(tableX, 1.08, tableZ);
+            scene.add(flowers);
+            // Candle holders
+            for (var cx of [-0.4, 0.4]) {
+                var candle = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.15, 8),
+                    new THREE.MeshLambertMaterial({ color: 0xf5f0e0 }));
+                candle.position.set(tableX + cx, 0.86, tableZ);
+                scene.add(candle);
+            }
+            
+            // Table runner
+            addBox(tableX, 0.77, tableZ, 0.4, 0.01, tableD - 0.1, new THREE.MeshLambertMaterial({ color: 0x6a5a4a }));
+            
+            // Place settings (plates)
+            var plateMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+            for (var px of [-0.7, 0.7]) {
+                for (var pz of [-0.35, 0.35]) {
+                    var plate = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.015, 16), plateMat);
+                    plate.position.set(tableX + px, 0.785, tableZ + pz);
+                    scene.add(plate);
+                }
+            }
+
+            // === PENDANT LIGHT over dining table ===
+            createPendantLight(tableX, HOUSE.height - 0.3, tableZ, 'kitchen');
+
+            // === FRUIT BOWL ===
+            var bowl = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2),
+                new THREE.MeshLambertMaterial({ color: 0xf5f5dc, side: THREE.DoubleSide }));
+            bowl.position.set(HOUSE.width/2 - 0.45, 0.98, -5);
+            scene.add(bowl);
+
+            // === TALL FLOOR LAMPS in kitchen corners ===
+            createFloorLamp(8.8, 0, -4, 'kitchen');  // Near kitchen wall entrance
+            createFloorLamp(15, 0, -5.5, 'kitchen'); // Near right wall
+            createFloorLamp(14.9, 0, 7.2, 'kitchen');   // Front corner near dining area
+            
+            // === PLANT REMOVED ===
+
+            // === CEILING LIGHT ===
+            createCeilingLight(12, HOUSE.height - 0.1, -5, 'kitchen');
+
+            // === LIGHT SWITCH (on kitchen wall, kitchen side) ===
+            createLightSwitch(8.2, 1.2, -5, 'kitchen', Math.PI/2);
+        }
+
+        function createPendantLight(x, y, z, room) {
+            var fixture = new THREE.Group();
+            
+            // Cord
+            var cord = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.5, 8),
+                new THREE.MeshLambertMaterial({ color: 0x222222 }));
+            cord.position.y = 0.25;
+            fixture.add(cord);
+            
+            // Shade
+            var shade = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.2, 16, 1, true),
+                new THREE.MeshLambertMaterial({ color: 0x2a2a2a, side: THREE.DoubleSide }));
+            shade.position.y = -0.05;
+            fixture.add(shade);
+            
+            // Bulb
+            var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffffee, transparent: true, opacity: 0.9 }));
+            bulb.position.y = -0.05;
+            bulb.userData.shade = true;
+            fixture.add(bulb);
+            
+            fixture.position.set(x, y, z);
+            scene.add(fixture);
+            
+            var light = new THREE.PointLight(0xfff5e6, 0.8, 8);
+            light.position.set(x, y - 0.2, z);
+            scene.add(light);
+            
+            lamps.push({ light, bulb, room, group: fixture });
+        }
+
+        function createHallway() {
+            var darkWood = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
+            var lightWood = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+            var fabric = new THREE.MeshLambertMaterial({ color: 0x6a6a7a });
+
+            // === CONSOLE TABLE (moved to front wall) ===
+            addBox(-13.8, 0.4, 8.8, 1.2, 0.8, 0.35, darkWood);
+            addBox(-13.8, 0.35, 8.8, 0.05, 0.7, 0.3, darkWood); // Left leg
+            addBox(-13.8, 0.35, 8.8, 0.05, 0.7, 0.3, darkWood); // Right leg
+            
+            // Keys bowl
+            var bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.06, 16),
+                new THREE.MeshLambertMaterial({ color: 0x6a5a4a }));
+            bowl.position.set(-14.1, 0.84, 8.8);
+            scene.add(bowl);
+            
+            // Mail/letters
+            addBox(-13.5, 0.84, 8.8, 0.2, 0.02, 0.12, new THREE.MeshLambertMaterial({ color: 0xf5f5f0 }));
+
+            // === COAT RACK ===
+            var rackX = -15.7, rackZ = 3;
+            addBox(rackX, 1, rackZ, 0.08, 2, 0.08, darkWood);
+            addBox(rackX, 0.1, rackZ, 0.25, 0.08, 0.25, darkWood); // Base
+            // Hooks
+            for (var i = 0; i < 4; i++) {
+                var hookAngle = (i / 4) * Math.PI * 2;
+                var hook = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.12, 8),
+                    new THREE.MeshLambertMaterial({ color: 0x888888 }));
+                hook.rotation.z = Math.PI / 2;
+                hook.position.set(rackX + Math.cos(hookAngle) * 0.15, 1.8, rackZ + Math.sin(hookAngle) * 0.15);
+                scene.add(hook);
+            }
+
+            // === SHOE RACK (moved to bedroom entrance) ===
+            addBox(-6.8, 0.2, 0.7, 1, 0.4, 0.35, lightWood);
+            // Shoes (simplified)
+            addBox(-7.1, 0.08, 0.7, 0.2, 0.1, 0.08, new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+            addBox(-6.9, 0.08, 0.7, 0.2, 0.1, 0.08, new THREE.MeshLambertMaterial({ color: 0x2a2a2a }));
+            addBox(-6.6, 0.08, 0.7, 0.2, 0.12, 0.1, new THREE.MeshLambertMaterial({ color: 0x5a4a3a }));
+
+            // === BENCH REMOVED ===
+
+            // === UMBRELLA STAND ===
+            var umbrellaGroup = new THREE.Group();
+            var umbrellaStand = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 0.4, 12),
+                new THREE.MeshLambertMaterial({ color: 0x4a4a4a }));
+            umbrellaStand.position.y = 0.2;
+            umbrellaGroup.add(umbrellaStand);
+            // Umbrella
+            var umbrella = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.8, 8),
+                new THREE.MeshLambertMaterial({ color: 0x1a1a3a }));
+            umbrella.position.y = 0.5;
+            umbrellaGroup.add(umbrella);
+            umbrellaGroup.position.set(-15, 0, 6);
+            umbrellaGroup.name = `HW_UmbrellaStand_${editorObjectCounter++}`;
+            umbrellaGroup.userData.editable = true;
+            umbrellaGroup.userData.type = 'furniture';
+            scene.add(umbrellaGroup);
+            editorObjects.push(umbrellaGroup);
+
+            // === PLANT ===
+            createPlant(-15.4, 0, 5.5);
+
+            // === MIRROR on wall (front wall at z=9) ===
+            addBox(-8, 1.6, 8.8, 0.8, 1.2, 0.04, darkWood);
+            var mirror = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 1),
+                new THREE.MeshBasicMaterial({ color: 0x8090a0 }));
+            mirror.position.set(-8, 1.6, 8.77);
+            scene.add(mirror);
+
+            // === WALL HOOKS (on left wall, x=-16) ===
+            // Hooks facing +x (into room)
+            for (var i = 0; i < 4; i++) {
+                var hookPlate = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.08, 0.08),
+                    new THREE.MeshLambertMaterial({ color: 0x888888 }));
+                hookPlate.position.set(-15.85, 1.5, 4.5 + i * 0.4);
+                scene.add(hookPlate);
+                var hook = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.08, 8),
+                    new THREE.MeshLambertMaterial({ color: 0x888888 }));
+                hook.rotation.z = Math.PI / 2;
+                hook.position.set(-15.8, 1.45, 4.5 + i * 0.4);
+                scene.add(hook);
+            }
+            // Coat removed
+
+            // === STORAGE BENCH REMOVED ===
+
+            // === SMALL TABLE near door for keys ===
+            addBox(-5.3, 0.4, 5.2, 0.5, 0.8, 0.35, lightWood, 'HW_KeyTable');
+            // Small tray for keys
+            addBox(-5.3, 0.82, 5.2, 0.25, 0.03, 0.18, new THREE.MeshLambertMaterial({ color: 0x6a5a4a }), 'HW_KeyTray');
+
+            // === ENTRANCE PLANT REMOVED ===
+
+            // === WALL SCONCE (hallway light) ===
+            createWallSconce(-4, 2.2, 8.7, 'hallway', Math.PI);
+            createWallSconce(4, 2.2, 8.7, 'hallway', Math.PI);
+
+            // === CEILING LIGHT ===
+            createCeilingLight(0, HOUSE.height - 0.1, 4, 'hallway');
+            
+            // Hallway smoke detector
+            createElectronic(0, HOUSE.height - 0.1, 6, 'Hallway smoke detector');
+
+            // === LIGHT SWITCH (on front wall, near entrance) ===
+            createLightSwitch(3, 1.2, 8.95, 'hallway', Math.PI);
+
+            // === DOORMAT ===
+            var mat = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.6),
+                new THREE.MeshLambertMaterial({ color: 0x4a3a2a }));
+            mat.rotation.x = -Math.PI / 2;
+            mat.position.set(0, 0.02, 8.5);
+            mat.name = `HW_Doormat_${editorObjectCounter++}`;
+            mat.userData.editable = true;
+            mat.userData.type = 'rug';
+            scene.add(mat);
+            editorObjects.push(mat);
+        }
+
+        function createWallSconce(x, y, z, room, rotY = 0) {
+            var sconce = new THREE.Group();
+            
+            // Backplate
+            var plate = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.15, 0.03),
+                new THREE.MeshLambertMaterial({ color: 0x888888 }));
+            sconce.add(plate);
+            
+            // Arm
+            var arm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.12),
+                new THREE.MeshLambertMaterial({ color: 0x888888 }));
+            arm.position.set(0, -0.05, 0.08);
+            sconce.add(arm);
+            
+            // Shade
+            var shade = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.12, 12),
+                new THREE.MeshLambertMaterial({ color: 0xf5e6d3, side: THREE.DoubleSide }));
+            shade.position.set(0, 0, 0.15);
+            sconce.add(shade);
+            
+            // Bulb
+            var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.03, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xffffee, transparent: true, opacity: 0.8 }));
+            bulb.position.set(0, 0, 0.15);
+            bulb.userData.shade = true;
+            sconce.add(bulb);
+            
+            sconce.position.set(x, y, z);
+            sconce.rotation.y = rotY;
+            scene.add(sconce);
+            
+            // Light position adjusted for rotation
+            var lightOffsetZ = Math.cos(rotY) * -0.1;
+            var lightOffsetX = Math.sin(rotY) * -0.1;
+            var light = new THREE.PointLight(0xfff5e6, 0.5, 6);
+            light.position.set(x + lightOffsetX, y, z + lightOffsetZ);
+            scene.add(light);
+            
+            lamps.push({ light, bulb, room, group: sconce });
+        }
+
+        var editorObjectCounter = 0;
+        
+        function addBox(x, y, z, w, h, d, mat, name) {
+            var box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            box.position.set(x, y, z);
+            box.name = name || `Box_${editorObjectCounter++}`;
+            box.userData.editable = true;
+            box.userData.originalPos = { x, y, z };
+            box.userData.dimensions = { w, h, d };
+            scene.add(box);
+            editorObjects.push(box);
+            return box;
+        }
+
+        function createCeilingLight(x, y, z, room) {
+            var fixture = new THREE.Group();
+            
+            var base = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.18, 0.18, 0.06, 16),
+                new THREE.MeshLambertMaterial({ color: 0x888888 })
+            );
+            fixture.add(base);
+            
+            var shade = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xffffee, transparent: true, opacity: 0.9 })
+            );
+            shade.position.y = -0.25;
+            shade.userData.shade = true;
+            fixture.add(shade);
+            
+            fixture.position.set(x, y, z);
+            scene.add(fixture);
+            
+            var light = new THREE.PointLight(0xfff5e6, 1, 18);
+            light.position.set(x, y - 0.35, z);
+            scene.add(light);
+            
+            lights.push({ light, shade, room, fixture });
+            State.lightsOn.push(room);
+            State.totalLights++;
+        }
+
+        function createLightSwitch(x, y, z, room, rotY) {
+            var switchGroup = new THREE.Group();
+            
+            var plate = new THREE.Mesh(
+                new THREE.BoxGeometry(0.08, 0.12, 0.02),
+                new THREE.MeshLambertMaterial({ color: 0xf5f5f0 })
+            );
+            switchGroup.add(plate);
+            
+            var toggle = new THREE.Mesh(
+                new THREE.BoxGeometry(0.04, 0.05, 0.025),
+                new THREE.MeshLambertMaterial({ color: 0xffffff })
+            );
+            toggle.position.y = 0.02;
+            toggle.position.z = 0.01;
+            toggle.userData.isToggle = true;
+            switchGroup.add(toggle);
+            
+            // Glow indicator (small phosphorescent dot)
+            var glowDot = new THREE.Mesh(
+                new THREE.SphereGeometry(0.008, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x88ffaa, transparent: true, opacity: 0.9 })
+            );
+            glowDot.position.set(0, -0.04, 0.015);
+            switchGroup.add(glowDot);
+            
+            // Subtle glow light
+            var glowLight = new THREE.PointLight(0x88ffaa, 0.15, 1.5);
+            glowLight.position.set(0, 0, 0.05);
+            switchGroup.add(glowLight);
+            
+            // Store reference for animation
+            switchGroup.userData.glowDot = glowDot;
+            switchGroup.userData.glowLight = glowLight;
+            
+            switchGroup.position.set(x, y, z);
+            switchGroup.rotation.y = rotY;
+            switchGroup.userData.room = room;
+            switchGroup.userData.type = 'switch';
+            scene.add(switchGroup);
+            
+            lightSwitches.push(switchGroup);
+            interactables.push(switchGroup);
+        }
+
+        function createElectronic(x, y, z, name) {
+            var led = new THREE.Mesh(
+                new THREE.SphereGeometry(0.025, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            led.position.set(x, y, z);
+            led.visible = false;
+            
+            var glow = new THREE.PointLight(0xff0000, 0, 2);
+            glow.position.copy(led.position);
+            scene.add(glow);
+            
+            var outline = new THREE.Mesh(
+                new THREE.SphereGeometry(0.06, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0, wireframe: true })
+            );
+            outline.position.copy(led.position);
+            scene.add(outline);
+            
+            led.userData = { glow, outline, name };
+            scene.add(led);
+            electronics.push(led);
+        }
+        
+        function createCreepyEyes() {
+            creepyEyes = new THREE.Group();
+            
+            // Door is at x = -6, z = -3 (doorZ)
+            var eyeY = 1.5;  // Eye level
+            var eyeX = -6.3;  // Just inside doorway
+            var eyeZ = -3;   // At door position
+            var eyeSpacing = 0.15;  // Distance between eyes
+            
+            // Left eye
+            var leftEye = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            leftEye.position.set(0, 0, -eyeSpacing/2);
+            creepyEyes.add(leftEye);
+            
+            // Right eye
+            var rightEye = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xff0000 })
+            );
+            rightEye.position.set(0, 0, eyeSpacing/2);
+            creepyEyes.add(rightEye);
+            
+            // Glowing effect for left eye
+            var leftGlow = new THREE.PointLight(0xff0000, 0.5, 3);
+            leftGlow.position.set(0, 0, -eyeSpacing/2);
+            creepyEyes.add(leftGlow);
+            
+            // Glowing effect for right eye
+            var rightGlow = new THREE.PointLight(0xff0000, 0.5, 3);
+            rightGlow.position.set(0, 0, eyeSpacing/2);
+            creepyEyes.add(rightGlow);
+            
+            creepyEyes.position.set(eyeX, eyeY, eyeZ);
+            creepyEyes.visible = false;  // Hidden initially
+            creepyEyes.userData = { leftEye, rightEye, leftGlow, rightGlow };
+            scene.add(creepyEyes);
+        }
+
+        function toggleLight(room) {
+            var idx = State.lightsOn.indexOf(room);
+            var lightData = lights.find(l => l.room === room);
+            var switchData = lightSwitches.find(s => s.userData.room === room);
+            var roomLamps = lamps.filter(l => l.room === room);
+            
+            if (idx >= 0) {
+                // Turn OFF
+                State.lightsOn.splice(idx, 1);
+                if (lightData) {
+                    lightData.light.intensity = 0;
+                    lightData.shade.material.opacity = 0.3;
+                }
+                // Turn off room lamps
+                roomLamps.forEach(lamp => {
+                    lamp.light.intensity = 0;
+                    if (lamp.bulb) lamp.bulb.material.opacity = 0.2;
+                });
+                if (switchData) {
+                    var toggle = switchData.children.find(c => c.userData.isToggle);
+                    if (toggle) toggle.position.y = -0.02;
+                }
+            } else {
+                // Turn ON
+                State.lightsOn.push(room);
+                if (lightData) {
+                    lightData.light.intensity = 1;
+                    lightData.shade.material.opacity = 0.9;
+                }
+                // Turn on room lamps
+                roomLamps.forEach(lamp => {
+                    lamp.light.intensity = lamp.light.userData?.originalIntensity || 0.6;
+                    if (lamp.bulb) lamp.bulb.material.opacity = 0.8;
+                });
+                if (switchData) {
+                    var toggle = switchData.children.find(c => c.userData.isToggle);
+                    if (toggle) toggle.position.y = 0.02;
+                }
+            }
+            
+            updateLightsUI();
+            checkPhaseProgress();
+        }
+
+        function updateLightsUI() {
+            var el = document.getElementById('darkness-lights-remaining');
+            if (State.phase === 'turnOffLights' || State.phase === 'turnOffLights2') {
+                el.textContent = `Lights on: ${State.lightsOn.length}`;
+                el.style.display = 'block';
+            } else if (State.phase === 'turnOnLights') {
+                el.textContent = `Turn on lights!`;
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        function updateElectronicsVisibility() {
+            var allLightsOff = State.lightsOn.length === 0;
+            
+            electronics.forEach(led => {
+                // Only show LEDs if they've been activated (after waking up)
+                if (!State.ledsActive) {
+                    led.visible = false;
+                    led.userData.glow.intensity = 0;
+                    led.userData.outline.material.opacity = 0;
+                } else if (allLightsOff) {
+                    led.visible = true;
+                    led.userData.glow.intensity = 0.3;
+                    if (State.showElectronicsOutline) {
+                        led.userData.outline.material.opacity = 0.4;
+                    }
+                } else {
+                    led.visible = State.electronicsRevealed;
+                    led.userData.glow.intensity = State.electronicsRevealed ? 0.1 : 0;
+                    if (State.showElectronicsOutline) {
+                        led.userData.outline.material.opacity = 0.2;
+                    }
+                }
+            });
+            
+            // Show switch outlines when in scared/turnOnLights phase
+            updateSwitchOutlines();
+        }
+        
+        function updateSwitchOutlines() {
+            lightSwitches.forEach(sw => {
+                if (State.showSwitchOutline) {
+                    // Create outline if it doesn't exist
+                    if (!sw.userData.outline) {
+                        var outline = new THREE.Mesh(
+                            new THREE.BoxGeometry(0.18, 0.28, 0.1),
+                            new THREE.MeshBasicMaterial({ 
+                                color: 0x00ffff, 
+                                transparent: true, 
+                                opacity: 0.6,
+                                wireframe: true
+                            })
+                        );
+                        outline.position.copy(sw.position);
+                        outline.rotation.copy(sw.rotation);
+                        scene.add(outline);
+                        sw.userData.outline = outline;
+                    }
+                    sw.userData.outline.visible = true;
+                } else if (sw.userData.outline) {
+                    sw.userData.outline.visible = false;
+                }
+            });
+        }
+
+        function checkPhaseProgress() {
+            if (State.phase === 'turnOffLights' && State.lightsOn.length === 0) {
+                setTimeout(() => {
+                    showPrompt('Time for bed...');
+                    State.phase = 'goToBed1';
+                    updateElectronicsVisibility();
+                }, 500);
+            } else if (State.phase === 'turnOnLights' && State.lightsOn.includes('living')) {
+                setTimeout(() => {
+                    State.phase = 'revealed';
+                    State.electronicsRevealed = true;
+                    
+                    // Hide creepy eyes - they were just electronics!
+                    if (creepyEyes) {
+                        creepyEyes.visible = false;
+                    }
+                    
+                    // Turn off flashlight - room is lit now
+                    if (flashlight) {
+                        flashlight.visible = false;
+                    }
+                    
+                    hidePrompt();
+                    showPrompt('Just electronics...');
+                    updateElectronicsVisibility();
+                    
+                    setTimeout(() => {
+                        hidePrompt();
+                        showPrompt('Turn off the lights again');
+                        State.phase = 'turnOffLights2';
+                        updateLightsUI();
+                    }, 2500);
+                }, 500);
+            } else if (State.phase === 'turnOffLights2' && State.lightsOn.length === 0) {
+                setTimeout(() => {
+                    // Give flashlight back for the walk to bed
+                    if (flashlight) {
+                        flashlight.visible = true;
+                    }
+                    showPrompt('Back to bed...');
+                    State.phase = 'goToBed2';
+                    updateElectronicsVisibility();
+                }, 500);
+            }
+            
+            updateElectronicsVisibility();
+        }
+
+        function startIntro() {
+            showPrompt('Time to sleep...');
+            setTimeout(() => {
+                hidePrompt();
+                setTimeout(() => {
+                    showPrompt('Turn off the lights');
+                    State.phase = 'turnOffLights';
+                    updateLightsUI();
+                    setTimeout(hidePrompt, 2000);
+                }, 500);
+            }, 2500);
+        }
+
+        function goToBed(firstTime) {
+            State.canMove = false;
+            State.canLook = false;
+            
+            document.getElementById('darkness-fade-overlay').classList.add('visible');
+            
+            setTimeout(() => {
+                if (firstTime) {
+                    // Move to bed position (bed at x = -14.9, z = -2.4)
+                    camera.position.set(-14.5, 0.9, -2.4);
+                    cameraPitch = 0;
+                    cameraYaw = -Math.PI / 2;  // Look toward door (+x direction)
+                    updateCamera();
+                    
+                    setTimeout(() => {
+                        document.getElementById('darkness-fade-overlay').classList.remove('visible');
+                        State.phase = 'sleeping1';
+                        showPrompt('Zzz...');
+                        
+                        // First blink after 2 seconds
+                        setTimeout(() => {
+                            hidePrompt();
+                            doBlink(() => {
+                                // Second blink after another 2 seconds
+                                setTimeout(() => {
+                                    doBlink(() => {
+                                        // Third blink
+                                        setTimeout(() => {
+                                            doBlink(() => {
+                                                // Wake up - show eyes FIRST
+                                                setTimeout(() => {
+                                                    document.getElementById('darkness-fade-overlay').classList.add('visible');
+                                                    setTimeout(() => {
+                                                        document.getElementById('darkness-fade-overlay').classList.remove('visible');
+                                                        
+                                                        // Show ONLY the creepy eyes first
+                                                        if (creepyEyes) {
+                                                            creepyEyes.visible = true;
+                                                            creepyEyes.position.x = -5.0;
+                                                            
+                                                            // Eyes peek in, then retreat, then removed
+                                                            animateEyesSinglePeek(() => {
+                                                                // Eyes are now gone
+                                                                // Now activate the other red LEDs
+                                                                State.ledsActive = true;
+                                                                updateElectronicsVisibility();
+                                                                
+                                                                // Give player the flashlight
+                                                                if (flashlight) {
+                                                                    flashlight.visible = true;
+                                                                }
+                                                                
+                                                                // Now player can move
+                                                                showPrompt('What are those red lights...?');
+                                                                State.phase = 'scared';
+                                                                State.canMove = true;
+                                                                State.canLook = true;
+                                                                
+                                                                setTimeout(() => {
+                                                                    hidePrompt();
+                                                                    showPrompt('Find the living room light switch! (F for flashlight)');
+                                                                    State.phase = 'turnOnLights';
+                                                                    updateLightsUI();
+                                                                }, 2500);
+                                                            });
+                                                        }
+                                                    }, 1000);
+                                                }, 1500);
+                                            });
+                                        }, 2000);
+                                    });
+                                }, 2500);
+                            });
+                        }, 2500);
+                    }, 1000);
+                } else {
+                    // Second time - peaceful sleep leading to dream
+                    // Turn off flashlight
+                    if (flashlight) {
+                        flashlight.visible = false;
+                    }
+                    
+                    // Move camera to bed position
+                    camera.position.set(-14.5, 0.9, -2.4);
+                    cameraPitch = 0;
+                    cameraYaw = -Math.PI / 2;
+                    updateCamera();
+                    
+                    setTimeout(() => {
+                        document.getElementById('darkness-fade-overlay').classList.remove('visible');
+                        showPrompt('Drifting off to sleep...');
+                        State.phase = 'dreaming';
+                        State.canMove = false;
+                        State.canLook = false;
+                        
+                        // Blink sequence before dream
+                        setTimeout(() => {
+                            hidePrompt();
+                            doBlink(() => {
+                                setTimeout(() => {
+                                    doBlink(() => {
+                                        setTimeout(() => {
+                                            doBlink(() => {
+                                                setTimeout(() => {
+                                                    doBlink(() => {
+                                                        // Final fade to dream
+                                                        document.getElementById('darkness-fade-overlay').classList.add('visible');
+                                                        setTimeout(() => {
+                                                            // Load countryside dream scene
+                                                            loadCountrysideDream();
+                                                        }, 1500);
+                                                    });
+                                                }, 1500);
+                                            });
+                                        }, 2000);
+                                    });
+                                }, 2000);
+                            });
+                        }, 2000);
+                    }, 1000);
+                }
+            }, 1000);
+        }
+        
+        function doBlink(callback) {
+            var overlay = document.getElementById('darkness-fade-overlay');
+            overlay.style.transition = 'opacity 0.15s';
+            overlay.classList.add('visible');
+            
+            setTimeout(() => {
+                overlay.classList.remove('visible');
+                setTimeout(() => {
+                    overlay.style.transition = 'opacity 1s';
+                    if (callback) callback();
+                }, 200);
+            }, 150);
+        }
+        
+        function animateEyesSinglePeek(onComplete) {
+            if (!creepyEyes) {
+                if (onComplete) onComplete();
+                return;
+            }
+            
+            var startX = -5.0;   // Outside door (in hallway)
+            var peekX = -7.2;    // Peeking deep into room
+            var duration = 4500; // 4.5 seconds for full peek cycle
+            var startTime = Date.now();
+            
+            creepyEyes.position.x = startX;
+            creepyEyes.visible = true;
+            
+            function animate() {
+                var elapsed = Date.now() - startTime;
+                var progress = Math.min(elapsed / duration, 1);
+                
+                // Movement phases:
+                // 0-35%: Slowly peek into room
+                // 35-55%: Hold and watch (creepy stare)
+                // 55-95%: Slowly retreat back out
+                // 95-100%: Gone
+                
+                var x;
+                
+                if (progress < 0.35) {
+                    // Slowly peek in
+                    var phaseProgress = progress / 0.35;
+                    var eased = phaseProgress * phaseProgress;
+                    x = startX + (peekX - startX) * eased;
+                } else if (progress < 0.55) {
+                    // Hold position, slight creepy movement
+                    x = peekX + Math.sin((progress - 0.35) * 40) * 0.03;
+                } else if (progress < 0.95) {
+                    // Slowly retreat
+                    var phaseProgress = (progress - 0.55) / 0.4;
+                    var eased = 1 - Math.pow(1 - phaseProgress, 2);
+                    x = peekX + (startX - peekX) * eased;
+                } else {
+                    // Gone
+                    x = startX;
+                }
+                
+                creepyEyes.position.x = x;
+                
+                // Bobbing motion (like breathing)
+                creepyEyes.position.y = 1.5 + Math.sin(elapsed * 0.004) * 0.025;
+                
+                // Slight z sway
+                creepyEyes.position.z = -3 + Math.sin(elapsed * 0.003) * 0.04;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Animation complete - hide eyes and callback
+                    creepyEyes.visible = false;
+                    if (onComplete) onComplete();
+                }
+            }
+            
+            animate();
+        }
+
+        function onMouseMove(e) {
+            if (!State.locked || !State.canLook) return;
+            
+            cameraYaw -= e.movementX * 0.002;
+            
+            // Allow full vertical look range in dream scene
+            if (isDreamScene && State.phase !== 'falling' && State.phase !== 'floating') {
+                cameraPitch -= e.movementY * 0.002;
+                cameraPitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraPitch));
+                
+                // Detect looking up at stars
+                if (State.phase === 'dream_lookUp') {
+                    if (cameraPitch > 1.0 && cameraPitch < 1.5) {
+                        showPrompt('Keep looking up...');
+                    }
+                    if (cameraPitch > 1.5) {
+                        startFalling();
+                    }
+                }
+            } else if (!isDreamScene) {
+                cameraPitch -= e.movementY * 0.002;
+                cameraPitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, cameraPitch));
+            }
+            
+            updateCamera();
+        }
+
+        function updateCamera() {
+            camera.rotation.order = 'YXZ';
+            camera.rotation.y = cameraYaw;
+            camera.rotation.x = cameraPitch;
+        }
+
+        function onClick(e) {
+            // Handle star drawing in dream scene
+            if (State.phase === 'drawing') {
+                addStar3D(e.clientX, e.clientY);
+                return;
+            }
+            
+            if (!State.locked) {
+                document.body.requestPointerLock();
+                // Re-show prompt if in lookUp phase
+                if (State.phase === 'dream_lookUp') {
+                    setTimeout(() => showPrompt('Look up at the stars...'), 100);
+                }
+                return;
+            }
+            
+            if (!State.canInteract) return;
+            
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            // Check light switches
+            for (var sw of lightSwitches) {
+                var dist = camera.position.distanceTo(sw.position);
+                if (dist < 3) {
+                    var intersects = raycaster.intersectObjects(sw.children, true);
+                    if (intersects.length > 0) {
+                        toggleLight(sw.userData.room);
+                        return;
+                    }
+                }
+            }
+            
+            // Check bed interaction
+            if (State.phase === 'goToBed1' || State.phase === 'goToBed2') {
+                var bedPos = new THREE.Vector3(-14.9, 1.6, -2.4);
+                var bedDist = camera.position.distanceTo(bedPos);
+                if (bedDist < 4) {
+                    goToBed(State.phase === 'goToBed1');
+                }
+            }
+        }
+
+        function checkInteractionHint() {
+            var hint = document.getElementById('darkness-interaction-hint');
+            var showHint = false;
+            var hintText = '';
+            
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            
+            for (var sw of lightSwitches) {
+                var dist = camera.position.distanceTo(sw.position);
+                if (dist < 3) {
+                    var intersects = raycaster.intersectObjects(sw.children, true);
+                    if (intersects.length > 0) {
+                        showHint = true;
+                        hintText = 'Click to toggle light';
+                        break;
+                    }
+                }
+            }
+            
+            if (!showHint && (State.phase === 'goToBed1' || State.phase === 'goToBed2')) {
+                var bedPos = new THREE.Vector3(-14.9, 1.6, -2.4);
+                var bedDist = camera.position.distanceTo(bedPos);
+                if (bedDist < 4) {
+                    showHint = true;
+                    hintText = 'Click to go to bed';
+                }
+            }
+            
+            if (showHint) {
+                hint.textContent = hintText;
+                hint.classList.add('visible');
+            } else {
+                hint.classList.remove('visible');
+            }
+        }
+
+        // ============ EDITOR FUNCTIONS ============
+        
+        function toggleEditorMode() {
+            editorMode = !editorMode;
+            document.getElementById('darkness-editor-panel').classList.toggle('visible', editorMode);
+            document.getElementById('darkness-editor-mode-hint').classList.toggle('visible', editorMode);
+            
+            if (!editorMode) {
+                editorDeselect();
+                editorGrabbing = false;
+            }
+        }
+        
+        function editorSelectUnderCrosshair() {
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            var intersects = raycaster.intersectObjects(editorObjects, true);
+            
+            if (intersects.length > 0) {
+                var obj = intersects[0].object;
+                // Find parent if it's a group
+                while (obj.parent && !obj.userData.editable) {
+                    obj = obj.parent;
+                }
+                if (obj.userData.editable) {
+                    editorSelect(obj);
+                }
+            }
+        }
+        
+        function editorSelect(obj) {
+            editorDeselect();
+            editorSelected = obj;
+            editorSetHighlight(obj, 0x444400);
+            updateEditorUI();
+        }
+        
+        function editorDeselect() {
+            if (editorSelected) {
+                editorSetHighlight(editorSelected, 0x000000);
+            }
+            editorSelected = null;
+            editorGrabbing = false;
+            updateEditorUI();
+        }
+        
+        function editorSetHighlight(obj, color) {
+            obj.traverse(child => {
+                if (child.material && child.material.emissive) {
+                    child.material.emissive.setHex(color);
+                }
+            });
+        }
+        
+        function editorCheckHighlight() {
+            if (!editorMode || editorGrabbing) return;
+            
+            // Clear previous highlight
+            if (editorHighlighted && editorHighlighted !== editorSelected) {
+                editorSetHighlight(editorHighlighted, 0x000000);
+            }
+            
+            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+            var intersects = raycaster.intersectObjects(editorObjects, true);
+            
+            if (intersects.length > 0) {
+                var obj = intersects[0].object;
+                while (obj.parent && !obj.userData.editable) {
+                    obj = obj.parent;
+                }
+                if (obj.userData.editable && obj !== editorSelected) {
+                    editorHighlighted = obj;
+                    editorSetHighlight(obj, 0x222222);
+                }
+            } else {
+                editorHighlighted = null;
+            }
+        }
+        
+        function updateEditorUI() {
+            var el = document.getElementById('darkness-editor-selected');
+            if (editorSelected) {
+                var p = editorSelected.position;
+                el.innerHTML = `
+                    <div class="selected-name">${editorSelected.name}</div>
+                    <div class="coords">X: ${p.x.toFixed(2)} Y: ${p.y.toFixed(2)} Z: ${p.z.toFixed(2)}</div>
+                    <div style="color:${editorGrabbing ? '#f80' : '#888'}">${editorGrabbing ? '⚡ GRABBING - Arrow keys to move' : 'Press G to grab'}</div>
+                `;
+            } else {
+                el.textContent = 'None - look at object and press E';
+            }
+        }
+        
+        function editorLogChange(obj) {
+            var p = obj.position;
+            var existing = editorChanges.findIndex(c => c.name === obj.name);
+            
+            var entry = {
+                name: obj.name,
+                type: obj.userData.type || 'box',
+                action: 'MOVED',
+                x: p.x.toFixed(2),
+                y: p.y.toFixed(2),
+                z: p.z.toFixed(2)
+            };
+            
+            if (existing >= 0) {
+                editorChanges[existing] = entry;
+            } else {
+                editorChanges.push(entry);
+            }
+            
+            updateEditorChangesLog();
+        }
+        
+        function updateEditorChangesLog() {
+            var log = document.getElementById('darkness-editor-changes');
+            if (editorChanges.length === 0) {
+                log.textContent = 'No changes yet';
+                return;
+            }
+            
+            log.textContent = editorChanges.map(c => 
+                `${c.name}: (${c.x}, ${c.y}, ${c.z})`
+            ).join('\n');
+        }
+        
+        function editorDuplicate() {
+            if (!editorSelected) return;
+            var clone = editorSelected.clone();
+            clone.position.x += 1;
+            clone.name = editorSelected.name + '_copy';
+            clone.userData = { ...editorSelected.userData, originalPos: null };
+            scene.add(clone);
+            editorObjects.push(clone);
+            editorLogChange(clone);
+            editorSelect(clone);
+        }
+        
+        function editorDelete() {
+            if (!editorSelected) return;
+            var entry = {
+                name: editorSelected.name,
+                action: 'DELETED',
+                x: '-', y: '-', z: '-'
+            };
+            editorChanges.push(entry);
+            updateEditorChangesLog();
+            
+            scene.remove(editorSelected);
+            editorObjects = editorObjects.filter(o => o !== editorSelected);
+            editorDeselect();
+        }
+        
+        function editorCopyChanges() {
+            if (editorChanges.length === 0) {
+                alert('No changes to copy!');
+                return;
+            }
+            
+            var output = '// ========== EDITOR CHANGES ==========\n';
+            output += '// Copy this to Claude to apply changes\n\n';
+            
+            editorChanges.forEach(c => {
+                if (c.action === 'DELETED') {
+                    output += `// DELETE: ${c.name}\n`;
+                } else {
+                    output += `// ${c.name}\n`;
+                    output += `// New position: (${c.x}, ${c.y}, ${c.z})\n`;
+                }
+                output += '\n';
+            });
+            
+            navigator.clipboard.writeText(output).then(() => {
+                alert('Changes copied to clipboard!');
+            }).catch(() => {
+                // Fallback
+                console.log(output);
+                alert('Check console for changes (Ctrl+Shift+J)');
+            });
+        }
+        
+        function editorClearChanges() {
+            editorChanges = [];
+            updateEditorChangesLog();
+        }
+
+        function animate(now) {
+            requestAnimationFrame(animate);
+            
+            var time = now * 0.001;
+            var dt = 0.016; // Approximate delta time
+            
+            // If in dream scene, use dream update logic
+            if (isDreamScene) {
+                if (State.canLook) {
+                    updateCamera();
+                }
+                updateDreamScene(time, dt);
+                renderer.render(scene, camera);
+                return;
+            }
+            
+            // Movement
+            if (State.canMove && State.locked) {
+                var dir = new THREE.Vector3();
+                if (State.keys.w) dir.z -= 1;
+                if (State.keys.s) dir.z += 1;
+                if (State.keys.a) dir.x -= 1;
+                if (State.keys.d) dir.x += 1;
+                dir.normalize();
+                
+                if (dir.length() > 0) {
+                    var forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    forward.y = 0;
+                    forward.normalize();
+                    var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    right.y = 0;
+                    right.normalize();
+                    
+                    State.velocity.addScaledVector(forward, -dir.z * 0.02);
+                    State.velocity.addScaledVector(right, dir.x * 0.02);
+                }
+                
+                State.velocity.multiplyScalar(0.9);
+                State.velocity.clampLength(0, 0.12);
+                
+                var newX = camera.position.x + State.velocity.x;
+                var newZ = camera.position.z + State.velocity.z;
+                
+                // Boundaries
+                var margin = 0.5;
+                var W = HOUSE.width, D = HOUSE.depth;
+                newX = Math.max(-W/2 + margin, Math.min(W/2 - margin, newX));
+                newZ = Math.max(-D/2 + margin, Math.min(D/2 - margin, newZ));
+                
+                // Wall collisions
+                var doorZ = -3;
+                var doorHalfW = HOUSE.doorWidth / 2;
+                
+                // Bedroom wall (full wall with door opening)
+                if (Math.abs(newX - HOUSE.bedroomWallX) < 0.4) {
+                    // Block unless in door opening
+                    if (newZ < doorZ - doorHalfW || newZ > doorZ + doorHalfW) {
+                        newX = camera.position.x;
+                    }
+                }
+                
+                // Kitchen wall (only back section exists, front is open)
+                if (Math.abs(newX - HOUSE.kitchenWallX) < 0.4) {
+                    // Only block in back section (z < door opening)
+                    if (newZ < doorZ - doorHalfW) {
+                        newX = camera.position.x;
+                    }
+                }
+                
+                camera.position.x = newX;
+                camera.position.z = newZ;
+                camera.position.y = 1.6;
+            }
+
+            if (State.canLook) {
+                updateCamera();
+            }
+            
+            checkInteractionHint();
+            
+            // Editor mode highlighting
+            if (editorMode) {
+                editorCheckHighlight();
+            }
+            
+            // Animate electronics
+            electronics.forEach((led, i) => {
+                if (led.visible) {
+                    var pulse = 0.8 + Math.sin(time * 2 + i) * 0.2;
+                    led.material.color.setRGB(pulse, 0, 0);
+                    led.userData.glow.intensity = 0.2 + Math.sin(time * 3 + i) * 0.1;
+                }
+            });
+            
+            // Animate light switch glow (brighter when lights are off)
+            var allLightsOff = State.lightsOn.length === 0;
+            lightSwitches.forEach((sw, i) => {
+                if (sw.userData.glowDot && sw.userData.glowLight) {
+                    var baseBrightness = allLightsOff ? 0.9 : 0.4;
+                    var pulse = baseBrightness + Math.sin(time * 1.5 + i * 2) * 0.1;
+                    sw.userData.glowDot.material.opacity = pulse;
+                    sw.userData.glowLight.intensity = allLightsOff ? 0.25 + Math.sin(time * 2 + i) * 0.1 : 0.08;
+                }
+                // Animate switch outline to pulse
+                if (sw.userData.outline && sw.userData.outline.visible) {
+                    var outlinePulse = 0.4 + Math.sin(time * 3 + i) * 0.3;
+                    sw.userData.outline.material.opacity = outlinePulse;
+                }
+            });
+            
+            // Animate creepy eyes
+            if (creepyEyes && creepyEyes.visible) {
+                var eyePulse = 0.7 + Math.sin(time * 4) * 0.3;
+                creepyEyes.userData.leftEye.material.color.setRGB(eyePulse, 0, 0);
+                creepyEyes.userData.rightEye.material.color.setRGB(eyePulse, 0, 0);
+                creepyEyes.userData.leftGlow.intensity = 0.4 + Math.sin(time * 3) * 0.2;
+                creepyEyes.userData.rightGlow.intensity = 0.4 + Math.sin(time * 3 + 0.5) * 0.2;
+                
+                // Slight random jitter for creepiness
+                if (Math.random() < 0.02) {
+                    creepyEyes.position.z = -3 + (Math.random() - 0.5) * 0.1;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // ============ COUNTRYSIDE DREAM SCENE ============
+        
+        function getTerrainHeight(x, z) {
+            var localY = -z;
+            var elevation = 0;
+            elevation += Math.sin(x * 0.05) * Math.cos(localY * 0.05) * 3;
+            elevation += Math.sin(x * 0.02 + 1) * Math.cos(localY * 0.03) * 5;
+            elevation += Math.sin(x * 0.08) * Math.sin(localY * 0.06) * 1.5;
+            elevation += Math.sin(x * 0.15) * Math.cos(localY * 0.12) * 0.8;
+            return elevation;
+        }
+
+        function loadCountrysideDream() {
+            // Set dream mode
+            isDreamScene = true;
+            State.phase = 'dream_exploring';
+            State.canMove = true;
+            State.canLook = true;
+            State.starCount = 0;
+
+            // Clear existing scene
+            while(scene.children.length > 0) { 
+                scene.remove(scene.children[0]); 
+            }
+            
+            scene.background = new THREE.Color(0x0a0a18);
+            scene.fog = new THREE.FogExp2(0x0a0a18, 0.004);  // Reduced fog density
+
+            // Extend camera far plane for stars
+            camera.far = 500;
+            camera.updateProjectionMatrix();
+            
+            camera.position.set(0, getTerrainHeight(0, 15) + 1.7, 15);
+            cameraYaw = 0;
+            cameraPitch = 0;
+            updateCamera();
+            
+            // Re-add camera to scene
+            scene.add(camera);
+
+            colliders = [];
+            groundObjects = [];
+            houseObjects = [];
+            fireflies = [];
+            stars2D = [];
+            animals = [];
+            fallProgress = 0;
+            targetPitch = 0;
+
+            // Enhanced lighting
+            scene.add(new THREE.AmbientLight(0x2a2a4a, 0.6));
+            var moonLight = new THREE.DirectionalLight(0x6a7aaa, 0.4);
+            moonLight.position.set(60, 80, -100);
+            moonLight.castShadow = true;
+            scene.add(moonLight);
+            scene.add(new THREE.HemisphereLight(0x4a4a6a, 0x2a3a2a, 0.5));
+
+            // Ground with better material
+            var groundGeo = new THREE.PlaneGeometry(200, 200, 100, 100);
+            var groundMat = new THREE.MeshLambertMaterial({ color: 0x2a3a2a });
+            
+            var vertices = groundGeo.attributes.position.array;
+            for (var i = 0; i < vertices.length; i += 3) {
+                var x = vertices[i];
+                var y = vertices[i + 1];
+                var elevation = 0;
+                elevation += Math.sin(x * 0.05) * Math.cos(y * 0.05) * 3;
+                elevation += Math.sin(x * 0.02 + 1) * Math.cos(y * 0.03) * 5;
+                elevation += Math.sin(x * 0.08) * Math.sin(y * 0.06) * 1.5;
+                elevation += Math.sin(x * 0.15) * Math.cos(y * 0.12) * 0.8;
+                vertices[i + 2] = elevation;
+            }
+            groundGeo.attributes.position.needsUpdate = true;
+            groundGeo.computeVertexNormals();
+            
+            var ground = new THREE.Mesh(groundGeo, groundMat);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            ground.userData.startY = 0;
+            scene.add(ground);
+            groundObjects.push(ground);
+
+            createInstancedGrass();
+            createWildflowers();
+            createMushrooms();
+            createRocks();
+            createBushes();
+            createStream();
+            createStreamDetails();
+            createBridge();
+
+            // Enhanced houses with more variety
+            var housePositions = [
+                { x: -25, z: -15, type: 'cottage' },
+                { x: 15, z: -20, type: 'farmhouse' },
+                { x: -10, z: -40, type: 'cottage' },
+                { x: 30, z: -35, type: 'barn' },
+                { x: -40, z: -30, type: 'farmhouse' }
+            ];
+            housePositions.forEach((pos) => {
+                var house = createDreamHouse(pos.type);
+                var hy = getTerrainHeight(pos.x, pos.z);
+                house.position.set(pos.x, hy, pos.z);
+                house.rotation.y = Math.random() * 0.5;
+                house.userData.startY = hy;
+                scene.add(house);
+                houseObjects.push(house);
+                colliders.push({ x: pos.x, z: pos.z, r: 6 });
+                
+                // Add fence around house
+                createFence(pos.x, pos.z, hy);
+            });
+
+            // Village details
+            createWell(-5, -25);
+            createStonePaths();
+            createHayBales();
+
+            // Trees with more variety
+            for (var i = 0; i < 60; i++) {
+                var x = (Math.random() - 0.5) * 160;
+                var z = (Math.random() - 0.5) * 160;
+                if (Math.abs(z) < 20 && Math.abs(x) < 30) continue;
+                if (Math.abs(z - 35) < 8) continue;
+
+                var treeType = Math.random() > 0.3 ? 'pine' : 'oak';
+                var tree = createTree(treeType);
+                var ty = getTerrainHeight(x, z);
+                tree.position.set(x, ty, z);
+                tree.scale.setScalar(0.6 + Math.random() * 0.6);
+                tree.userData.startY = ty;
+                scene.add(tree);
+                groundObjects.push(tree);
+                colliders.push({ x, z, r: 0.5 });
+            }
+
+            // Enhanced fireflies
+            for (var i = 0; i < 250; i++) {
+                var hasLight = i < 20;
+                var ff = createFirefly(hasLight);
+                
+                var fx = (Math.random() - 0.5) * 120;
+                var fz = (Math.random() - 0.5) * 120;
+                
+                var fy;
+                if (i < 120) {
+                    fy = getTerrainHeight(fx, fz) + 0.5 + Math.random() * 4;
+                } else {
+                    fy = 5 + Math.random() * 15;
+                }
+                
+                ff.position.set(fx, fy, fz);
+                ff.userData.basePos = ff.position.clone();
+                ff.userData.phase = Math.random() * Math.PI * 2;
+                ff.userData.speed = 0.3 + Math.random() * 0.7;
+                ff.userData.hasLight = hasLight;
+                scene.add(ff);
+                fireflies.push(ff);
+            }
+
+            createLanterns();
+            createAnimals();
+            createSky();
+
+            initAudio();
+            playNoise('highpass', 3000, 0.015);
+
+            // Fade in from dream transition
+            setTimeout(() => {
+                document.getElementById('darkness-fade-overlay').classList.remove('visible');
+                showPrompt('A peaceful dream...');
+                
+                setTimeout(() => {
+                    hidePrompt();
+                    State.phase = 'dream_lookUp';
+                    showPrompt('Look up at the stars...');
+                }, 4000);
+            }, 500);
+        }
+
+        function createDreamHouse(type = 'cottage') {
+            var g = new THREE.Group();
+            var woodDark = new THREE.MeshLambertMaterial({ color: 0x3a3530 });
+            var woodLight = new THREE.MeshLambertMaterial({ color: 0x5a5040 });
+            var stone = new THREE.MeshLambertMaterial({ color: 0x4a4a4a });
+            var thatch = new THREE.MeshLambertMaterial({ color: 0x5a4a30 });
+            
+            if (type === 'cottage') {
+                // Main body - stone base
+                var base = new THREE.Mesh(
+                    new THREE.BoxGeometry(6, 0.5, 5),
+                    stone
+                );
+                base.position.y = 0.25;
+                g.add(base);
+                
+                // Walls
+                var body = new THREE.Mesh(
+                    new THREE.BoxGeometry(5.5, 3.5, 4.5),
+                    woodLight
+                );
+                body.position.y = 2.25;
+                body.castShadow = true;
+                g.add(body);
+
+                // Thatched roof
+                var roof = new THREE.Mesh(
+                    new THREE.ConeGeometry(4.5, 2.5, 4),
+                    thatch
+                );
+                roof.position.y = 5.25;
+                roof.rotation.y = Math.PI / 4;
+                g.add(roof);
+                
+                // Chimney
+                var chimney = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.6, 2, 0.6),
+                    stone
+                );
+                chimney.position.set(1.5, 5.5, 0);
+                g.add(chimney);
+                
+                // Smoke particles placeholder (will animate)
+                for (var i = 0; i < 3; i++) {
+                    var smoke = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.15, 6, 6),
+                        new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.3 })
+                    );
+                    smoke.position.set(1.5, 6.5 + i * 0.5, 0);
+                    smoke.userData.smokeOffset = i;
+                    g.add(smoke);
+                }
+                
+                // Door
+                var door = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 1.8, 0.1),
+                    woodDark
+                );
+                door.position.set(0, 1.4, 2.3);
+                g.add(door);
+                
+                // Door frame
+                var doorFrame = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.1, 2.1, 0.05),
+                    woodDark
+                );
+                doorFrame.position.set(0, 1.5, 2.28);
+                g.add(doorFrame);
+                
+                // Windows with shutters
+                [{ x: -1.5, z: 2.26 }, { x: 1.5, z: 2.26 }].forEach(wpos => {
+                    // Window glow
+                    var win = new THREE.Mesh(
+                        new THREE.PlaneGeometry(0.7, 1.0),
+                        new THREE.MeshBasicMaterial({ color: 0xffcc66, transparent: true, opacity: 0.9 })
+                    );
+                    win.position.set(wpos.x, 2.5, wpos.z);
+                    g.add(win);
+                    
+                    // Window frame
+                    var frame = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.9, 1.2, 0.05),
+                        woodDark
+                    );
+                    frame.position.set(wpos.x, 2.5, wpos.z + 0.03);
+                    g.add(frame);
+                    
+                    // Cross bars
+                    var hBar = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.05, 0.02), woodDark);
+                    hBar.position.set(wpos.x, 2.5, wpos.z + 0.05);
+                    g.add(hBar);
+                    var vBar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.0, 0.02), woodDark);
+                    vBar.position.set(wpos.x, 2.5, wpos.z + 0.05);
+                    g.add(vBar);
+                    
+                    // Shutters
+                    var shutterL = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.05), woodDark);
+                    shutterL.position.set(wpos.x - 0.5, 2.5, wpos.z + 0.02);
+                    g.add(shutterL);
+                    var shutterR = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.0, 0.05), woodDark);
+                    shutterR.position.set(wpos.x + 0.5, 2.5, wpos.z + 0.02);
+                    g.add(shutterR);
+                });
+                
+                // Window light
+                var light = new THREE.PointLight(0xffaa44, 1.5, 25);
+                light.position.set(0, 2.5, 3);
+                g.add(light);
+                
+            } else if (type === 'farmhouse') {
+                // Larger farmhouse
+                var base = new THREE.Mesh(new THREE.BoxGeometry(8, 0.4, 6), stone);
+                base.position.y = 0.2;
+                g.add(base);
+                
+                var body = new THREE.Mesh(new THREE.BoxGeometry(7.5, 4, 5.5), woodLight);
+                body.position.y = 2.4;
+                body.castShadow = true;
+                g.add(body);
+                
+                // Peaked roof using box geometry for solid appearance
+                var roofMat = new THREE.MeshLambertMaterial({ color: 0x5a4a30, side: THREE.DoubleSide });
+                
+                // Left roof slope
+                var roofL = new THREE.Mesh(
+                    new THREE.BoxGeometry(4.5, 0.15, 6.2),
+                    roofMat
+                );
+                roofL.position.set(-1.6, 5.6, 0);
+                roofL.rotation.z = 0.65;
+                g.add(roofL);
+                
+                // Right roof slope
+                var roofR = new THREE.Mesh(
+                    new THREE.BoxGeometry(4.5, 0.15, 6.2),
+                    roofMat
+                );
+                roofR.position.set(1.6, 5.6, 0);
+                roofR.rotation.z = -0.65;
+                g.add(roofR);
+                
+                // Front gable (triangle)
+                var gableFrontGeo = new THREE.BufferGeometry();
+                var gfVerts = new Float32Array([
+                    -3.8, 0, 0,  3.8, 0, 0,  0, 2.3, 0
+                ]);
+                gableFrontGeo.setAttribute('position', new THREE.BufferAttribute(gfVerts, 3));
+                gableFrontGeo.computeVertexNormals();
+                var gableFront = new THREE.Mesh(gableFrontGeo, woodLight);
+                gableFront.position.set(0, 4.4, 2.76);
+                g.add(gableFront);
+                
+                // Back gable
+                var gableBackGeo = new THREE.BufferGeometry();
+                var gbVerts = new Float32Array([
+                    3.8, 0, 0,  -3.8, 0, 0,  0, 2.3, 0
+                ]);
+                gableBackGeo.setAttribute('position', new THREE.BufferAttribute(gbVerts, 3));
+                gableBackGeo.computeVertexNormals();
+                var gableBack = new THREE.Mesh(gableBackGeo, woodLight);
+                gableBack.position.set(0, 4.4, -2.76);
+                g.add(gableBack);
+                
+                // Chimney
+                var chimney = new THREE.Mesh(new THREE.BoxGeometry(0.8, 2.5, 0.8), stone);
+                chimney.position.set(2, 6, 0);
+                g.add(chimney);
+                
+                // Door
+                var door = new THREE.Mesh(new THREE.BoxGeometry(1, 2.2, 0.1), woodDark);
+                door.position.set(0, 1.5, 2.8);
+                g.add(door);
+                
+                // Multiple windows
+                [-2, 2].forEach(wx => {
+                    var win = new THREE.Mesh(
+                        new THREE.PlaneGeometry(0.8, 1.2),
+                        new THREE.MeshBasicMaterial({ color: 0xffcc66 })
+                    );
+                    win.position.set(wx, 2.8, 2.76);
+                    g.add(win);
+                });
+                
+                var light = new THREE.PointLight(0xffaa44, 2, 30);
+                light.position.set(0, 2.5, 4);
+                g.add(light);
+                
+            } else if (type === 'barn') {
+                // Large barn
+                var body = new THREE.Mesh(new THREE.BoxGeometry(10, 5, 7), 
+                    new THREE.MeshLambertMaterial({ color: 0x6a3020 }));
+                body.position.y = 2.5;
+                body.castShadow = true;
+                g.add(body);
+                
+                // Barn roof using box geometry
+                var barnRoofMat = new THREE.MeshLambertMaterial({ color: 0x4a3020, side: THREE.DoubleSide });
+                
+                // Left roof slope
+                var barnRoofL = new THREE.Mesh(
+                    new THREE.BoxGeometry(6.5, 0.2, 8),
+                    barnRoofMat
+                );
+                barnRoofL.position.set(-2.3, 6.5, 0);
+                barnRoofL.rotation.z = 0.55;
+                g.add(barnRoofL);
+                
+                // Right roof slope
+                var barnRoofR = new THREE.Mesh(
+                    new THREE.BoxGeometry(6.5, 0.2, 8),
+                    barnRoofMat
+                );
+                barnRoofR.position.set(2.3, 6.5, 0);
+                barnRoofR.rotation.z = -0.55;
+                g.add(barnRoofR);
+                
+                // Front gable
+                var barnGableFrontGeo = new THREE.BufferGeometry();
+                var bgfVerts = new Float32Array([
+                    -5.2, 0, 0,  5.2, 0, 0,  0, 2.8, 0
+                ]);
+                barnGableFrontGeo.setAttribute('position', new THREE.BufferAttribute(bgfVerts, 3));
+                barnGableFrontGeo.computeVertexNormals();
+                var barnGableFront = new THREE.Mesh(barnGableFrontGeo, new THREE.MeshLambertMaterial({ color: 0x6a3020 }));
+                barnGableFront.position.set(0, 5, 3.51);
+                g.add(barnGableFront);
+                
+                // Back gable  
+                var barnGableBackGeo = new THREE.BufferGeometry();
+                var bgbVerts = new Float32Array([
+                    5.2, 0, 0,  -5.2, 0, 0,  0, 2.8, 0
+                ]);
+                barnGableBackGeo.setAttribute('position', new THREE.BufferAttribute(bgbVerts, 3));
+                barnGableBackGeo.computeVertexNormals();
+                var barnGableBack = new THREE.Mesh(barnGableBackGeo, new THREE.MeshLambertMaterial({ color: 0x6a3020 }));
+                barnGableBack.position.set(0, 5, -3.51);
+                g.add(barnGableBack);
+                
+                // Barn doors
+                var doorL = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3.5, 0.15), woodDark);
+                doorL.position.set(-1, 1.75, 3.55);
+                g.add(doorL);
+                var doorR = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3.5, 0.15), woodDark);
+                doorR.position.set(1, 1.75, 3.55);
+                g.add(doorR);
+                
+                // Hay loft window
+                var loftWin = new THREE.Mesh(
+                    new THREE.CircleGeometry(0.6, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x332211 })
+                );
+                loftWin.position.set(0, 6, 3.52);
+                g.add(loftWin);
+                
+                // Dim interior light
+                var light = new THREE.PointLight(0xffaa44, 0.5, 15);
+                light.position.set(0, 2, 0);
+                g.add(light);
+            }
+
+            return g;
+        }
+
+        function createFence(cx, cz, cy) {
+            var fenceMat = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
+            var radius = 10;
+            var posts = 12;
+            
+            for (var i = 0; i < posts; i++) {
+                var angle = (i / posts) * Math.PI * 2;
+                var x = cx + Math.cos(angle) * radius;
+                var z = cz + Math.sin(angle) * radius;
+                var y = getTerrainHeight(x, z);
+                
+                // Post
+                var post = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.08, 0.1, 1.2),
+                    fenceMat
+                );
+                post.position.set(x, y + 0.6, z);
+                post.userData.startY = y + 0.6;
+                scene.add(post);
+                groundObjects.push(post);
+                
+                // Horizontal rails connecting to next post
+                var nextAngle = ((i + 1) / posts) * Math.PI * 2;
+                var nx = cx + Math.cos(nextAngle) * radius;
+                var nz = cz + Math.sin(nextAngle) * radius;
+                var ny = getTerrainHeight(nx, nz);
+                
+                var dx = nx - x;
+                var dz = nz - z;
+                var dy = ny - y;
+                var dist = Math.sqrt(dx * dx + dz * dz);
+                var fullDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                
+                for (var h = 0; h < 2; h++) {
+                    var railHeight = 0.4 + h * 0.4;
+                    var rail = new THREE.Mesh(
+                        new THREE.BoxGeometry(fullDist, 0.06, 0.06),
+                        fenceMat
+                    );
+                    
+                    // Position at midpoint between posts
+                    rail.position.set(
+                        (x + nx) / 2,
+                        (y + ny) / 2 + railHeight,
+                        (z + nz) / 2
+                    );
+                    
+                    // Use lookAt to orient the rail correctly
+                    var direction = new THREE.Vector3(dx, dy, dz).normalize();
+                    var quaternion = new THREE.Quaternion();
+                    quaternion.setFromUnitVectors(new THREE.Vector3(1, 0, 0), direction);
+                    rail.quaternion.copy(quaternion);
+                    
+                    rail.userData.startY = (y + ny) / 2 + railHeight;
+                    scene.add(rail);
+                    groundObjects.push(rail);
+                }
+            }
+        }
+
+        function createWell(wx, wz) {
+            var g = new THREE.Group();
+            var stone = new THREE.MeshLambertMaterial({ color: 0x5a5a5a });
+            var wood = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
+            
+            // Stone base (cylinder)
+            var base = new THREE.Mesh(
+                new THREE.CylinderGeometry(1, 1.2, 1.5, 12),
+                stone
+            );
+            base.position.y = 0.75;
+            g.add(base);
+            
+            // Inner dark
+            var inner = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.7, 0.7, 1.6, 12),
+                new THREE.MeshBasicMaterial({ color: 0x111111 })
+            );
+            inner.position.y = 0.8;
+            g.add(inner);
+            
+            // Roof supports
+            var support1 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2, 0.15), wood);
+            support1.position.set(0.9, 2, 0);
+            g.add(support1);
+            var support2 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 2, 0.15), wood);
+            support2.position.set(-0.9, 2, 0);
+            g.add(support2);
+            
+            // Crossbeam
+            var beam = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.12, 0.12), wood);
+            beam.position.y = 3;
+            g.add(beam);
+            
+            // Little roof
+            var roof = new THREE.Mesh(
+                new THREE.ConeGeometry(1.3, 0.8, 4),
+                new THREE.MeshLambertMaterial({ color: 0x5a4030 })
+            );
+            roof.position.y = 3.5;
+            roof.rotation.y = Math.PI / 4;
+            g.add(roof);
+            
+            // Bucket
+            var bucket = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.12, 0.25, 8),
+                wood
+            );
+            bucket.position.set(0, 2, 0);
+            g.add(bucket);
+            
+            var wy = getTerrainHeight(wx, wz);
+            g.position.set(wx, wy, wz);
+            g.userData.startY = wy;
+            scene.add(g);
+            groundObjects.push(g);
+            colliders.push({ x: wx, z: wz, r: 1.5 });
+        }
+
+        function createStonePaths() {
+            var stoneMat = new THREE.MeshLambertMaterial({ color: 0x6a6a6a });
+            
+            // Path from center towards houses
+            var pathPoints = [
+                { x: 0, z: 10 }, { x: -5, z: 0 }, { x: -10, z: -10 },
+                { x: -15, z: -12 }, { x: -20, z: -14 },
+                { x: 5, z: 5 }, { x: 10, z: -5 }, { x: 12, z: -15 },
+                { x: -3, z: -20 }, { x: -5, z: -30 }
+            ];
+            
+            pathPoints.forEach(p => {
+                // Create cluster of stones
+                for (var i = 0; i < 5; i++) {
+                    var ox = p.x + (Math.random() - 0.5) * 2;
+                    var oz = p.z + (Math.random() - 0.5) * 2;
+                    var stone = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.3 + Math.random() * 0.2, 0.35 + Math.random() * 0.2, 0.1, 6),
+                        stoneMat
+                    );
+                    var sy = getTerrainHeight(ox, oz) + 0.05;
+                    stone.position.set(ox, sy, oz);
+                    stone.rotation.y = Math.random() * Math.PI;
+                    stone.userData.startY = sy;
+                    scene.add(stone);
+                    groundObjects.push(stone);
+                }
+            });
+        }
+
+        function createHayBales() {
+            var hayMat = new THREE.MeshLambertMaterial({ color: 0x9a8a50 });
+            var positions = [
+                { x: 25, z: -30 }, { x: 26, z: -32 }, { x: 27, z: -30 },
+                { x: -35, z: -25 }, { x: -36, z: -27 }
+            ];
+            
+            positions.forEach(p => {
+                var bale = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.8, 0.8, 1.5, 12),
+                    hayMat
+                );
+                var by = getTerrainHeight(p.x, p.z);
+                bale.position.set(p.x, by + 0.4, p.z);
+                bale.rotation.z = Math.PI / 2;
+                bale.rotation.y = Math.random() * 0.5;
+                bale.userData.startY = by + 0.4;
+                scene.add(bale);
+                groundObjects.push(bale);
+            });
+        }
+
+        function createTree(type = 'pine') {
+            var g = new THREE.Group();
+            var trunkMat = new THREE.MeshLambertMaterial({ color: 0x4a3a2a });
+            
+            if (type === 'pine') {
+                // Trunk
+                var trunk = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.15, 0.25, 2.5),
+                    trunkMat
+                );
+                trunk.position.y = 1.25;
+                trunk.castShadow = true;
+                g.add(trunk);
+
+                // Layered foliage
+                var foliageColors = [0x1a3a1a, 0x2a4a2a, 0x1a4a1a];
+                for (var i = 0; i < 4; i++) {
+                    var foliage = new THREE.Mesh(
+                        new THREE.ConeGeometry(1.8 - i * 0.35, 1.8, 8),
+                        new THREE.MeshLambertMaterial({ color: foliageColors[i % 3] })
+                    );
+                    foliage.position.y = 2.5 + i * 1.1;
+                    foliage.castShadow = true;
+                    g.add(foliage);
+                }
+            } else {
+                // Oak tree - rounder
+                var trunk = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.2, 0.35, 3),
+                    trunkMat
+                );
+                trunk.position.y = 1.5;
+                g.add(trunk);
+                
+                // Branches
+                for (var i = 0; i < 3; i++) {
+                    var branch = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.05, 0.08, 1.5),
+                        trunkMat
+                    );
+                    branch.position.set(0.3, 2.5 + i * 0.5, 0);
+                    branch.rotation.z = Math.PI / 4 + Math.random() * 0.3;
+                    branch.rotation.y = i * Math.PI * 0.7;
+                    g.add(branch);
+                }
+                
+                // Round foliage clusters
+                var foliageMat = new THREE.MeshLambertMaterial({ color: 0x2a5a2a });
+                for (var i = 0; i < 6; i++) {
+                    var foliage = new THREE.Mesh(
+                        new THREE.SphereGeometry(1.2 + Math.random() * 0.5, 8, 8),
+                        foliageMat
+                    );
+                    foliage.position.set(
+                        (Math.random() - 0.5) * 1.5,
+                        4 + Math.random() * 1.5,
+                        (Math.random() - 0.5) * 1.5
+                    );
+                    g.add(foliage);
+                }
+            }
+            return g;
+        }
+
+        function createFirefly(hasLight) {
+            var g = new THREE.Group();
+            if (hasLight) {
+                var light = new THREE.PointLight(0xaaff66, 0.8, 10);
+                g.add(light);
+            }
+            // Body
+            var body = new THREE.Mesh(
+                new THREE.SphereGeometry(0.04, 4, 4),
+                new THREE.MeshBasicMaterial({ color: 0x333333 })
+            );
+            g.add(body);
+            // Glow abdomen
+            var glow = new THREE.Mesh(
+                new THREE.SphereGeometry(0.08, 6, 6),
+                new THREE.MeshBasicMaterial({ color: 0xccff66, transparent: true, opacity: 0.8 })
+            );
+            glow.position.z = -0.05;
+            g.add(glow);
+            return g;
+        }
+
+        function createStream() {
+            var streamZ = 35;
+            var streamWidth = 5;
+            var segmentsX = 80;
+            var segmentsZ = 4;
+            
+            // Create custom geometry that follows terrain
+            var positions = [];
+            var indices = [];
+            var uvs = [];
+            
+            for (var iz = 0; iz <= segmentsZ; iz++) {
+                for (var ix = 0; ix <= segmentsX; ix++) {
+                    var x = (ix / segmentsX - 0.5) * 200;
+                    var zOffset = (iz / segmentsZ - 0.5) * streamWidth;
+                    var z = streamZ + zOffset;
+                    var y = getTerrainHeight(x, z) + 0.08; // Slightly above terrain
+                    
+                    positions.push(x, y, z);
+                    uvs.push(ix / segmentsX, iz / segmentsZ);
+                }
+            }
+            
+            // Create triangles
+            for (var iz = 0; iz < segmentsZ; iz++) {
+                for (var ix = 0; ix < segmentsX; ix++) {
+                    var a = iz * (segmentsX + 1) + ix;
+                    var b = a + 1;
+                    var c = a + (segmentsX + 1);
+                    var d = c + 1;
+                    
+                    indices.push(a, b, c);
+                    indices.push(b, d, c);
+                }
+            }
+            
+            var streamGeo = new THREE.BufferGeometry();
+            streamGeo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            streamGeo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+            streamGeo.setIndex(indices);
+            streamGeo.computeVertexNormals();
+            
+            var waterMat = new THREE.MeshBasicMaterial({
+                color: 0x4a8ab0,
+                transparent: true,
+                opacity: 0.75,
+                side: THREE.DoubleSide
+            });
+            
+            streamMesh = new THREE.Mesh(streamGeo, waterMat);
+            streamMesh.userData.startY = 0;
+            streamMesh.userData.isStream = true;
+            scene.add(streamMesh);
+            groundObjects.push(streamMesh);
+            window.streamZ = streamZ;
+            
+            // Add subtle surface shimmer layer
+            var shimmerGeo = streamGeo.clone();
+            var shimmerMat = new THREE.MeshBasicMaterial({
+                color: 0x8ac0e0,
+                transparent: true,
+                opacity: 0.3,
+                side: THREE.DoubleSide
+            });
+            var shimmer = new THREE.Mesh(shimmerGeo, shimmerMat);
+            shimmer.position.y = 0.02;
+            shimmer.userData.startY = 0.02;
+            shimmer.userData.isShimmer = true;
+            scene.add(shimmer);
+            groundObjects.push(shimmer);
+        }
+
+        function createStreamDetails() {
+            var streamZ = 35;
+            var streamWidth = 5;
+            
+            // Stream banks with dirt/mud - follow terrain more closely
+            var bankMat = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
+            var darkBankMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+            
+            for (var x = -100; x < 100; x += 2) {
+                // North bank (closer to z=0)
+                for (var i = 0; i < 3; i++) {
+                    var bz = streamZ - streamWidth/2 - 0.3 - Math.random() * 0.8;
+                    var bx = x + Math.random() * 1.5;
+                    var by = getTerrainHeight(bx, bz);
+                    
+                    var bank = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.25 + Math.random() * 0.35, 6, 4),
+                        i === 0 ? darkBankMat : bankMat
+                    );
+                    bank.position.set(bx, by + 0.05, bz);
+                    bank.scale.set(1 + Math.random() * 0.5, 0.3, 1 + Math.random() * 0.3);
+                    bank.userData.startY = by + 0.05;
+                    scene.add(bank);
+                    groundObjects.push(bank);
+                }
+                
+                // South bank (farther from z=0)
+                for (var i = 0; i < 3; i++) {
+                    var bz = streamZ + streamWidth/2 + 0.3 + Math.random() * 0.8;
+                    var bx = x + Math.random() * 1.5;
+                    var by = getTerrainHeight(bx, bz);
+                    
+                    var bank = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.25 + Math.random() * 0.35, 6, 4),
+                        i === 0 ? darkBankMat : bankMat
+                    );
+                    bank.position.set(bx, by + 0.05, bz);
+                    bank.scale.set(1 + Math.random() * 0.5, 0.3, 1 + Math.random() * 0.3);
+                    bank.userData.startY = by + 0.05;
+                    scene.add(bank);
+                    groundObjects.push(bank);
+                }
+            }
+            
+            // River rocks - in the stream
+            var rockMat = new THREE.MeshLambertMaterial({ color: 0x6a6a7a });
+            var wetRockMat = new THREE.MeshLambertMaterial({ color: 0x4a4a5a });
+            for (var i = 0; i < 80; i++) {
+                var rx = (Math.random() - 0.5) * 180;
+                var rz = streamZ + (Math.random() - 0.5) * (streamWidth - 1);
+                var ry = getTerrainHeight(rx, rz);
+                
+                var rock = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(0.1 + Math.random() * 0.2, 0),
+                    Math.random() > 0.5 ? rockMat : wetRockMat
+                );
+                rock.position.set(rx, ry + 0.05, rz);
+                rock.rotation.set(Math.random(), Math.random(), Math.random());
+                rock.scale.set(1, 0.6, 1);
+                rock.userData.startY = ry + 0.05;
+                scene.add(rock);
+                groundObjects.push(rock);
+            }
+            
+            // Larger stepping stones
+            for (var i = 0; i < 15; i++) {
+                var rx = (Math.random() - 0.5) * 160;
+                if (Math.abs(rx) < 8) continue; // Skip near bridge
+                var rz = streamZ + (Math.random() - 0.5) * 3;
+                var ry = getTerrainHeight(rx, rz);
+                
+                var rock = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.3 + Math.random() * 0.2, 0.35 + Math.random() * 0.2, 0.15, 8),
+                    rockMat
+                );
+                rock.position.set(rx, ry + 0.12, rz);
+                rock.rotation.y = Math.random() * Math.PI;
+                rock.userData.startY = ry + 0.12;
+                scene.add(rock);
+                groundObjects.push(rock);
+            }
+            
+            // Cattails along stream banks
+            var cattailPositions = [];
+            for (var x = -90; x < 90; x += 6) {
+                if (Math.abs(x) < 6) continue; // Skip near bridge
+                // Add some randomness to positions
+                cattailPositions.push({ x: x + Math.random() * 3, z: streamZ - streamWidth/2 - 0.5 });
+                cattailPositions.push({ x: x + Math.random() * 3, z: streamZ + streamWidth/2 + 0.5 });
+                // Sometimes add a cluster
+                if (Math.random() > 0.6) {
+                    cattailPositions.push({ x: x + 1 + Math.random() * 2, z: streamZ - streamWidth/2 - 0.8 });
+                }
+            }
+            
+            cattailPositions.forEach(p => {
+                var cattail = createCattail();
+                var cy = getTerrainHeight(p.x, p.z);
+                cattail.position.set(p.x, cy, p.z);
+                cattail.rotation.y = Math.random() * Math.PI * 2;
+                cattail.userData.startY = cy;
+                scene.add(cattail);
+                groundObjects.push(cattail);
+            });
+            
+            // Add some reeds/tall grass near water
+            var reedMat = new THREE.MeshLambertMaterial({ color: 0x5a7a4a });
+            for (var x = -95; x < 95; x += 4) {
+                if (Math.abs(x) < 5) continue;
+                for (var side = -1; side <= 1; side += 2) {
+                    if (Math.random() > 0.7) continue;
+                    var rz = streamZ + side * (streamWidth/2 + 0.2 + Math.random() * 0.5);
+                    var rx = x + Math.random() * 2;
+                    var ry = getTerrainHeight(rx, rz);
+                    
+                    var reedGroup = new THREE.Group();
+                    for (var r = 0; r < 4; r++) {
+                        var reed = new THREE.Mesh(
+                            new THREE.CylinderGeometry(0.01, 0.02, 0.8 + Math.random() * 0.4, 4),
+                            reedMat
+                        );
+                        reed.position.set((Math.random() - 0.5) * 0.15, 0.4, (Math.random() - 0.5) * 0.15);
+                        reed.rotation.x = (Math.random() - 0.5) * 0.3;
+                        reed.rotation.z = (Math.random() - 0.5) * 0.3;
+                        reedGroup.add(reed);
+                    }
+                    reedGroup.position.set(rx, ry, rz);
+                    reedGroup.userData.startY = ry;
+                    scene.add(reedGroup);
+                    groundObjects.push(reedGroup);
+                }
+            }
+        }
+
+        function createCattail() {
+            var g = new THREE.Group();
+            var stemMat = new THREE.MeshLambertMaterial({ color: 0x4a6a3a });
+            var headMat = new THREE.MeshLambertMaterial({ color: 0x5a4030 });
+            
+            // Multiple stems
+            for (var i = 0; i < 3; i++) {
+                var stem = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.02, 0.03, 1.5 + Math.random() * 0.5),
+                    stemMat
+                );
+                stem.position.set((Math.random() - 0.5) * 0.2, 0.8, (Math.random() - 0.5) * 0.2);
+                stem.rotation.x = (Math.random() - 0.5) * 0.2;
+                stem.rotation.z = (Math.random() - 0.5) * 0.2;
+                g.add(stem);
+                
+                // Cattail head
+                var head = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.06, 0.06, 0.25, 8),
+                    headMat
+                );
+                head.position.copy(stem.position);
+                head.position.y += 0.9;
+                g.add(head);
+            }
+            
+            // Leaves
+            for (var i = 0; i < 4; i++) {
+                var leaf = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.08, 1.2, 0.01),
+                    stemMat
+                );
+                leaf.position.set(0, 0.6, 0);
+                leaf.rotation.y = i * Math.PI / 2;
+                leaf.rotation.x = -0.3;
+                g.add(leaf);
+            }
+            
+            return g;
+        }
+
+        function createBridge() {
+            var bridgeX = 0, bridgeZ = 35;
+            var g = new THREE.Group();
+            var woodMat = new THREE.MeshLambertMaterial({ color: 0x5a4030 });
+            var ropeMat = new THREE.MeshLambertMaterial({ color: 0x8a7a5a });
+            var darkWoodMat = new THREE.MeshLambertMaterial({ color: 0x3a2a1a });
+            
+            // Planks (now running across the stream)
+            for (var i = 0; i < 14; i++) {
+                var plank = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.1, 8), woodMat);
+                plank.position.set(-2.5 + i * 0.38, 0, 0);
+                plank.castShadow = true;
+                g.add(plank);
+            }
+            
+            // Support beams underneath
+            var beam1 = new THREE.Mesh(new THREE.BoxGeometry(6, 0.15, 0.2), woodMat);
+            beam1.position.set(0, -0.12, -3);
+            g.add(beam1);
+            var beam2 = new THREE.Mesh(new THREE.BoxGeometry(6, 0.15, 0.2), woodMat);
+            beam2.position.set(0, -0.12, 3);
+            g.add(beam2);
+            
+            // Support posts going down to the ground
+            var supportPositions = [
+                { x: -2.5, z: -3 }, { x: -2.5, z: 3 },
+                { x: 2.5, z: -3 }, { x: 2.5, z: 3 }
+            ];
+            supportPositions.forEach(sp => {
+                var supportPost = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.12, 0.15, 1.2),
+                    darkWoodMat
+                );
+                supportPost.position.set(sp.x, -0.7, sp.z);
+                g.add(supportPost);
+            });
+            
+            // Cross braces
+            var brace1 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 6.2), darkWoodMat);
+            brace1.position.set(-2.5, -0.4, 0);
+            brace1.rotation.x = 0.1;
+            g.add(brace1);
+            var brace2 = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 6.2), darkWoodMat);
+            brace2.position.set(2.5, -0.4, 0);
+            brace2.rotation.x = -0.1;
+            g.add(brace2);
+            
+            // Rope railings
+            for (var side = -1; side <= 1; side += 2) {
+                // Posts
+                for (var i = -2; i <= 2; i++) {
+                    var post = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.06, 0.08, 1),
+                        woodMat
+                    );
+                    post.position.set(i * 1.2, 0.5, side * 3.8);
+                    g.add(post);
+                }
+                // Rope
+                var rope = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.03, 0.03, 5.5, 6),
+                    ropeMat
+                );
+                rope.rotation.z = Math.PI / 2;
+                rope.position.set(0, 0.9, side * 3.8);
+                g.add(rope);
+            }
+            
+            var bridgeY = getTerrainHeight(bridgeX, bridgeZ) + 0.8;
+            g.position.set(bridgeX, bridgeY, bridgeZ);
+            g.rotation.y = Math.PI / 2; // Rotate 90 degrees to span across stream
+            g.userData.startY = bridgeY;
+            scene.add(g);
+            groundObjects.push(g);
+            window.bridgeX = bridgeX;
+            window.bridgeZ = bridgeZ;
+            // After rotation: bridge is ~8 units long (Z direction becomes X), ~6 units wide (X becomes Z)
+            window.bridgeHalfLength = 4; // half of 8
+            window.bridgeHalfWidth = 3;  // half of 6
+        }
+
+        function createInstancedGrass() {
+            var grassCount = 25000;
+            
+            // Tall grass
+            var grassGeo = new THREE.ConeGeometry(0.02, 0.5, 4);
+            var grassMat = new THREE.MeshLambertMaterial({ color: 0x3a5a3a, side: THREE.DoubleSide });
+            var grassMesh = new THREE.InstancedMesh(grassGeo, grassMat, grassCount);
+            var dummy = new THREE.Object3D();
+            
+            for (var i = 0; i < grassCount; i++) {
+                var x = (Math.random() - 0.5) * 180;
+                var z = (Math.random() - 0.5) * 180;
+                // Skip stream area
+                if (Math.abs(z - 35) < 4) continue;
+                var y = getTerrainHeight(x, z);
+                dummy.position.set(x, y + 0.25, z);
+                dummy.rotation.set((Math.random() - 0.5) * 0.4, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.3);
+                dummy.scale.setScalar(0.8 + Math.random() * 0.6);
+                dummy.updateMatrix();
+                grassMesh.setMatrixAt(i, dummy.matrix);
+            }
+            grassMesh.userData.startY = 0;
+            scene.add(grassMesh);
+            groundObjects.push(grassMesh);
+            
+            // Short grass carpet
+            var shortGrassCount = 20000;
+            var shortGrassGeo = new THREE.ConeGeometry(0.015, 0.2, 3);
+            var shortGrassMat = new THREE.MeshLambertMaterial({ color: 0x4a6a4a, side: THREE.DoubleSide });
+            var shortGrassMesh = new THREE.InstancedMesh(shortGrassGeo, shortGrassMat, shortGrassCount);
+            
+            for (var i = 0; i < shortGrassCount; i++) {
+                var x = (Math.random() - 0.5) * 180;
+                var z = (Math.random() - 0.5) * 180;
+                if (Math.abs(z - 35) < 4) continue;
+                var y = getTerrainHeight(x, z);
+                dummy.position.set(x, y + 0.1, z);
+                dummy.rotation.set((Math.random() - 0.5) * 0.3, Math.random() * Math.PI * 2, 0);
+                dummy.scale.setScalar(0.7 + Math.random() * 0.5);
+                dummy.updateMatrix();
+                shortGrassMesh.setMatrixAt(i, dummy.matrix);
+            }
+            shortGrassMesh.userData.startY = 0;
+            scene.add(shortGrassMesh);
+            groundObjects.push(shortGrassMesh);
+        }
+
+        function createWildflowers() {
+            // Natural meadow flowers - mostly white daisies, small yellow buttercups, and grass tufts
+            var flowerCount = 1500;
+            
+            for (var i = 0; i < flowerCount; i++) {
+                var x = (Math.random() - 0.5) * 160;
+                var z = (Math.random() - 0.5) * 160;
+                if (Math.abs(z - 35) < 5) continue;
+                
+                var g = new THREE.Group();
+                var stemMat = new THREE.MeshLambertMaterial({ color: 0x3a4a2a });
+                
+                var flowerType = Math.random();
+                
+                if (flowerType < 0.4) {
+                    // White daisy
+                    var stem = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.008, 0.012, 0.25 + Math.random() * 0.15),
+                        stemMat
+                    );
+                    stem.position.y = 0.12;
+                    g.add(stem);
+                    
+                    // Yellow center
+                    var center = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.025, 6, 6),
+                        new THREE.MeshLambertMaterial({ color: 0xccaa44 })
+                    );
+                    center.position.y = 0.28;
+                    center.scale.y = 0.6;
+                    g.add(center);
+                    
+                    // White petals
+                    var petalMat = new THREE.MeshLambertMaterial({ color: 0xeeeeee });
+                    for (var p = 0; p < 8; p++) {
+                        var petal = new THREE.Mesh(
+                            new THREE.SphereGeometry(0.018, 4, 4),
+                            petalMat
+                        );
+                        var angle = (p / 8) * Math.PI * 2;
+                        petal.position.set(Math.cos(angle) * 0.04, 0.28, Math.sin(angle) * 0.04);
+                        petal.scale.set(1.5, 0.4, 1);
+                        g.add(petal);
+                    }
+                } else if (flowerType < 0.6) {
+                    // Small yellow buttercup
+                    var stem = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.006, 0.01, 0.15 + Math.random() * 0.1),
+                        stemMat
+                    );
+                    stem.position.y = 0.08;
+                    g.add(stem);
+                    
+                    var head = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.02, 6, 6),
+                        new THREE.MeshLambertMaterial({ color: 0xaaaa44 })
+                    );
+                    head.position.y = 0.18;
+                    g.add(head);
+                } else {
+                    // Grass tuft / clover
+                    for (var t = 0; t < 4; t++) {
+                        var blade = new THREE.Mesh(
+                            new THREE.ConeGeometry(0.012, 0.2 + Math.random() * 0.1, 3),
+                            new THREE.MeshLambertMaterial({ color: 0x4a5a3a })
+                        );
+                        blade.position.set(
+                            (Math.random() - 0.5) * 0.06,
+                            0.1,
+                            (Math.random() - 0.5) * 0.06
+                        );
+                        blade.rotation.x = (Math.random() - 0.5) * 0.4;
+                        blade.rotation.z = (Math.random() - 0.5) * 0.4;
+                        g.add(blade);
+                    }
+                }
+                
+                var fy = getTerrainHeight(x, z);
+                g.position.set(x, fy, z);
+                g.userData.startY = fy;
+                g.scale.setScalar(0.8 + Math.random() * 0.4);
+                scene.add(g);
+                groundObjects.push(g);
+            }
+        }
+
+        function createMushrooms() {
+            var mushroomCount = 120;
+            // Natural mushroom colors - browns, tans, grays
+            var capColors = [0x8a7a6a, 0x6a5a4a, 0x7a6a5a, 0x9a8a7a, 0x5a4a3a, 0x8a8070];
+            var stemColors = [0xddd8cc, 0xccc8bb, 0xbbb8aa];
+            
+            for (var i = 0; i < mushroomCount; i++) {
+                var x = (Math.random() - 0.5) * 150;
+                var z = (Math.random() - 0.5) * 150;
+                
+                var g = new THREE.Group();
+                var stemMat = new THREE.MeshLambertMaterial({ 
+                    color: stemColors[Math.floor(Math.random() * stemColors.length)]
+                });
+                var capMat = new THREE.MeshLambertMaterial({ 
+                    color: capColors[Math.floor(Math.random() * capColors.length)]
+                });
+                
+                var stemHeight = 0.08 + Math.random() * 0.12;
+                var stem = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.025, 0.035, stemHeight, 6),
+                    stemMat
+                );
+                stem.position.y = stemHeight / 2;
+                g.add(stem);
+                
+                var capSize = 0.06 + Math.random() * 0.05;
+                var cap = new THREE.Mesh(
+                    new THREE.SphereGeometry(capSize, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+                    capMat
+                );
+                cap.position.y = stemHeight;
+                g.add(cap);
+                
+                var my = getTerrainHeight(x, z);
+                g.position.set(x, my, z);
+                g.userData.startY = my;
+                scene.add(g);
+                groundObjects.push(g);
+            }
+        }
+
+        function createRocks() {
+            var rockCount = 150;
+            var rockMat = new THREE.MeshLambertMaterial({ color: 0x6a6a6a });
+            
+            for (var i = 0; i < rockCount; i++) {
+                var x = (Math.random() - 0.5) * 160;
+                var z = (Math.random() - 0.5) * 160;
+                if (Math.abs(z - 35) < 5) continue;
+                
+                var rock = new THREE.Mesh(
+                    new THREE.DodecahedronGeometry(0.2 + Math.random() * 0.5, 0),
+                    rockMat
+                );
+                var ry = getTerrainHeight(x, z);
+                rock.position.set(x, ry + 0.1, z);
+                rock.rotation.set(Math.random(), Math.random(), Math.random());
+                rock.scale.y = 0.5 + Math.random() * 0.5;
+                rock.userData.startY = ry + 0.1;
+                scene.add(rock);
+                groundObjects.push(rock);
+            }
+        }
+
+        function createBushes() {
+            var bushCount = 100;
+            
+            for (var i = 0; i < bushCount; i++) {
+                var x = (Math.random() - 0.5) * 150;
+                var z = (Math.random() - 0.5) * 150;
+                if (Math.abs(z - 35) < 6) continue;
+                
+                var g = new THREE.Group();
+                var leafMat = new THREE.MeshLambertMaterial({ color: 0x2a4a2a });
+                
+                // Cluster of spheres
+                for (var j = 0; j < 5; j++) {
+                    var leaf = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.3 + Math.random() * 0.3, 6, 6),
+                        leafMat
+                    );
+                    leaf.position.set(
+                        (Math.random() - 0.5) * 0.5,
+                        0.3 + Math.random() * 0.3,
+                        (Math.random() - 0.5) * 0.5
+                    );
+                    g.add(leaf);
+                }
+                
+                var by = getTerrainHeight(x, z);
+                g.position.set(x, by, z);
+                g.userData.startY = by;
+                scene.add(g);
+                groundObjects.push(g);
+                colliders.push({ x, z, r: 0.8 });
+            }
+        }
+
+        function createSky() {
+            // More stars with varying sizes
+            var starGeo = new THREE.BufferGeometry();
+            var starPos = [];
+            var starSizes = [];
+            for (var i = 0; i < 3000; i++) {
+                var theta = Math.random() * Math.PI * 2;
+                var phi = Math.random() * Math.PI * 0.5;
+                var r = 150;
+                starPos.push(
+                    r * Math.sin(phi) * Math.cos(theta),
+                    r * Math.cos(phi) + 30,
+                    r * Math.sin(phi) * Math.sin(theta)
+                );
+                starSizes.push(0.3 + Math.random() * 0.7);
+            }
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+            starGeo.setAttribute('size', new THREE.Float32BufferAttribute(starSizes, 1));
+            
+            var starMat = new THREE.PointsMaterial({ 
+                color: 0xffffff, 
+                size: 0.5,
+                transparent: true,
+                opacity: 0.9,
+                fog: false  // Stars ignore fog
+            });
+            var stars = new THREE.Points(starGeo, starMat);
+            stars.name = 'stars';
+            scene.add(stars);
+
+            // Moon with craters
+            var moonGroup = new THREE.Group();
+            var moonMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(8, 32, 32),
+                new THREE.MeshBasicMaterial({ color: 0xffffee, fog: false })
+            );
+            moonGroup.add(moonMesh);
+            
+            // Craters (dark spots)
+            var craterMat = new THREE.MeshBasicMaterial({ color: 0xddddcc, fog: false });
+            for (var i = 0; i < 5; i++) {
+                var crater = new THREE.Mesh(
+                    new THREE.CircleGeometry(1 + Math.random() * 1.5, 16),
+                    craterMat
+                );
+                var angle1 = Math.random() * Math.PI * 0.6 - 0.3;
+                var angle2 = Math.random() * Math.PI * 0.6 - 0.3;
+                crater.position.set(
+                    8.05 * Math.sin(angle1) * Math.cos(angle2),
+                    8.05 * Math.sin(angle2),
+                    8.05 * Math.cos(angle1) * Math.cos(angle2)
+                );
+                crater.lookAt(0, 0, 0);
+                moonGroup.add(crater);
+            }
+            
+            moonGroup.position.set(60, 80, -100);
+            scene.add(moonGroup);
+            
+            // Moon glow
+            var glowMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(12, 32, 32),
+                new THREE.MeshBasicMaterial({ 
+                    color: 0xffffee, 
+                    transparent: true, 
+                    opacity: 0.15,
+                    fog: false
+                })
+            );
+            glowMesh.position.copy(moonGroup.position);
+            scene.add(glowMesh);
+        }
+
+        function createLanterns() {
+            var positions = [
+                { x: -8, z: 5 }, { x: 8, z: 5 }, { x: -5, z: -5 }, { x: 5, z: -5 },
+                { x: -15, z: 0 }, { x: 15, z: 0 }, { x: 0, z: -10 },
+                { x: -12, z: -8 }, { x: 12, z: -8 }
+            ];
+            positions.forEach(pos => {
+                var g = new THREE.Group();
+                var pole = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.04, 0.06, 2.2),
+                    new THREE.MeshLambertMaterial({ color: 0x3a2a1a })
+                );
+                pole.position.y = 1.1;
+                g.add(pole);
+                
+                // Lantern body with glass panels
+                var frame = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.35, 0.45, 0.35),
+                    new THREE.MeshLambertMaterial({ color: 0x2a2a2a })
+                );
+                frame.position.y = 2.4;
+                g.add(frame);
+                
+                var glow = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.28, 0.38, 0.28),
+                    new THREE.MeshBasicMaterial({ color: 0xffaa44, transparent: true, opacity: 0.9 })
+                );
+                glow.position.y = 2.4;
+                g.add(glow);
+                
+                // Top cap
+                var cap = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.25, 0.15, 4),
+                    new THREE.MeshLambertMaterial({ color: 0x2a2a2a })
+                );
+                cap.position.y = 2.7;
+                cap.rotation.y = Math.PI / 4;
+                g.add(cap);
+                
+                var light = new THREE.PointLight(0xffaa44, 1.5, 18);
+                light.position.y = 2.4;
+                g.add(light);
+                
+                var ly = getTerrainHeight(pos.x, pos.z);
+                g.position.set(pos.x, ly, pos.z);
+                g.userData.startY = ly;
+                scene.add(g);
+                groundObjects.push(g);
+            });
+        }
+
+        function createAnimals() {
+            // Rabbits
+            [{ x: -30, z: 10 }, { x: -25, z: 12 }, { x: 20, z: 8 }, { x: 35, z: -10 }].forEach(pos => {
+                var rabbit = createRabbit();
+                var ry = getTerrainHeight(pos.x, pos.z);
+                rabbit.position.set(pos.x, ry, pos.z);
+                rabbit.rotation.y = Math.random() * Math.PI * 2;
+                rabbit.userData.startY = ry;
+                rabbit.userData.animalType = 'rabbit';
+                rabbit.userData.hopTimer = Math.random() * 100;
+                rabbit.userData.baseY = ry;
+                scene.add(rabbit);
+                groundObjects.push(rabbit);
+                animals.push(rabbit);
+            });
+            
+            // Deer
+            [{ x: -50, z: -20 }, { x: 45, z: 15 }].forEach(pos => {
+                var deer = createDeer();
+                var dy = getTerrainHeight(pos.x, pos.z);
+                deer.position.set(pos.x, dy, pos.z);
+                deer.rotation.y = Math.random() * Math.PI * 2;
+                deer.userData.startY = dy;
+                deer.userData.animalType = 'deer';
+                scene.add(deer);
+                groundObjects.push(deer);
+                animals.push(deer);
+            });
+            
+            // Owls in trees
+            [{ x: -40, z: 5 }, { x: 30, z: -5 }, { x: -20, z: -50 }].forEach(pos => {
+                var owl = createOwl();
+                var oy = getTerrainHeight(pos.x, pos.z) + 4;
+                owl.position.set(pos.x, oy, pos.z);
+                owl.userData.startY = oy;
+                owl.userData.animalType = 'owl';
+                owl.userData.blinkTimer = Math.random() * 200;
+                scene.add(owl);
+                groundObjects.push(owl);
+                animals.push(owl);
+            });
+            
+            // Frogs near stream
+            for (var i = 0; i < 8; i++) {
+                var fx = (Math.random() - 0.5) * 150;
+                if (Math.abs(fx) < 5) continue;
+                var fz = 35 + (Math.random() - 0.5) * 8;
+                var frog = createFrog();
+                var fy = getTerrainHeight(fx, fz);
+                frog.position.set(fx, fy, fz);
+                frog.rotation.y = Math.random() * Math.PI * 2;
+                frog.userData.startY = fy;
+                frog.userData.animalType = 'frog';
+                frog.userData.croakTimer = Math.random() * 300;
+                scene.add(frog);
+                groundObjects.push(frog);
+                animals.push(frog);
+            }
+        }
+
+        function createRabbit() {
+            var g = new THREE.Group();
+            var furMat = new THREE.MeshLambertMaterial({ color: 0x9a8a7a });
+            var whiteMat = new THREE.MeshLambertMaterial({ color: 0xeeeeee });
+            var pinkMat = new THREE.MeshLambertMaterial({ color: 0xffaaaa });
+            
+            // Body
+            var body = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25, 8, 8),
+                furMat
+            );
+            body.position.y = 0.2;
+            body.scale.set(1, 0.8, 1.2);
+            g.add(body);
+            
+            // Head
+            var head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                furMat
+            );
+            head.position.set(0, 0.35, 0.25);
+            g.add(head);
+            
+            // Ears
+            for (var side = -1; side <= 1; side += 2) {
+                var ear = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.02, 0.04, 0.25, 8),
+                    furMat
+                );
+                ear.position.set(side * 0.08, 0.55, 0.2);
+                ear.rotation.x = -0.2;
+                ear.rotation.z = side * 0.2;
+                g.add(ear);
+                
+                // Ear tip
+                var earTip = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.025, 6, 6),
+                    furMat
+                );
+                earTip.position.set(side * 0.08, 0.68, 0.18);
+                g.add(earTip);
+                
+                // Inner ear
+                var innerEar = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.01, 0.025, 0.18, 8),
+                    pinkMat
+                );
+                innerEar.position.set(side * 0.08, 0.55, 0.22);
+                innerEar.rotation.x = -0.2;
+                innerEar.rotation.z = side * 0.2;
+                g.add(innerEar);
+            }
+            
+            // Eyes
+            var eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            for (var side = -1; side <= 1; side += 2) {
+                var eye = new THREE.Mesh(new THREE.SphereGeometry(0.03), eyeMat);
+                eye.position.set(side * 0.08, 0.38, 0.38);
+                g.add(eye);
+            }
+            
+            // Nose
+            var nose = new THREE.Mesh(
+                new THREE.SphereGeometry(0.025),
+                pinkMat
+            );
+            nose.position.set(0, 0.32, 0.4);
+            g.add(nose);
+            
+            // Tail
+            var tail = new THREE.Mesh(
+                new THREE.SphereGeometry(0.08, 6, 6),
+                whiteMat
+            );
+            tail.position.set(0, 0.2, -0.3);
+            g.add(tail);
+            
+            // Legs
+            for (var i = 0; i < 4; i++) {
+                var isBack = i >= 2;
+                var side = i % 2 === 0 ? -1 : 1;
+                var leg = new THREE.Mesh(
+                    new THREE.SphereGeometry(isBack ? 0.08 : 0.05, 6, 6),
+                    furMat
+                );
+                leg.position.set(side * 0.12, 0.05, isBack ? -0.15 : 0.15);
+                leg.scale.y = isBack ? 1.3 : 1;
+                g.add(leg);
+            }
+            
+            g.scale.setScalar(0.8);
+            return g;
+        }
+
+        function createDeer() {
+            var g = new THREE.Group();
+            var bodyMat = new THREE.MeshLambertMaterial({ color: 0x8a6a4a });
+            var bellyMat = new THREE.MeshLambertMaterial({ color: 0xccaa88 });
+            var antlerMat = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
+            
+            // Body
+            var body = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 12, 12),
+                bodyMat
+            );
+            body.position.y = 1;
+            body.scale.set(1.8, 0.9, 0.9);
+            g.add(body);
+            
+            // Belly
+            var belly = new THREE.Mesh(
+                new THREE.SphereGeometry(0.45, 12, 12),
+                bellyMat
+            );
+            belly.position.set(0, 0.9, 0);
+            belly.scale.set(1.5, 0.8, 0.8);
+            g.add(belly);
+            
+            // Neck
+            var neck = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.2, 0.6),
+                bodyMat
+            );
+            neck.position.set(0.6, 1.3, 0);
+            neck.rotation.z = -0.5;
+            g.add(neck);
+            
+            // Head
+            var head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 8, 8),
+                bodyMat
+            );
+            head.position.set(0.85, 1.55, 0);
+            head.scale.set(1, 0.9, 0.8);
+            g.add(head);
+            
+            // Snout
+            var snout = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.06, 0.08, 0.2, 8),
+                bodyMat
+            );
+            snout.position.set(1.05, 1.48, 0);
+            snout.rotation.z = Math.PI / 2;
+            g.add(snout);
+            
+            // Nose
+            var nose = new THREE.Mesh(
+                new THREE.SphereGeometry(0.05),
+                new THREE.MeshLambertMaterial({ color: 0x2a2a2a })
+            );
+            nose.position.set(1.15, 1.48, 0);
+            g.add(nose);
+            
+            // Eyes
+            var eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            for (var side = -1; side <= 1; side += 2) {
+                var eye = new THREE.Mesh(new THREE.SphereGeometry(0.04), eyeMat);
+                eye.position.set(0.92, 1.6, side * 0.12);
+                g.add(eye);
+            }
+            
+            // Ears
+            for (var side = -1; side <= 1; side += 2) {
+                var ear = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.08, 0.15, 6),
+                    bodyMat
+                );
+                ear.position.set(0.75, 1.7, side * 0.18);
+                ear.rotation.x = side * 0.3;
+                ear.rotation.z = -0.5;
+                g.add(ear);
+            }
+            
+            // Antlers
+            for (var side = -1; side <= 1; side += 2) {
+                var antlerBase = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.02, 0.03, 0.4),
+                    antlerMat
+                );
+                antlerBase.position.set(0.8, 1.85, side * 0.1);
+                antlerBase.rotation.z = side * 0.3;
+                g.add(antlerBase);
+                
+                // Antler branches
+                for (var b = 0; b < 2; b++) {
+                    var branch = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.015, 0.02, 0.2),
+                        antlerMat
+                    );
+                    branch.position.set(0.8 + b * 0.05, 2 + b * 0.1, side * (0.15 + b * 0.08));
+                    branch.rotation.z = side * (0.5 + b * 0.3);
+                    g.add(branch);
+                }
+            }
+            
+            // Legs
+            var legPositions = [
+                { x: 0.4, z: 0.15 }, { x: 0.4, z: -0.15 },
+                { x: -0.4, z: 0.15 }, { x: -0.4, z: -0.15 }
+            ];
+            legPositions.forEach(lp => {
+                var upperLeg = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.06, 0.08, 0.5),
+                    bodyMat
+                );
+                upperLeg.position.set(lp.x, 0.6, lp.z);
+                g.add(upperLeg);
+                
+                var lowerLeg = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.04, 0.05, 0.4),
+                    bodyMat
+                );
+                lowerLeg.position.set(lp.x, 0.2, lp.z);
+                g.add(lowerLeg);
+                
+                var hoof = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.05, 0.04, 0.08),
+                    new THREE.MeshLambertMaterial({ color: 0x2a2a2a })
+                );
+                hoof.position.set(lp.x, 0.04, lp.z);
+                g.add(hoof);
+            });
+            
+            // Tail
+            var tail = new THREE.Mesh(
+                new THREE.ConeGeometry(0.06, 0.2, 6),
+                bellyMat
+            );
+            tail.position.set(-0.7, 1.1, 0);
+            tail.rotation.z = 0.5;
+            g.add(tail);
+            
+            return g;
+        }
+
+        function createOwl() {
+            var g = new THREE.Group();
+            var featherMat = new THREE.MeshLambertMaterial({ color: 0x6a5a4a });
+            var faceMat = new THREE.MeshLambertMaterial({ color: 0xaa9a8a });
+            var beakMat = new THREE.MeshLambertMaterial({ color: 0xffaa44 });
+            
+            // Body
+            var body = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                featherMat
+            );
+            body.position.y = 0.3;
+            body.scale.set(1, 1.3, 0.9);
+            g.add(body);
+            
+            // Face disc
+            var face = new THREE.Mesh(
+                new THREE.CircleGeometry(0.22, 16),
+                faceMat
+            );
+            face.position.set(0, 0.45, 0.25);
+            g.add(face);
+            
+            // Eyes
+            for (var side = -1; side <= 1; side += 2) {
+                // Eye socket
+                var socket = new THREE.Mesh(
+                    new THREE.CircleGeometry(0.08, 12),
+                    new THREE.MeshBasicMaterial({ color: 0x111111 })
+                );
+                socket.position.set(side * 0.1, 0.5, 0.26);
+                g.add(socket);
+                
+                // Eye
+                var eye = new THREE.Mesh(
+                    new THREE.CircleGeometry(0.06, 12),
+                    new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+                );
+                eye.position.set(side * 0.1, 0.5, 0.27);
+                eye.name = 'owlEye';
+                g.add(eye);
+                
+                // Pupil
+                var pupil = new THREE.Mesh(
+                    new THREE.CircleGeometry(0.03, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x000000 })
+                );
+                pupil.position.set(side * 0.1, 0.5, 0.28);
+                g.add(pupil);
+            }
+            
+            // Beak
+            var beak = new THREE.Mesh(
+                new THREE.ConeGeometry(0.04, 0.08, 4),
+                beakMat
+            );
+            beak.position.set(0, 0.4, 0.28);
+            beak.rotation.x = Math.PI;
+            g.add(beak);
+            
+            // Ear tufts
+            for (var side = -1; side <= 1; side += 2) {
+                var tuft = new THREE.Mesh(
+                    new THREE.ConeGeometry(0.05, 0.15, 4),
+                    featherMat
+                );
+                tuft.position.set(side * 0.15, 0.7, 0.1);
+                tuft.rotation.z = side * -0.3;
+                g.add(tuft);
+            }
+            
+            // Wings
+            for (var side = -1; side <= 1; side += 2) {
+                var wing = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.2, 6, 6),
+                    featherMat
+                );
+                wing.position.set(side * 0.25, 0.3, 0);
+                wing.scale.set(0.5, 1.2, 0.8);
+                g.add(wing);
+            }
+            
+            // Feet
+            var feetMat = new THREE.MeshLambertMaterial({ color: 0x5a5a5a });
+            for (var side = -1; side <= 1; side += 2) {
+                var foot = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.08, 0.04, 0.12),
+                    feetMat
+                );
+                foot.position.set(side * 0.08, 0, 0.05);
+                g.add(foot);
+            }
+            
+            g.scale.setScalar(0.7);
+            return g;
+        }
+
+        function createFrog() {
+            var g = new THREE.Group();
+            var skinMat = new THREE.MeshLambertMaterial({ color: 0x4a8a4a });
+            var bellyMat = new THREE.MeshLambertMaterial({ color: 0x8aba8a });
+            
+            // Body
+            var body = new THREE.Mesh(
+                new THREE.SphereGeometry(0.15, 8, 8),
+                skinMat
+            );
+            body.position.y = 0.1;
+            body.scale.set(1, 0.7, 1.2);
+            g.add(body);
+            
+            // Head
+            var head = new THREE.Mesh(
+                new THREE.SphereGeometry(0.12, 8, 8),
+                skinMat
+            );
+            head.position.set(0, 0.12, 0.15);
+            head.scale.set(1.2, 0.8, 1);
+            g.add(head);
+            
+            // Eyes (bulging)
+            for (var side = -1; side <= 1; side += 2) {
+                var eyeBulge = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.05, 8, 8),
+                    skinMat
+                );
+                eyeBulge.position.set(side * 0.08, 0.2, 0.18);
+                g.add(eyeBulge);
+                
+                var eye = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.03, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0xffcc00 })
+                );
+                eye.position.set(side * 0.08, 0.22, 0.2);
+                g.add(eye);
+                
+                var pupil = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.015, 6, 6),
+                    new THREE.MeshBasicMaterial({ color: 0x000000 })
+                );
+                pupil.position.set(side * 0.08, 0.22, 0.22);
+                g.add(pupil);
+            }
+            
+            // Back legs
+            for (var side = -1; side <= 1; side += 2) {
+                var thigh = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.06, 6, 6),
+                    skinMat
+                );
+                thigh.position.set(side * 0.12, 0.08, -0.1);
+                thigh.scale.set(0.8, 1, 1.5);
+                g.add(thigh);
+                
+                var shin = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.02, 0.025, 0.12, 6),
+                    skinMat
+                );
+                shin.position.set(side * 0.18, 0.04, -0.08);
+                shin.rotation.z = side * 0.8;
+                g.add(shin);
+                
+                var foot = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.08, 0.02, 0.1),
+                    skinMat
+                );
+                foot.position.set(side * 0.22, 0.01, -0.05);
+                g.add(foot);
+            }
+            
+            // Front legs
+            for (var side = -1; side <= 1; side += 2) {
+                var arm = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.015, 0.02, 0.1, 6),
+                    skinMat
+                );
+                arm.position.set(side * 0.1, 0.05, 0.12);
+                arm.rotation.z = side * 0.5;
+                g.add(arm);
+            }
+            
+            g.scale.setScalar(0.6);
+            return g;
+        }
+
+        function startFalling() {
+            if (State.phase === 'falling') return;
+            State.phase = 'falling';
+            State.canMove = false;
+            State.keys = { w: false, a: false, s: false, d: false };
+            State.velocity.set(0, 0, 0);
+            targetPitch = 0;
+            hidePrompt();
+            colliders = [];
+            fallProgress = 0;
+        }
+
+        function updateFalling(dt) {
+            fallProgress += dt * 0.15;
+            var fallDist = fallProgress * fallProgress * 8;
+            groundObjects.forEach(obj => { obj.position.y = (obj.userData.startY || 0) - fallDist; });
+            houseObjects.forEach(obj => { obj.position.y = (obj.userData.startY || 0) - fallDist; });
+            if (scene.fog) scene.fog.density = Math.max(0, 0.008 - fallProgress * 0.002);
+            if (fallProgress > 4) {
+                groundObjects.forEach(obj => scene.remove(obj));
+                houseObjects.forEach(obj => scene.remove(obj));
+                groundObjects = [];
+                houseObjects = [];
+                animals = [];
+                scene.fog = null;
+                State.phase = 'floating';
+                setTimeout(() => startStarDrawing(), 4000);
+            }
+        }
+
+        function startStarDrawing() {
+            State.phase = 'drawing';
+            State.canMove = false;
+            State.canLook = false;
+            document.exitPointerLock();
+            document.body.style.cursor = 'crosshair';
+            document.getElementById('darkness-star-count').style.display = 'block';
+            showPrompt('Click to create stars in space');
+            setTimeout(hidePrompt, 4000);
+            
+        }
+
+        function addStar3D(screenX, screenY) {
+            var ndcX = (screenX / stageWidth) * 2 - 1;
+            var ndcY = -(screenY / stageHeight) * 2 + 1;
+            
+            var raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera({ x: ndcX, y: ndcY }, camera);
+            
+            var distance = 10 + Math.random() * 290;
+            
+            var starPos = new THREE.Vector3();
+            raycaster.ray.at(distance, starPos);
+            
+            var baseSize = 0.1 + Math.random() * 0.15;
+            var size = baseSize * (1 + distance / 100);
+            
+            var colors = [0xffffee, 0xffffff, 0xffff66, 0xffffaa, 0xffcc44, 0xffee88];
+            var starColor = colors[Math.floor(Math.random() * colors.length)];
+            
+            var star = new THREE.Mesh(
+                new THREE.SphereGeometry(size, 8, 8),
+                new THREE.MeshBasicMaterial({ color: starColor, transparent: true, opacity: 0.9 })
+            );
+            star.position.copy(starPos);
+            scene.add(star);
+            
+            if (Math.random() < 0.2) {
+                var light = new THREE.PointLight(starColor, 0.4, 15 + distance / 10);
+                light.position.copy(starPos);
+                scene.add(light);
+            }
+            
+            star.userData.phase = Math.random() * Math.PI * 2;
+            star.userData.twinkleSpeed = 2 + Math.random() * 3;
+            stars2D.push(star);
+            
+            State.starCount++;
+            document.getElementById('darkness-count').textContent = State.starCount;
+            playTwinkle();
+            
+            if (State.starCount >= 30 && State.phase === 'drawing') {
+                setTimeout(startSheepTransformation, 500);
+            }
+        }
+        
+        function startSheepTransformation() {
+            State.phase = 'transforming';
+            document.getElementById('darkness-star-count').style.display = 'none';
+            hidePrompt();
+            
+            // Blink transition - flash white
+            scene.background = new THREE.Color(0xffffff);
+            
+            setTimeout(() => {
+                // After blink, transform stars to sheep
+                transformStarsToSheep();
+            }, 150);
+        }
+        
+        function transformStarsToSheep() {
+            hidePrompt();
+            
+            // Collect all positions before removing objects
+            var allPositions = [];
+            
+            // Get user-drawn star positions
+            stars2D.forEach(star => {
+                allPositions.push(star.position.clone());
+            });
+            
+            // Get firefly positions
+            fireflies.forEach(ff => {
+                allPositions.push(ff.position.clone());
+            });
+            
+            // Remove stars
+            stars2D.forEach(star => scene.remove(star));
+            stars2D = [];
+            
+            // Remove fireflies
+            fireflies.forEach(ff => scene.remove(ff));
+            fireflies = [];
+            
+            // Return to dark space background after blink
+            scene.background = new THREE.Color(0x0a0a18);
+            
+            // Add lighting for sheep
+            scene.add(new THREE.AmbientLight(0x4a4a6a, 0.6));
+            var light1 = new THREE.DirectionalLight(0x6a6aaa, 0.4);
+            light1.position.set(50, 50, 50);
+            scene.add(light1);
+            var light2 = new THREE.DirectionalLight(0x8a6a8a, 0.3);
+            light2.position.set(-50, -30, -50);
+            scene.add(light2);
+            
+            camera.fov = 75;
+            camera.updateProjectionMatrix();
+            camera.position.set(0, 0, 30);
+            cameraYaw = Math.PI;
+            cameraPitch = 0;
+            updateCamera();
+            
+            colliders = [];
+            chaserSheep = null;
+            
+            // Create sheep at all star and firefly positions
+            sheep = [];
+            allPositions.forEach((pos, i) => {
+                var s = createSheep3D();
+                s.position.copy(pos);
+                s.rotation.y = Math.random() * Math.PI * 2;
+                s.rotation.x = (Math.random() - 0.5) * 0.3;
+                s.rotation.z = (Math.random() - 0.5) * 0.3;
+                // Give immediate velocity so sheep start moving
+                s.userData.velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.1,
+                    (Math.random() - 0.5) * 0.2
+                );
+                s.userData.turnTimer = 20 + Math.random() * 40;
+                s.userData.legPhase = Math.random() * Math.PI * 2;
+                s.userData.floatPhase = Math.random() * Math.PI * 2;
+                s.userData.floatSpeed = 0.5 + Math.random() * 0.5;
+                scene.add(s);
+                sheep.push(s);
+            });
+            
+            // Spawn ONE chaser sheep after 15 seconds
+            setTimeout(() => {
+                if (State.phase === 'sheep' && !State.caught && !chaserSheep) {
+                    spawnChaserSheep();
+                }
+            }, 15000);
+            
+            // Immediately enter sheep phase
+            State.phase = 'sheep';
+            State.canMove = true;
+            State.canLook = true;
+            document.body.style.cursor = 'default';
+            document.body.requestPointerLock();
+            document.getElementById('darkness-scene-indicator').style.display = 'none';
+        }
+        
+        function spawnChaserSheep() {
+            // Only spawn if no chaser exists
+            if (chaserSheep) return;
+            
+            var s = createSheep3D();
+            // Spawn behind the player
+            var spawnAngle = cameraYaw + Math.PI;
+            var spawnDist = 40;
+            s.position.set(
+                camera.position.x + Math.sin(spawnAngle) * spawnDist,
+                camera.position.y,
+                camera.position.z + Math.cos(spawnAngle) * spawnDist
+            );
+            s.rotation.y = Math.random() * Math.PI * 2;
+            s.userData.velocity = new THREE.Vector3(0, 0, 0);
+            s.userData.legPhase = 0;
+            s.userData.isChaser = true;
+            s.scale.setScalar(1.5);
+            
+            // Make chaser sheep slightly red-tinted
+            s.traverse(child => {
+                if (child.isMesh && child.material.color) {
+                    if (child.material.color.getHex() === 0xf5f5f0) {
+                        child.material = child.material.clone();
+                        child.material.color.setHex(0xfff0f0);
+                    }
+                }
+            });
+            
+            scene.add(s);
+            sheep.push(s);
+            chaserSheep = s;
+        }
+        
+        function createSheep3D() {
+            var g = new THREE.Group();
+            var woolMat = new THREE.MeshLambertMaterial({ color: 0xf5f5f0 });
+            var faceMat = new THREE.MeshLambertMaterial({ color: 0x3a3a3a });
+            
+            var body = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), woolMat);
+            body.position.y = 0.4;
+            body.scale.set(1.2, 1, 1);
+            g.add(body);
+            
+            for (var i = 0; i < 5; i++) {
+                var fluff = new THREE.Mesh(new THREE.SphereGeometry(0.2, 6, 6), woolMat);
+                fluff.position.set(
+                    (Math.random() - 0.5) * 0.3,
+                    0.4 + (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.3
+                );
+                g.add(fluff);
+            }
+            
+            var head = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 8), faceMat);
+            head.position.set(0.5, 0.5, 0);
+            g.add(head);
+            
+            var eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+            var eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.05), eyeMat);
+            eye1.position.set(0.65, 0.55, 0.1);
+            g.add(eye1);
+            var eye2 = new THREE.Mesh(new THREE.SphereGeometry(0.05), eyeMat);
+            eye2.position.set(0.65, 0.55, -0.1);
+            g.add(eye2);
+            
+            var ear1 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.15), faceMat);
+            ear1.position.set(0.4, 0.6, 0.2);
+            g.add(ear1);
+            var ear2 = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.06, 0.15), faceMat);
+            ear2.position.set(0.4, 0.6, -0.2);
+            g.add(ear2);
+            
+            var legGeo = new THREE.CylinderGeometry(0.05, 0.05, 0.4);
+            var leg1 = new THREE.Mesh(legGeo, faceMat);
+            leg1.position.set(0.2, 0.2, 0.15);
+            leg1.name = 'frontLeft';
+            g.add(leg1);
+            var leg2 = new THREE.Mesh(legGeo, faceMat);
+            leg2.position.set(0.2, 0.2, -0.15);
+            leg2.name = 'frontRight';
+            g.add(leg2);
+            var leg3 = new THREE.Mesh(legGeo, faceMat);
+            leg3.position.set(-0.2, 0.2, 0.15);
+            leg3.name = 'backLeft';
+            g.add(leg3);
+            var leg4 = new THREE.Mesh(legGeo, faceMat);
+            leg4.position.set(-0.2, 0.2, -0.15);
+            leg4.name = 'backRight';
+            g.add(leg4);
+            
+            var tail = new THREE.Mesh(new THREE.SphereGeometry(0.1), woolMat);
+            tail.position.set(-0.45, 0.4, 0);
+            g.add(tail);
+            
+            return g;
+        }
+        
+        function updateSheep(dt, time) {
+            sheep.forEach(s => {
+                // Animate legs
+                var phase = s.userData.legPhase + time * 10;
+                s.children.forEach(child => {
+                    if (child.name === 'frontLeft' || child.name === 'backRight') {
+                        child.rotation.x = Math.sin(phase) * 0.5;
+                    } else if (child.name === 'frontRight' || child.name === 'backLeft') {
+                        child.rotation.x = Math.sin(phase + Math.PI) * 0.5;
+                    }
+                });
+                
+                if (s.userData.isChaser) {
+                    // Chaser sheep follows player
+                    var dx = camera.position.x - s.position.x;
+                    var dy = camera.position.y - s.position.y;
+                    var dz = camera.position.z - s.position.z;
+                    var dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+                    
+                    // Look at player - sheep head faces +X, so subtract PI/2
+                    s.rotation.y = Math.atan2(dx, dz) - Math.PI / 2;
+                    s.rotation.x = 0;
+                    s.rotation.z = 0;
+                    
+                    if (dist < 2.5 && !State.caught) {
+                        State.caught = true;
+                        sheepCaughtPlayer();
+                    }
+                    
+                    // Move towards player
+                    if (dist > 1) {
+                        var speed = 0.15;
+                        s.position.x += (dx / dist) * speed;
+                        s.position.y += (dy / dist) * speed;
+                        s.position.z += (dz / dist) * speed;
+                    }
+                } else {
+                    // Floating sheep drift randomly
+                    s.userData.turnTimer -= dt * 60;
+                    if (s.userData.turnTimer <= 0) {
+                        s.userData.turnTimer = 40 + Math.random() * 80;
+                        s.userData.velocity = new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.2,
+                            (Math.random() - 0.5) * 0.1,
+                            (Math.random() - 0.5) * 0.2
+                        );
+                    }
+                    
+                    // Apply velocity directly
+                    s.position.x += s.userData.velocity.x;
+                    s.position.y += s.userData.velocity.y;
+                    s.position.z += s.userData.velocity.z;
+                    
+                    // Add gentle bob
+                    s.position.y += Math.sin(time * s.userData.floatSpeed + s.userData.floatPhase) * 0.01;
+                    
+                    // Face direction of movement
+                    var vLen = s.userData.velocity.length();
+                    if (vLen > 0.01) {
+                        s.rotation.y = Math.atan2(s.userData.velocity.x, s.userData.velocity.z) - Math.PI / 2;
+                    }
+                    
+                    // Gentle tumbling
+                    s.rotation.x = Math.sin(time * 0.3 + s.userData.floatPhase) * 0.15;
+                    s.rotation.z = Math.cos(time * 0.2 + s.userData.floatPhase) * 0.1;
+                    
+                    // Keep sheep in bounds
+                    if (Math.abs(s.position.x) > 100) s.userData.velocity.x *= -1;
+                    if (Math.abs(s.position.y) > 50) s.userData.velocity.y *= -1;
+                    if (Math.abs(s.position.z) > 100) s.userData.velocity.z *= -1;
+                }
+            });
+        }
+        
+        function sheepCaughtPlayer() {
+            State.canMove = false;
+            State.canLook = false;
+            
+            // White flash
+            scene.background = new THREE.Color(0xffffff);
+            
+            // Fade to black and end
+            setTimeout(() => {
+                scene.background = new THREE.Color(0x000000);
+                // Remove all sheep
+                sheep.forEach(s => scene.remove(s));
+                sheep = [];
+                chaserSheep = null;
+            }, 800);
+        }
+
+
+        function updateDreamScene(time, dt) {
+            // Handle falling phase
+            if (State.phase === 'falling') {
+                updateFalling(dt);
+            }
+            
+            // Handle falling/floating camera pitch interpolation
+            if (State.phase === 'falling' || State.phase === 'floating') {
+                cameraPitch += (targetPitch - cameraPitch) * 0.05;
+                updateCamera();
+            }
+            
+            // Dream scene movement
+            if (State.canMove && State.locked) {
+                State.velocity.multiplyScalar(0.9);
+                var dir = new THREE.Vector3();
+                if (State.keys.w) dir.z -= 1;
+                if (State.keys.s) dir.z += 1;
+                if (State.keys.a) dir.x -= 1;
+                if (State.keys.d) dir.x += 1;
+                dir.normalize();
+                if (dir.length() > 0) {
+                    var forward = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    forward.y = 0;
+                    forward.normalize();
+                    var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    right.y = 0;
+                    right.normalize();
+                    var speed = State.phase === 'sheep' ? 0.04 : 0.02;
+                    State.velocity.addScaledVector(forward, -dir.z * speed);
+                    State.velocity.addScaledVector(right, dir.x * speed);
+                }
+                var maxV = State.phase === 'sheep' ? 0.2 : 0.1;
+                State.velocity.clampLength(0, maxV);
+                var newX = camera.position.x + State.velocity.x;
+                var newZ = camera.position.z + State.velocity.z;
+                var blocked = false;
+                for (var c of colliders) {
+                    if (Math.sqrt((newX - c.x) ** 2 + (newZ - c.z) ** 2) < c.r + 0.5) { blocked = true; break; }
+                }
+                if (!blocked && window.streamZ) {
+                    var onBridge = Math.abs(newX - window.bridgeX) < window.bridgeHalfWidth;
+                    var inStreamZone = Math.abs(newZ - window.streamZ) < 2.5;
+                    if (inStreamZone && !onBridge) {
+                        blocked = true;
+                    }
+                    if (inStreamZone && onBridge) {
+                        var atRailingEdge = Math.abs(newX - window.bridgeX) > (window.bridgeHalfWidth - 0.5);
+                        if (atRailingEdge) {
+                            var currentlyOnBridge = Math.abs(camera.position.x - window.bridgeX) < window.bridgeHalfWidth;
+                            if (currentlyOnBridge && Math.abs(newX) > Math.abs(camera.position.x)) {
+                                blocked = true;
+                            }
+                        }
+                    }
+                }
+                if (!blocked) {
+                    camera.position.x = newX;
+                    camera.position.z = newZ;
+                    if (State.phase !== 'sheep') {
+                        var onBridgeNow = window.streamZ && 
+                            Math.abs(newX - window.bridgeX) < window.bridgeHalfWidth &&
+                            Math.abs(newZ - window.streamZ) < window.bridgeHalfLength;
+                        
+                        var targetY;
+                        if (onBridgeNow) {
+                            var bridgeY = getTerrainHeight(window.bridgeX, window.streamZ) + 0.8;
+                            targetY = bridgeY + 1.7;
+                        } else {
+                            targetY = getTerrainHeight(newX, newZ) + 1.7;
+                        }
+                        camera.position.y += (targetY - camera.position.y) * 0.1;
+                    }
+                    if (State.phase === 'sheep') {
+                        camera.position.y = 0;
+                    }
+                }
+            }
+
+            // Animate fireflies
+            fireflies.forEach(ff => {
+                if (!ff.userData.basePos) return;
+                ff.position.y = ff.userData.basePos.y + Math.sin(time * ff.userData.speed + ff.userData.phase) * 0.4;
+                ff.position.x = ff.userData.basePos.x + Math.sin(time * ff.userData.speed * 0.7 + ff.userData.phase) * 0.2;
+                if (ff.children[1]) {
+                    ff.children[1].material.opacity = 0.5 + Math.sin(time * 3 + ff.userData.phase) * 0.4;
+                }
+            });
+
+            // Twinkle user-drawn 3D stars
+            stars2D.forEach(star => {
+                if (star.userData && star.userData.twinkleSpeed) {
+                    var twinkle = 0.6 + Math.sin(time * star.userData.twinkleSpeed + star.userData.phase) * 0.4;
+                    if (star.material) {
+                        star.material.opacity = twinkle;
+                    }
+                }
+            });
+
+            // Animate animals
+            animals.forEach(animal => {
+                if (animal.userData.animalType === 'rabbit') {
+                    animal.userData.hopTimer -= dt * 60;
+                    if (animal.userData.hopTimer <= 0) {
+                        animal.userData.hopTimer = 80 + Math.random() * 120;
+                    }
+                    var hopPhase = Math.max(0, 20 - animal.userData.hopTimer) / 20;
+                    if (hopPhase > 0 && hopPhase < 1) {
+                        animal.position.y = animal.userData.baseY + Math.sin(hopPhase * Math.PI) * 0.15;
+                    }
+                } else if (animal.userData.animalType === 'owl') {
+                    animal.userData.blinkTimer -= dt * 60;
+                    if (animal.userData.blinkTimer <= 0) {
+                        animal.userData.blinkTimer = 150 + Math.random() * 200;
+                    }
+                    animal.rotation.y = Math.sin(time * 0.5) * 0.2;
+                } else if (animal.userData.animalType === 'frog') {
+                    var breathe = 1 + Math.sin(time * 2 + animal.userData.croakTimer) * 0.1;
+                    animal.scale.y = 0.6 * breathe;
+                }
+            });
+
+            // Animate stream ripples
+            if (streamMesh && State.phase !== 'sheep') {
+                var positions = streamMesh.geometry.attributes.position.array;
+                var streamZ = 35;
+                var segmentsX = 80;
+                var segmentsZ = 4;
+                
+                var idx = 0;
+                for (var iz = 0; iz <= segmentsZ; iz++) {
+                    for (var ix = 0; ix <= segmentsX; ix++) {
+                        var x = positions[idx];
+                        var z = positions[idx + 2];
+                        var baseY = getTerrainHeight(x, z) + 0.08;
+                        var ripple = Math.sin(x * 0.3 + time * 2.5) * 0.06 + 
+                                       Math.sin(x * 0.15 - time * 1.5) * 0.04 +
+                                       Math.sin(z * 0.5 + time * 3) * 0.02;
+                        positions[idx + 1] = baseY + ripple;
+                        idx += 3;
+                    }
+                }
+                streamMesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            // Update sheep
+            if (State.phase === 'sheep') {
+                updateSheep(dt, time);
+            }
+        }
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.connect(audioCtx.destination);
+            masterGain.gain.value = 0.3;
+        }
+
+        function playNoise(type, freq, vol) {
+            if (!audioCtx) return;
+            var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+            var data = buf.getChannelData(0);
+            for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+            var src = audioCtx.createBufferSource();
+            src.buffer = buf;
+            src.loop = true;
+            var flt = audioCtx.createBiquadFilter();
+            flt.type = type;
+            flt.frequency.value = freq;
+            var gain = audioCtx.createGain();
+            gain.gain.value = vol;
+            src.connect(flt);
+            flt.connect(gain);
+            gain.connect(masterGain);
+            src.start();
+        }
+
+        function playTwinkle() {
+            if (!audioCtx) return;
+            var osc = audioCtx.createOscillator();
+            var gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 800 + Math.random() * 400;
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+            osc.connect(gain);
+            gain.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+        }
+
+        function showPrompt(text) {
+            var el = document.getElementById('darkness-prompt');
+            el.innerHTML = text;
+            el.classList.add('visible');
+        }
+
+        function hidePrompt() {
+            document.getElementById('darkness-prompt').classList.remove('visible');
+        }
+
+        
+    </script>
+
+function moduleInit(parentElement){
     container=parentElement;
     stageWidth=StageController.stageWidth;
     stageHeight=StageController.stageHeight;
-    parentElement.innerHTML='<div id="darkness-con" class="contents-data" style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;background:#1a1a2e;"><div id="darkness-canvas-container" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;"></div><div class="prompt-overlay" id="darkness-prompt" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:1.8rem;text-align:center;pointer-events:none;z-index:50;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 20px rgba(255,255,255,0.5);font-family:Georgia,serif;"></div><div id="darkness-crosshair" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;z-index:40;pointer-events:none;"><div style="position:absolute;background:rgba(255,255,255,0.5);width:2px;height:20px;left:9px;"></div><div style="position:absolute;background:rgba(255,255,255,0.5);width:20px;height:2px;top:9px;"></div></div><div id="darkness-interaction-hint" style="position:absolute;bottom:100px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.8);font-size:1rem;z-index:50;opacity:0;transition:opacity 0.3s ease;text-shadow:0 2px 4px rgba(0,0,0,0.8);"></div><div id="darkness-lights-remaining" style="position:absolute;top:20px;right:20px;color:rgba(255,255,255,0.7);font-size:1rem;z-index:50;"></div><div id="darkness-fade-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;background:black;z-index:100;opacity:0;pointer-events:none;transition:opacity 1s ease;"></div><div id="darkness-star-count" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);color:white;font-size:1.5rem;z-index:50;display:none;text-shadow:0 0 10px rgba(255,255,255,0.5);">Stars: <span id="darkness-count">0</span></div></div>';
+    parentElement.innerHTML='<div id="darkness-con" class="contents-data" style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;background:#1a1a2e;"><div id="darkness-canvas-container" style="position:absolute;top:0;left:0;width:100%;height:100%;z-index:1;"></div><div class="prompt-overlay" id="darkness-prompt" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:white;font-size:1.8rem;text-align:center;pointer-events:none;z-index:50;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 20px rgba(255,255,255,0.5);font-family:Georgia,serif;"></div><div id="darkness-crosshair" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:20px;height:20px;z-index:40;pointer-events:none;"><div style="position:absolute;background:rgba(255,255,255,0.5);width:2px;height:20px;left:9px;"></div><div style="position:absolute;background:rgba(255,255,255,0.5);width:20px;height:2px;top:9px;"></div></div><div id="darkness-interaction-hint" style="position:absolute;bottom:100px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.8);font-size:1rem;z-index:50;opacity:0;transition:opacity 0.3s ease;text-shadow:0 2px 4px rgba(0,0,0,0.8);"></div><div id="darkness-lights-remaining" style="position:absolute;top:20px;right:20px;color:rgba(255,255,255,0.7);font-size:1rem;z-index:50;"></div><div id="darkness-fade-overlay" style="position:absolute;top:0;left:0;width:100%;height:100%;background:black;z-index:100;opacity:0;pointer-events:none;transition:opacity 1s ease;"></div><div id="darkness-star-count" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);color:white;font-size:1.5rem;z-index:50;display:none;text-shadow:0 0 10px rgba(255,255,255,0.5);">Stars: <span id="darkness-count">0</span></div><div id="darkness-editor-mode-hint" style="position:absolute;top:10px;left:50%;transform:translateX(-50%);background:rgba(100,50,50,0.9);color:white;padding:8px 20px;border-radius:5px;z-index:150;display:none;font-family:Arial;">EDITOR MODE - Press Tab to exit</div><div id="darkness-editor-panel" style="position:absolute;top:10px;left:10px;background:rgba(0,0,0,0.85);color:white;padding:15px;border-radius:8px;z-index:150;width:260px;font-size:12px;font-family:Arial,sans-serif;display:none;"><h3 style="color:#8cf;margin:8px 0 5px;font-size:13px;">Editor Mode</h3><p style="color:#888;font-size:10px;">Look at object + E to select | G to grab | Arrow keys to move</p><h3 style="color:#8cf;margin:8px 0 5px;font-size:13px;">Selected</h3><div id="darkness-editor-selected">None - look at object and press E</div><h3 style="color:#8cf;margin:8px 0 5px;font-size:13px;">Changes Log</h3><div id="darkness-editor-changes" style="background:#112;padding:8px;border-radius:5px;max-height:150px;overflow-y:auto;font-family:monospace;font-size:10px;color:#0f0;margin-top:8px;">No changes yet</div></div></div>';
     isPaused=false;
     StageController.addResize("Darkness",handleResize);
 }
 
-function start(){
-    loadThreeJS(initScene);
-}
-
-function initScene(){
-    console.log('Darkness initScene called. THREE:', !!THREE);
-    State.velocity=new THREE.Vector3();
-    State.phase='intro';
-    State.locked=false;
-    State.canMove=true;
-    State.canLook=true;
-    State.lightsOn=[];
-    State.totalLights=0;
-    State.starCount=0;
-    State.caught=false;
-    raycaster=new THREE.Raycaster();
-    isDreamScene=false;
-    groundObjects=[];houseObjects=[];fireflies=[];colliders=[];animals=[];sheep=[];stars2D=[];
-    lights=[];lamps=[];lightSwitches=[];electronics=[];interactables=[];editorObjects=[];
-    editorObjectCounter=0;cameraYaw=0;cameraPitch=0;time=0;
-
-    var canvasContainer=document.getElementById('darkness-canvas-container');
-    if(!canvasContainer){console.error('Canvas container not found');return;}
-    renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
-    renderer.setClearColor(0x1a1a2e);
-    renderer.setSize(stageWidth,stageHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-    renderer.shadowMap.enabled=true;
-    var canvas=renderer.domElement;
-    canvas.style.display='block';
-    canvas.style.position='absolute';
-    canvas.style.top='0';
-    canvas.style.left='0';
-    canvas.style.zIndex='1';
-    canvasContainer.appendChild(canvas);
-
-    camera=new THREE.PerspectiveCamera(70,stageWidth/stageHeight,0.1,100);
-    flashlight=new THREE.SpotLight(0xffffee,2,20,Math.PI/6,0.3,1);
-    flashlight.visible=false;
-    camera.add(flashlight);
-    flashlight.position.set(0,0,0);
-    flashlight.target.position.set(0,0,-1);
-    camera.add(flashlight.target);
-
-    createHouse();
-    scene.add(camera);
-    setupEventListeners();
-    startIntro();
-    animate();
-}
-
-function setupEventListeners(){
-    document.addEventListener('pointerlockchange',onPointerLockChange);
-    document.addEventListener('mousemove',onMouseMove);
-    document.addEventListener('keydown',onKeyDown);
-    document.addEventListener('keyup',onKeyUp);
-    document.addEventListener('click',onClick);
-}
-
-function removeEventListeners(){
-    document.removeEventListener('pointerlockchange',onPointerLockChange);
-    document.removeEventListener('mousemove',onMouseMove);
-    document.removeEventListener('keydown',onKeyDown);
-    document.removeEventListener('keyup',onKeyUp);
-    document.removeEventListener('click',onClick);
-}
-
-function onPointerLockChange(){State.locked=document.pointerLockElement!==null;}
-
-function onKeyDown(e){
-    if(isPaused)return;
-    if(!editorGrabbing){
-        if(e.code==='KeyW'||e.code==='ArrowUp')State.keys.w=true;
-        if(e.code==='KeyA'||e.code==='ArrowLeft')State.keys.a=true;
-        if(e.code==='KeyS'||e.code==='ArrowDown')State.keys.s=true;
-        if(e.code==='KeyD'||e.code==='ArrowRight')State.keys.d=true;
-        if(e.code==='KeyF'&&flashlight&&(State.phase==='scared'||State.phase==='turnOnLights'||State.phase==='turnOffLights2'||State.phase==='goToBed2')){
-            flashlight.visible=!flashlight.visible;
-        }
-    }
-}
-
-function onKeyUp(e){
-    if(e.code==='KeyW'||e.code==='ArrowUp')State.keys.w=false;
-    if(e.code==='KeyA'||e.code==='ArrowLeft')State.keys.a=false;
-    if(e.code==='KeyS'||e.code==='ArrowDown')State.keys.s=false;
-    if(e.code==='KeyD'||e.code==='ArrowRight')State.keys.d=false;
-}
-
-function onMouseMove(e){
-    if(!State.locked||!State.canLook||isPaused)return;
-    cameraYaw-=e.movementX*0.002;
-    if(isDreamScene&&State.phase!=='falling'&&State.phase!=='floating'){
-        cameraPitch-=e.movementY*0.002;
-        cameraPitch=Math.max(-Math.PI/2,Math.min(Math.PI/2,cameraPitch));
-        if(State.phase==='dream_lookUp'){
-            if(cameraPitch>1.0&&cameraPitch<1.5){showPrompt('Keep looking up...');}
-            if(cameraPitch>1.5){startFalling();}
-        }
-    }else if(!isDreamScene){
-        cameraPitch-=e.movementY*0.002;
-        cameraPitch=Math.max(-Math.PI/2.5,Math.min(Math.PI/2.5,cameraPitch));
-    }
-    updateCamera();
-}
-
-function onClick(e){
-    if(isPaused)return;
-    if(State.phase==='drawing'){addStar3D(e.clientX,e.clientY);return;}
-    if(!State.locked){
-        var canvasEl=document.getElementById('darkness-canvas-container').querySelector('canvas');
-        if(canvasEl)canvasEl.requestPointerLock();
-        if(State.phase==='dream_lookUp'){setTimeout(function(){showPrompt('Look up at the stars...');},100);}
-        return;
-    }
-    if(!State.canInteract)return;
-    raycaster.setFromCamera(new THREE.Vector2(0,0),camera);
-    for(var i=0;i<lightSwitches.length;i++){
-        var sw=lightSwitches[i];
-        var dist=camera.position.distanceTo(sw.position);
-        if(dist<3){
-            var intersects=raycaster.intersectObjects(sw.children,true);
-            if(intersects.length>0){toggleLight(sw.userData.room);return;}
-        }
-    }
-    if(State.phase==='goToBed1'||State.phase==='goToBed2'){
-        var bedPos=new THREE.Vector3(-14.9,1.6,-2.4);
-        var bedDist=camera.position.distanceTo(bedPos);
-        if(bedDist<4){goToBed(State.phase==='goToBed1');}
-    }
-}
-
-function updateCamera(){
-    camera.rotation.order='YXZ';
-    camera.rotation.y=cameraYaw;
-    camera.rotation.x=cameraPitch;
-}
-
-
-function createHouse(){
-    scene=new THREE.Scene();
-    scene.background=new THREE.Color(0x1a1a2e);
-    console.log('Creating house scene');
-    var testCube=new THREE.Mesh(new THREE.BoxGeometry(2,2,2),new THREE.MeshBasicMaterial({color:0xff0000}));
-    testCube.position.set(0,1,6);scene.add(testCube);
-    console.log('Added test cube at z=6, camera will be at z=3 facing +Z');
-    var W=HOUSE.width,D=HOUSE.depth,H=HOUSE.height,T=HOUSE.wallThick;
-    var floorMat=new THREE.MeshLambertMaterial({color:0x6a5040});
-    var ceilingMat=new THREE.MeshLambertMaterial({color:0xfafafa});
-    var wallMat=new THREE.MeshLambertMaterial({color:0xe8e0d5});
-    var bedroomWallMat=new THREE.MeshLambertMaterial({color:0xd5dde8});
-    var kitchenWallMat=new THREE.MeshLambertMaterial({color:0xf0ebe5});
-    
-    var floor=new THREE.Mesh(new THREE.PlaneGeometry(W,D),floorMat);
-    floor.rotation.x=-Math.PI/2;floor.position.y=0;scene.add(floor);
-    for(var x=-W/2;x<W/2;x+=0.6){
-        var line=new THREE.Mesh(new THREE.PlaneGeometry(0.02,D),new THREE.MeshLambertMaterial({color:0x4a3020}));
-        line.rotation.x=-Math.PI/2;line.position.set(x,0.002,0);scene.add(line);
-    }
-    var ceiling=new THREE.Mesh(new THREE.PlaneGeometry(W,D),ceilingMat);
-    ceiling.rotation.x=Math.PI/2;ceiling.position.y=H;scene.add(ceiling);
-    
-    addWall(0,H/2,-D/2-T/2,W+T,H,T,wallMat);
-    addWall(0,H/2,D/2+T/2,W+T,H,T,wallMat);
-    addWall(-W/2-T/2,H/2,0,T,H,D+T,bedroomWallMat);
-    addWall(W/2+T/2,H/2,0,T,H,D+T,kitchenWallMat);
-    
-    var bedroomX=HOUSE.bedroomWallX,kitchenX=HOUSE.kitchenWallX;
-    var doorW=HOUSE.doorWidth,doorH=HOUSE.doorHeight,doorZ=-3,wallT=0.25;
-    var bedroomBackLen=(D/2)-Math.abs(doorZ)-doorW/2;
-    var bedroomBackZ=-D/2+bedroomBackLen/2;
-    addWall(bedroomX,H/2,bedroomBackZ,wallT,H,bedroomBackLen,wallMat);
-    var aboveDoorH=H-doorH;
-    addWall(bedroomX,doorH+aboveDoorH/2,doorZ,wallT,aboveDoorH,doorW+0.3,wallMat);
-    var bedroomFrontStart=doorZ+doorW/2,bedroomFrontEnd=D/2;
-    var bedroomFrontLenCalc=bedroomFrontEnd-bedroomFrontStart;
-    var bedroomFrontZ=bedroomFrontStart+bedroomFrontLenCalc/2;
-    addWall(bedroomX,H/2,bedroomFrontZ,wallT,H,bedroomFrontLenCalc,wallMat);
-    addDoorFrame(bedroomX,doorZ,'bedroom');
-    addWall(kitchenX,H/2,bedroomBackZ,wallT,H,bedroomBackLen,wallMat);
-    
-    addWindow(0,1.8,D/2-0.15,2,1.5,0);
-    addWindow(-W/2+0.15,1.8,-6,1.8,1.4,Math.PI/2);
-    addWindow(12,1.8,-D/2+0.15,1.5,1.2,0);
-    
-    camera.position.set(0,1.6,3);cameraYaw=Math.PI;cameraPitch=0;updateCamera();
-    
-    createLivingRoom();createBedroom();createKitchen();createHallway();createCreepyEyes();
-    var ambient=new THREE.AmbientLight(0x8080a0,0.5);scene.add(ambient);
-    var dirLight=new THREE.DirectionalLight(0xffffff,0.4);dirLight.position.set(5,10,5);scene.add(dirLight);
-    updateLightsUI();
-}
-
-function addWall(x,y,z,w,h,d,mat){var wall=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);wall.position.set(x,y,z);scene.add(wall);return wall;}
-
-function addDoorFrame(x,z,name){
-    var frameMat=new THREE.MeshLambertMaterial({color:0xffffff});
-    var doorW=HOUSE.doorWidth,doorH=HOUSE.doorHeight;
-    var left=new THREE.Mesh(new THREE.BoxGeometry(0.08,doorH,0.12),frameMat);left.position.set(x,doorH/2,z-doorW/2);scene.add(left);
-    var right=new THREE.Mesh(new THREE.BoxGeometry(0.08,doorH,0.12),frameMat);right.position.set(x,doorH/2,z+doorW/2);scene.add(right);
-    var top=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.08,doorW+0.16),frameMat);top.position.set(x,doorH+0.04,z);scene.add(top);
-    if(name==='bedroom'){
-        var doorMat=new THREE.MeshLambertMaterial({color:0xf5f0e8});
-        var door=new THREE.Mesh(new THREE.BoxGeometry(0.05,doorH-0.1,doorW-0.1),doorMat);door.position.set(x,doorH/2,z);scene.add(door);
-    }
-}
-
-function addWindow(x,y,z,w,h,rotY){
-    var group=new THREE.Group();
-    var frameMat=new THREE.MeshLambertMaterial({color:0xffffff});
-    var glass=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:0x4a6a8a,transparent:true,opacity:0.7,side:THREE.DoubleSide}));
-    group.add(glass);
-    var frameT=0.06;
-    var topF=new THREE.Mesh(new THREE.BoxGeometry(w+0.1,frameT,0.08),frameMat);topF.position.y=h/2;group.add(topF);
-    var bottomF=new THREE.Mesh(new THREE.BoxGeometry(w+0.1,frameT,0.08),frameMat);bottomF.position.y=-h/2;group.add(bottomF);
-    var leftF=new THREE.Mesh(new THREE.BoxGeometry(frameT,h,0.08),frameMat);leftF.position.x=-w/2;group.add(leftF);
-    var rightF=new THREE.Mesh(new THREE.BoxGeometry(frameT,h,0.08),frameMat);rightF.position.x=w/2;group.add(rightF);
-    var crossH=new THREE.Mesh(new THREE.BoxGeometry(w,0.04,0.04),frameMat);crossH.position.z=0.02;group.add(crossH);
-    var crossV=new THREE.Mesh(new THREE.BoxGeometry(0.04,h,0.04),frameMat);crossV.position.z=0.02;group.add(crossV);
-    var sill=new THREE.Mesh(new THREE.BoxGeometry(w+0.2,0.05,0.15),frameMat);sill.position.set(0,-h/2-0.03,0.08);group.add(sill);
-    group.position.set(x,y,z);group.rotation.y=rotY;scene.add(group);
-}
-
-function addBox(x,y,z,w,h,d,mat,name){
-    var box=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);
-    box.position.set(x,y,z);
-    box.name=name||('Box_'+(editorObjectCounter++));
-    box.userData.editable=true;
-    box.userData.originalPos={x:x,y:y,z:z};
-    box.userData.dimensions={w:w,h:h,d:d};
-    scene.add(box);editorObjects.push(box);
-    return box;
-}
-
-function createLivingRoom(){
-    var darkWood=new THREE.MeshLambertMaterial({color:0x3a2a1a});
-    var lightWood=new THREE.MeshLambertMaterial({color:0x8b7355});
-    var fabric=new THREE.MeshLambertMaterial({color:0x5a6478});
-    var cushion=new THREE.MeshLambertMaterial({color:0x7a8a9a});
-    var metal=new THREE.MeshLambertMaterial({color:0x888888});
-    var tvZ=-8.4;
-    addBox(0,0.3,tvZ,2.5,0.6,0.5,darkWood);
-    addBox(0,1.25,tvZ,2.2,1.3,0.1,new THREE.MeshLambertMaterial({color:0x111111}));
-    var screen=new THREE.Mesh(new THREE.PlaneGeometry(2,1.1),new THREE.MeshBasicMaterial({color:0x0a0a0a}));screen.position.set(0,1.25,tvZ+0.06);scene.add(screen);
-    createElectronic(0.95,0.55,tvZ+0.26,'TV standby');
-    addBox(-0.8,0.65,tvZ+0.1,0.3,0.05,0.2,new THREE.MeshLambertMaterial({color:0x222222}));
-    createElectronic(-0.85,0.68,tvZ+0.2,'Router LED');
-    createElectronic(-0.75,0.68,tvZ+0.2,'Router LED 2');
-    var couchX=0,couchZ=-4;
-    addBox(couchX,0.35,couchZ,3.2,0.5,1.1,fabric);
-    addBox(couchX,0.85,couchZ+0.55,3.2,0.7,0.2,fabric);
-    addBox(couchX-1.5,0.55,couchZ,0.2,0.5,1.1,fabric);
-    addBox(couchX+1.5,0.55,couchZ,0.2,0.5,1.1,fabric);
-    for(var i=-1;i<=1;i++){addBox(couchX+i,0.65,couchZ-0.1,0.9,0.15,0.85,cushion);}
-    addBox(couchX-1.2,0.75,couchZ-0.2,0.35,0.35,0.1,new THREE.MeshLambertMaterial({color:0x8a5a4a}));
-    addBox(couchX+1.2,0.75,couchZ-0.2,0.35,0.35,0.1,new THREE.MeshLambertMaterial({color:0x5a7a6a}));
-    var ctZ=-6;
-    addBox(0,0.4,ctZ,1.4,0.06,0.8,lightWood);
-    addBox(-0.55,0.18,ctZ-0.3,0.05,0.35,0.05,metal);
-    addBox(0.55,0.18,ctZ-0.3,0.05,0.35,0.05,metal);
-    addBox(-0.55,0.18,ctZ+0.3,0.05,0.35,0.05,metal);
-    addBox(0.55,0.18,ctZ+0.3,0.05,0.35,0.05,metal);
-    addBox(0.3,0.46,ctZ,0.3,0.08,0.22,new THREE.MeshLambertMaterial({color:0x2f4f4f}));
-    addBox(0.25,0.52,ctZ,0.25,0.06,0.18,new THREE.MeshLambertMaterial({color:0x8b0000}));
-    var stX=2.3,stZ=-4;
-    addBox(stX,0.3,stZ,0.5,0.6,0.5,darkWood);
-    createTableLamp(stX,0.6,stZ,'living');
-    createFloorLamp(-2.5,0,-4,'living');
-    createFloorLamp(6.9,0,-7,'living');
-    createCeilingLight(0,HOUSE.height-0.1,-2,'living');
-    createLightSwitch(-5.8,1.2,-1.5,'living',Math.PI/2);
-    createElectronic(0,HOUSE.height-0.1,-5,'Smoke detector LED');
-}
-
-function createTableLamp(x,y,z,room){
-    var lampGroup=new THREE.Group();
-    var baseMat=new THREE.MeshLambertMaterial({color:0x4a4a4a});
-    var shadeMat=new THREE.MeshLambertMaterial({color:0xf5e6d3,side:THREE.DoubleSide});
-    var base=new THREE.Mesh(new THREE.CylinderGeometry(0.08,0.1,0.04,16),baseMat);base.position.y=0.02;lampGroup.add(base);
-    var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.35,8),baseMat);pole.position.y=0.22;lampGroup.add(pole);
-    var shade=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.18,0.2,16),shadeMat);shade.position.y=0.48;lampGroup.add(shade);
-    var bulb=new THREE.Mesh(new THREE.SphereGeometry(0.05,8,8),new THREE.MeshBasicMaterial({color:0xffffee,transparent:true,opacity:0.8}));
-    bulb.position.y=0.42;bulb.userData.shade=true;lampGroup.add(bulb);
-    lampGroup.position.set(x,y,z);scene.add(lampGroup);
-    var light=new THREE.PointLight(0xfff5e6,0.6,8);light.position.set(x,y+0.5,z);scene.add(light);
-    lamps.push({light:light,bulb:bulb,room:room,group:lampGroup});
-}
-
-function createFloorLamp(x,y,z,room){
-    var lampGroup=new THREE.Group();
-    var baseMat=new THREE.MeshLambertMaterial({color:0x3a3a3a});
-    var shadeMat=new THREE.MeshLambertMaterial({color:0xf0e0c8,side:THREE.DoubleSide});
-    var base=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.18,0.04,16),baseMat);base.position.y=0.02;lampGroup.add(base);
-    var pole=new THREE.Mesh(new THREE.CylinderGeometry(0.025,0.025,1.5,8),baseMat);pole.position.y=0.77;lampGroup.add(pole);
-    var shade=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.25,0.3,16),shadeMat);shade.position.y=1.6;lampGroup.add(shade);
-    var bulb=new THREE.Mesh(new THREE.SphereGeometry(0.08,8,8),new THREE.MeshBasicMaterial({color:0xffffee,transparent:true,opacity:0.8}));
-    bulb.position.y=1.5;bulb.userData.shade=true;lampGroup.add(bulb);
-    lampGroup.position.set(x,y,z);scene.add(lampGroup);editorObjects.push(lampGroup);
-    var light=new THREE.PointLight(0xfff5e6,0.8,10);light.position.set(x,y+1.6,z);scene.add(light);
-    lamps.push({light:light,bulb:bulb,room:room,group:lampGroup});
-}
-
-function createCeilingLight(x,y,z,room){
-    var fixture=new THREE.Group();
-    var base=new THREE.Mesh(new THREE.CylinderGeometry(0.18,0.18,0.06,16),new THREE.MeshLambertMaterial({color:0x888888}));
-    fixture.add(base);
-    var shade=new THREE.Mesh(new THREE.SphereGeometry(0.3,16,16),new THREE.MeshBasicMaterial({color:0xffffee,transparent:true,opacity:0.9}));
-    shade.position.y=-0.25;shade.userData.shade=true;fixture.add(shade);
-    fixture.position.set(x,y,z);scene.add(fixture);
-    var light=new THREE.PointLight(0xfff5e6,1,18);light.position.set(x,y-0.35,z);scene.add(light);
-    lights.push({light:light,shade:shade,room:room,fixture:fixture});
-    State.lightsOn.push(room);State.totalLights++;
-}
-
-function createLightSwitch(x,y,z,room,rotY){
-    var switchGroup=new THREE.Group();
-    var plate=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.12,0.02),new THREE.MeshLambertMaterial({color:0xf5f5f0}));
-    switchGroup.add(plate);
-    var toggle=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.05,0.025),new THREE.MeshLambertMaterial({color:0xffffff}));
-    toggle.position.y=0.02;toggle.position.z=0.01;toggle.userData.isToggle=true;switchGroup.add(toggle);
-    var glowDot=new THREE.Mesh(new THREE.SphereGeometry(0.008,8,8),new THREE.MeshBasicMaterial({color:0x88ffaa,transparent:true,opacity:0.9}));
-    glowDot.position.set(0,-0.04,0.015);switchGroup.add(glowDot);
-    var glowLight=new THREE.PointLight(0x88ffaa,0.15,1.5);glowLight.position.set(0,0,0.05);switchGroup.add(glowLight);
-    switchGroup.userData.glowDot=glowDot;switchGroup.userData.glowLight=glowLight;
-    switchGroup.position.set(x,y,z);switchGroup.rotation.y=rotY;
-    switchGroup.userData.room=room;switchGroup.userData.type='switch';
-    scene.add(switchGroup);lightSwitches.push(switchGroup);interactables.push(switchGroup);
-}
-
-function createElectronic(x,y,z,name){
-    var led=new THREE.Mesh(new THREE.SphereGeometry(0.025,8,8),new THREE.MeshBasicMaterial({color:0xff0000}));
-    led.position.set(x,y,z);led.visible=false;
-    var glow=new THREE.PointLight(0xff0000,0,2);glow.position.copy(led.position);scene.add(glow);
-    var outline=new THREE.Mesh(new THREE.SphereGeometry(0.06,8,8),new THREE.MeshBasicMaterial({color:0x00ff00,transparent:true,opacity:0,wireframe:true}));
-    outline.position.copy(led.position);scene.add(outline);
-    led.userData={glow:glow,outline:outline,name:name};
-    scene.add(led);electronics.push(led);
-}
-
-
-function createBedroom(){
-    var darkWood=new THREE.MeshLambertMaterial({color:0x4a3628});
-    var lightWood=new THREE.MeshLambertMaterial({color:0x8b7355});
-    var fabric=new THREE.MeshLambertMaterial({color:0x5a5a7a});
-    bed=new THREE.Group();var bx=-12,bz=-2.5;
-    addBox(bx,0.3,bz,2.1,0.6,2.2,darkWood);
-    addBox(bx,0.7,bz,1.9,0.15,2,new THREE.MeshLambertMaterial({color:0xffffff}));
-    addBox(bx,0.82,bz+0.6,1.7,0.1,0.6,new THREE.MeshLambertMaterial({color:0xeeeeee}));
-    addBox(bx-0.6,0.85,bz+0.7,0.4,0.08,0.4,new THREE.MeshLambertMaterial({color:0xeeeeee}));
-    addBox(bx+0.6,0.85,bz+0.7,0.4,0.08,0.4,new THREE.MeshLambertMaterial({color:0xeeeeee}));
-    addBox(bx,0.85,bz-0.6,1.85,0.2,0.6,new THREE.MeshLambertMaterial({color:0x4a5a7a}));
-    addBox(bx,1.1,bz+0.95,2.05,0.7,0.15,darkWood);
-    addBox(bx,0.35,bz-1.05,2.05,0.25,0.15,darkWood);
-    var interactableBed=new THREE.Mesh(new THREE.BoxGeometry(2.1,0.7,2.2),new THREE.MeshBasicMaterial({visible:false}));
-    interactableBed.position.set(bx,0.7,bz);interactableBed.userData.type='bed';scene.add(interactableBed);interactables.push(interactableBed);
-    var nsX=-15.2,nsZ=-4;
-    addBox(nsX,0.35,nsZ,0.6,0.7,0.5,darkWood);
-    var nsDoorG=new THREE.Group();
-    var nsDoor=new THREE.Mesh(new THREE.BoxGeometry(0.02,0.5,0.4),darkWood);nsDoor.position.z=-0.2;nsDoorG.add(nsDoor);
-    nsDoorG.position.set(nsX+0.3,0.35,nsZ+0.05);nsDoorG.rotation.y=0;scene.add(nsDoorG);
-    var nsTop=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.04,0.5),lightWood);nsTop.position.set(nsX,0.72,nsZ);scene.add(nsTop);
-    createTableLamp(nsX,0.74,nsZ,'bedroom');
-    createElectronic(nsX-0.05,0.75,nsZ+0.22,'Alarm clock');
-    var dresserX=-15.3,dresserZ=4;
-    addBox(dresserX,0.45,dresserZ,0.7,0.9,1.2,darkWood);
-    addBox(dresserX+0.38,0.65,dresserZ,0.02,0.25,1,darkWood);
-    var mirrorFrame=new THREE.Mesh(new THREE.BoxGeometry(0.05,1,0.8),darkWood);mirrorFrame.position.set(dresserX+0.38,1.4,dresserZ);scene.add(mirrorFrame);
-    var mirror=new THREE.Mesh(new THREE.PlaneGeometry(0.02,0.9,0.7),new THREE.MeshBasicMaterial({color:0x8899aa}));mirror.position.set(dresserX+0.36,1.4,dresserZ);mirror.rotation.y=Math.PI/2;scene.add(mirror);
-    createCeilingLight(-12,HOUSE.height-0.1,0,'bedroom');
-    createLightSwitch(-6.4,1.2,-2.2,'bedroom',-Math.PI/2);
-    createElectronic(-10.3,0.75,-4,'Phone charger');
-}
-
-function createKitchen(){
-    var cabinetMat=new THREE.MeshLambertMaterial({color:0xfaf8f5});
-    var counterMat=new THREE.MeshLambertMaterial({color:0x4a4a4a});
-    var applianceMat=new THREE.MeshLambertMaterial({color:0xd0d0d0});
-    var counterX=12,counterZ=-8;
-    addBox(counterX,0.45,counterZ,5,0.9,0.7,cabinetMat);
-    addBox(counterX,0.92,counterZ,5.05,0.05,0.75,counterMat);
-    addBox(counterX-2,0.95,counterZ+0.2,0.4,0.01,0.25,applianceMat);
-    addBox(counterX-2,1.02,counterZ+0.15,0.35,0.15,0.2,applianceMat);
-    createElectronic(counterX-1.8,1.2,counterZ+0.1,'Microwave display');
-    addBox(counterX+0.5,1.1,counterZ+0.2,0.25,0.35,0.2,applianceMat);
-    addBox(counterX+0.5,1.32,counterZ+0.2,0.18,0.08,0.18,new THREE.MeshLambertMaterial({color:0x3a3a3a}));
-    addBox(counterX+0.5,1.4,counterZ+0.2,0.08,0.08,0.08,new THREE.MeshBasicMaterial({color:0x333333}));
-    createElectronic(counterX+0.4,1.15,counterZ+0.32,'Coffee maker');
-    var sinkZ=-3.5;
-    addBox(counterX,0.45,sinkZ,5,0.9,0.7,cabinetMat);
-    addBox(counterX,0.92,sinkZ,5.05,0.05,0.75,counterMat);
-    var sink=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.02,0.5),new THREE.MeshLambertMaterial({color:0x888888}));sink.position.set(counterX,0.91,sinkZ);scene.add(sink);
-    var sinkBasin=new THREE.Mesh(new THREE.BoxGeometry(0.7,0.15,0.4),new THREE.MeshBasicMaterial({color:0x4a4a4a}));sinkBasin.position.set(counterX,0.83,sinkZ);scene.add(sinkBasin);
-    var faucet=new THREE.Mesh(new THREE.CylinderGeometry(0.02,0.02,0.25,8),new THREE.MeshLambertMaterial({color:0xaaaaaa}));faucet.position.set(counterX+0.35,1.05,sinkZ);scene.add(faucet);
-    var faucetArm=new THREE.Mesh(new THREE.CylinderGeometry(0.015,0.015,0.15,8),new THREE.MeshLambertMaterial({color:0xaaaaaa}));faucetArm.rotation.z=Math.PI/2;faucetArm.position.set(counterX+0.28,1.15,sinkZ);scene.add(faucetArm);
-    addBox(12.5,0.45,1,0.7,0.9,0.8,cabinetMat);
-    addBox(12.5,0.92,1,0.75,0.05,0.85,counterMat);
-    addBox(14.8,1,0,1.2,2,0.85,applianceMat);
-    addBox(14.8,0.85,0.44,1.15,0.04,0.02,new THREE.MeshLambertMaterial({color:0x555555}));
-    var fridgeHandle=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.4,0.04),new THREE.MeshLambertMaterial({color:0x888888}));fridgeHandle.position.set(14.2,1.2,0.44);scene.add(fridgeHandle);
-    createElectronic(14.5,1.8,0.44,'Fridge display');
-    addBox(counterX-1,HOUSE.height-0.4,-8,1.2,0.8,0.45,cabinetMat);
-    addBox(counterX+1.5,HOUSE.height-0.4,-8,1.2,0.8,0.45,cabinetMat);
-    addBox(counterX,HOUSE.height-0.4,-3.5,3,0.8,0.45,cabinetMat);
-    createCeilingLight(12,HOUSE.height-0.1,-4,'kitchen');
-    createLightSwitch(8.4,1.2,-3.5,'kitchen',-Math.PI/2);
-}
-
-function createHallway(){
-    var rugMat=new THREE.MeshLambertMaterial({color:0x8a6a4a});
-    var rug=new THREE.Mesh(new THREE.PlaneGeometry(2.5,5),rugMat);rug.rotation.x=-Math.PI/2;rug.position.set(0,0.01,5);scene.add(rug);
-    var rugBorder=new THREE.Mesh(new THREE.PlaneGeometry(2.7,5.2),new THREE.MeshLambertMaterial({color:0x5a4a3a}));rugBorder.rotation.x=-Math.PI/2;rugBorder.position.set(0,0.005,5);scene.add(rugBorder);
-    var frameMat=new THREE.MeshLambertMaterial({color:0x3a3a3a});
-    var artMat=new THREE.MeshLambertMaterial({color:0x6a8a7a});
-    var frame=new THREE.Mesh(new THREE.BoxGeometry(0.8,0.6,0.05),frameMat);frame.position.set(2,1.6,8.9);scene.add(frame);
-    var art=new THREE.Mesh(new THREE.PlaneGeometry(0.7,0.5),artMat);art.position.set(2,1.6,8.87);scene.add(art);
-    var frame2=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.8,0.05),frameMat);frame2.position.set(-2,1.6,8.9);scene.add(frame2);
-    var art2=new THREE.Mesh(new THREE.PlaneGeometry(0.5,0.7),new THREE.MeshLambertMaterial({color:0x8a7a6a}));art2.position.set(-2,1.6,8.87);scene.add(art2);
-    addBox(-4,0.5,7,0.6,1,0.4,new THREE.MeshLambertMaterial({color:0x5a4a3a}));
-    addBox(-4,1.1,7,0.5,0.2,0.3,new THREE.MeshLambertMaterial({color:0x3a5a3a}));
-    var hooksMat=new THREE.MeshLambertMaterial({color:0x555555});
-    for(var i=0;i<3;i++){var hook=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.08,0.06),hooksMat);hook.position.set(4+i*0.3,1.5,8.85);scene.add(hook);}
-    addBox(-5.5,2.5,0,0.06,5,0.06,new THREE.MeshLambertMaterial({color:0x666666}));
-    var coatMat=new THREE.MeshLambertMaterial({color:0x4a4a5a});
-    var coat=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.8,0.15),coatMat);coat.position.set(4.15,1.2,8.6);coat.rotation.y=0.1;scene.add(coat);
-    createCeilingLight(0,HOUSE.height-0.1,5,'hallway');
-    createLightSwitch(2,1.2,8.7,'hallway',Math.PI);
-}
-
-function createCreepyEyes(){
-    creepyEyes=new THREE.Group();
-    var eyeMatOff=new THREE.MeshBasicMaterial({color:0x330000,transparent:true,opacity:0});
-    var eyeMatOn=new THREE.MeshBasicMaterial({color:0xff0000,transparent:true,opacity:0.9});
-    var leftEye=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16),eyeMatOff.clone());
-    leftEye.position.set(-0.12,1.5,8.95);leftEye.userData.baseMat=eyeMatOff;leftEye.userData.onMat=eyeMatOn;creepyEyes.add(leftEye);
-    var rightEye=new THREE.Mesh(new THREE.SphereGeometry(0.08,16,16),eyeMatOff.clone());
-    rightEye.position.set(0.12,1.5,8.95);rightEye.userData.baseMat=eyeMatOff;rightEye.userData.onMat=eyeMatOn;creepyEyes.add(rightEye);
-    var leftGlow=new THREE.PointLight(0xff0000,0,5);leftGlow.position.copy(leftEye.position);creepyEyes.add(leftGlow);leftEye.userData.glow=leftGlow;
-    var rightGlow=new THREE.PointLight(0xff0000,0,5);rightGlow.position.copy(rightEye.position);creepyEyes.add(rightGlow);rightEye.userData.glow=rightGlow;
-    scene.add(creepyEyes);creepyEyes.visible=false;
-}
-
-function toggleLight(room){
-    var isOn=State.lightsOn.indexOf(room)!==-1;
-    if(isOn){
-        State.lightsOn=State.lightsOn.filter(function(r){return r!==room;});
-        lights.forEach(function(l){if(l.room===room){l.light.intensity=0;if(l.shade)l.shade.material.opacity=0.3;}});
-        lamps.forEach(function(l){if(l.room===room){l.light.intensity=0;if(l.bulb)l.bulb.material.opacity=0.2;}});
-    }else{
-        State.lightsOn.push(room);
-        lights.forEach(function(l){if(l.room===room){l.light.intensity=1;if(l.shade)l.shade.material.opacity=0.9;}});
-        lamps.forEach(function(l){if(l.room===room){l.light.intensity=0.6;if(l.bulb)l.bulb.material.opacity=0.8;}});
-    }
-    lightSwitches.forEach(function(sw){
-        if(sw.userData.room===room){
-            var toggle=sw.children.find(function(c){return c.userData&&c.userData.isToggle;});
-            if(toggle)toggle.position.y=isOn?0.02:-0.02;
-            var lightsAreOn=State.lightsOn.indexOf(room)!==-1;
-            if(sw.userData.glowDot){sw.userData.glowDot.visible=!lightsAreOn;if(sw.userData.glowLight)sw.userData.glowLight.intensity=lightsAreOn?0:0.15;}
-        }
-    });
-    updateLightsUI();
-    checkPhaseProgress();
-}
-
-function updateLightsUI(){
-    var el=document.getElementById('darkness-lights-remaining');
-    if(!el)return;
-    if(State.phase==='turnOffLights'||State.phase==='turnOffLights2'){
-        el.textContent='Lights on: '+State.lightsOn.length;el.style.display='block';
-    }else{el.style.display='none';}
-}
-
-function checkPhaseProgress(){
-    if(State.phase==='turnOffLights'&&State.lightsOn.length===0){
-        hidePrompt();
-        setTimeout(function(){
-            State.phase='goToBed1';showPrompt('Now get in bed');
-            setTimeout(hidePrompt,4000);
-        },500);
-    }else if(State.phase==='turnOnLights'&&State.lightsOn.length===State.totalLights){
-        hidePrompt();flashlight.visible=false;
-        hideElectronics();
-        setTimeout(function(){
-            State.phase='turnOffLights2';showPrompt('Turn off all the lights again');
-            updateLightsUI();
-            setTimeout(hidePrompt,4000);
-        },1000);
-    }else if(State.phase==='turnOffLights2'&&State.lightsOn.length===0){
-        hidePrompt();updateLightsUI();
-        setTimeout(function(){State.phase='goToBed2';showPrompt('Go back to bed');setTimeout(hidePrompt,4000);},500);
-    }
-}
-
-function showPrompt(text){var el=document.getElementById('darkness-prompt');if(el){el.innerHTML=text;el.style.opacity='1';}}
-function hidePrompt(){var el=document.getElementById('darkness-prompt');if(el)el.style.opacity='0';}
-
-function startIntro(){
-    State.phase='intro';showPrompt("Click to start");
-    setTimeout(function(){
-        hidePrompt();
-        setTimeout(function(){
-            State.phase='turnOffLights';showPrompt("Turn off all the lights before bed");
-            setTimeout(hidePrompt,5000);updateLightsUI();
-        },2000);
-    },100);
-}
-
-
-function goToBed(firstTime){
-    State.canMove=false;State.canLook=false;State.canInteract=false;
-    var bedPos=new THREE.Vector3(-12,1.6,-2.4);
-    var lookAtPos=new THREE.Vector3(-12,1.6,-9);
-    var startPos=camera.position.clone();var startYaw=cameraYaw;var startPitch=cameraPitch;
-    var elapsed=0;var duration=2;
-    function animateToBed(){
-        elapsed+=0.016;var t=Math.min(elapsed/duration,1);var ease=t<0.5?2*t*t:(1-Math.pow(-2*t+2,2)/2);
-        camera.position.lerpVectors(startPos,bedPos,ease);
-        var targetYaw=0;var targetPitch=-0.1;
-        cameraYaw=startYaw+(targetYaw-startYaw)*ease;cameraPitch=startPitch+(targetPitch-startPitch)*ease;
-        updateCamera();
-        if(t<1){requestAnimationFrame(animateToBed);}
-        else{
-            camera.position.copy(bedPos);cameraYaw=0;cameraPitch=-0.1;updateCamera();
-            if(firstTime){startSleepSequence();}else{startDreamTransition();}
-        }
-    }
-    animateToBed();
-}
-
-function startSleepSequence(){
-    hidePrompt();
-    var fadeEl=document.getElementById('darkness-fade-overlay');
-    var blinkCount=0;var maxBlinks=4;
-    function doBlink(){
-        if(blinkCount>=maxBlinks){showCreepyEyes();return;}
-        fadeEl.style.transition='opacity 0.3s ease';fadeEl.style.opacity='1';
-        setTimeout(function(){
-            fadeEl.style.transition='opacity 0.5s ease';fadeEl.style.opacity='0';
-            blinkCount++;setTimeout(doBlink,1500);
-        },300);
-    }
-    setTimeout(doBlink,1000);
-}
-
-function showCreepyEyes(){
-    creepyEyes.visible=true;
-    creepyEyes.children.forEach(function(eye){
-        if(eye.isMesh){eye.material.opacity=0.9;}
-        if(eye.userData.glow)eye.userData.glow.intensity=2;
-    });
-    showElectronics();State.ledsActive=true;
-    setTimeout(function(){
-        var fadeEl=document.getElementById('darkness-fade-overlay');
-        fadeEl.style.transition='opacity 0.2s ease';fadeEl.style.opacity='1';
-        setTimeout(function(){
-            creepyEyes.visible=false;
-            creepyEyes.children.forEach(function(eye){
-                if(eye.isMesh)eye.material.opacity=0;
-                if(eye.userData.glow)eye.userData.glow.intensity=0;
-            });
-            camera.position.set(0,1.6,3);cameraYaw=Math.PI;cameraPitch=0;updateCamera();
-            fadeEl.style.transition='opacity 1s ease';fadeEl.style.opacity='0';
-            State.phase='scared';State.canMove=true;State.canLook=true;State.canInteract=true;
-            flashlight.visible=true;
-            setTimeout(function(){
-                State.phase='turnOnLights';showPrompt('Turn on all the lights!');
-                setTimeout(hidePrompt,4000);
-            },2000);
-        },200);
-    },2500);
-}
-
-function showElectronics(){electronics.forEach(function(e){e.visible=true;if(e.userData.glow)e.userData.glow.intensity=0.3;});State.electronicsRevealed=true;}
-function hideElectronics(){electronics.forEach(function(e){e.visible=false;if(e.userData.glow)e.userData.glow.intensity=0;});State.electronicsRevealed=false;State.ledsActive=false;}
-
-function startDreamTransition(){
-    var fadeEl=document.getElementById('darkness-fade-overlay');
-    fadeEl.style.transition='opacity 2s ease';fadeEl.style.opacity='1';
-    setTimeout(function(){
-        cleanupHouse();
-        createDreamScene();
-        fadeEl.style.opacity='0';
-    },2500);
-}
-
-function cleanupHouse(){
-    while(scene.children.length>0){scene.remove(scene.children[0]);}
-    lights=[];lamps=[];lightSwitches=[];electronics=[];interactables=[];editorObjects=[];
-    State.lightsOn=[];creepyEyes=null;bed=null;flashlight=null;
-}
-
-function createDreamScene(){
-    isDreamScene=true;State.phase='dream';State.canMove=true;State.canLook=true;State.starCount=0;
-    scene.background=new THREE.Color(0x0a0a18);
-    scene.fog=new THREE.FogExp2(0x0a0a18,0.008);
-    camera.fov=75;camera.updateProjectionMatrix();
-    var ambient=new THREE.AmbientLight(0x4a4a6a,0.3);scene.add(ambient);
-    var moonLight=new THREE.DirectionalLight(0x8888aa,0.4);moonLight.position.set(50,80,-30);scene.add(moonLight);
-    scene.add(camera);
-    createTerrain();createSky();createFireflies();createVillage();
-    camera.position.set(0,getTerrainHeight(0,15)+1.7,15);cameraYaw=Math.PI;cameraPitch=0;updateCamera();
-    initAudio();playNoise('highpass',3000,0.015);
-    setTimeout(function(){
-        var fadeEl=document.getElementById('darkness-fade-overlay');
-        fadeEl.classList.remove('visible');
-        showPrompt('A peaceful dream...');
-        setTimeout(function(){hidePrompt();State.phase='dream_lookUp';showPrompt('Look up at the stars...');},4000);
-    },500);
-}
-
-function createTerrain(){
-    var geo=new THREE.PlaneGeometry(200,200,100,100);
-    var vertices=geo.attributes.position.array;
-    for(var i=0;i<vertices.length;i+=3){
-        var x=vertices[i],z=vertices[i+1];
-        vertices[i+2]=Math.sin(x*0.05)*2+Math.cos(z*0.03)*1.5+Math.sin((x+z)*0.02)*3;
-    }
-    geo.computeVertexNormals();
-    var mat=new THREE.MeshLambertMaterial({color:0x2a4a2a});
-    var terrain=new THREE.Mesh(geo,mat);
-    terrain.rotation.x=-Math.PI/2;terrain.userData.startY=0;
-    scene.add(terrain);groundObjects.push(terrain);
-}
-
-function getTerrainHeight(x,z){return Math.sin(x*0.05)*2+Math.cos(z*0.03)*1.5+Math.sin((x+z)*0.02)*3;}
-
-function createSky(){
-    var starGeo=new THREE.BufferGeometry();var starPos=[];
-    for(var i=0;i<3000;i++){
-        var theta=Math.random()*Math.PI*2,phi=Math.random()*Math.PI*0.5,r=150;
-        starPos.push(r*Math.sin(phi)*Math.cos(theta),r*Math.cos(phi)+30,r*Math.sin(phi)*Math.sin(theta));
-    }
-    starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPos,3));
-    var starMat=new THREE.PointsMaterial({color:0xffffff,size:0.5,transparent:true,opacity:0.9,fog:false});
-    var stars=new THREE.Points(starGeo,starMat);stars.name='stars';scene.add(stars);
-    var moonGroup=new THREE.Group();
-    var moonMesh=new THREE.Mesh(new THREE.SphereGeometry(8,32,32),new THREE.MeshBasicMaterial({color:0xffffee,fog:false}));
-    moonGroup.add(moonMesh);moonGroup.position.set(60,80,-100);scene.add(moonGroup);
-}
-
-function createFireflies(){
-    for(var i=0;i<250;i++){
-        var hasLight=i<20;var ff=createFirefly(hasLight);
-        var fx=(Math.random()-0.5)*120,fz=(Math.random()-0.5)*120;
-        var fy=i<120?getTerrainHeight(fx,fz)+0.5+Math.random()*4:5+Math.random()*15;
-        ff.position.set(fx,fy,fz);
-        ff.userData.basePos=ff.position.clone();ff.userData.phase=Math.random()*Math.PI*2;ff.userData.speed=0.3+Math.random()*0.7;
-        scene.add(ff);fireflies.push(ff);
-    }
-}
-
-function createFirefly(hasLight){
-    var g=new THREE.Group();
-    if(hasLight){var light=new THREE.PointLight(0xaaff66,0.8,10);g.add(light);}
-    var body=new THREE.Mesh(new THREE.SphereGeometry(0.04,4,4),new THREE.MeshBasicMaterial({color:0x333333}));g.add(body);
-    var glow=new THREE.Mesh(new THREE.SphereGeometry(0.08,6,6),new THREE.MeshBasicMaterial({color:0xccff66,transparent:true,opacity:0.8}));
-    glow.position.z=-0.05;g.add(glow);
-    return g;
-}
-
-function createVillage(){
-    var housePositions=[{x:-25,z:-15},{x:15,z:-20},{x:-10,z:-40}];
-    housePositions.forEach(function(pos){
-        var house=createDreamHouse();var hy=getTerrainHeight(pos.x,pos.z);
-        house.position.set(pos.x,hy,pos.z);house.userData.startY=hy;scene.add(house);houseObjects.push(house);
-        colliders.push({x:pos.x,z:pos.z,r:6});
-    });
-    for(var i=0;i<40;i++){
-        var x=(Math.random()-0.5)*140,z=(Math.random()-0.5)*140;
-        if(Math.abs(z)<20&&Math.abs(x)<30)continue;
-        var tree=createTree();var ty=getTerrainHeight(x,z);tree.position.set(x,ty,z);tree.userData.startY=ty;
-        scene.add(tree);groundObjects.push(tree);colliders.push({x:x,z:z,r:0.5});
-    }
-}
-
-function createDreamHouse(){
-    var g=new THREE.Group();
-    var woodLight=new THREE.MeshLambertMaterial({color:0x5a5040});
-    var thatch=new THREE.MeshLambertMaterial({color:0x5a4a30});
-    var body=new THREE.Mesh(new THREE.BoxGeometry(5.5,3.5,4.5),woodLight);body.position.y=2.25;g.add(body);
-    var roof=new THREE.Mesh(new THREE.ConeGeometry(4.5,2.5,4),thatch);roof.position.y=5.25;roof.rotation.y=Math.PI/4;g.add(roof);
-    var win=new THREE.Mesh(new THREE.PlaneGeometry(0.7,1.0),new THREE.MeshBasicMaterial({color:0xffcc66,transparent:true,opacity:0.9}));
-    win.position.set(0,2.5,2.26);g.add(win);
-    var light=new THREE.PointLight(0xffaa44,1.5,25);light.position.set(0,2.5,3);g.add(light);
-    return g;
-}
-
-function createTree(){
-    var g=new THREE.Group();
-    var trunkMat=new THREE.MeshLambertMaterial({color:0x4a3a2a});
-    var trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.15,0.25,2.5),trunkMat);trunk.position.y=1.25;g.add(trunk);
-    var foliageMat=new THREE.MeshLambertMaterial({color:0x1a3a1a});
-    for(var i=0;i<4;i++){
-        var foliage=new THREE.Mesh(new THREE.ConeGeometry(1.8-i*0.35,1.8,8),foliageMat);
-        foliage.position.y=2.5+i*1.1;g.add(foliage);
-    }
-    return g;
-}
-
-
-function startFalling(){
-    if(State.phase==='falling')return;
-    State.phase='falling';State.canMove=false;State.keys={w:false,a:false,s:false,d:false};
-    State.velocity.set(0,0,0);targetPitch=0;hidePrompt();colliders=[];fallProgress=0;
-}
-
-function updateFalling(dt){
-    fallProgress+=dt*0.15;var fallDist=fallProgress*fallProgress*8;
-    groundObjects.forEach(function(obj){obj.position.y=(obj.userData.startY||0)-fallDist;});
-    houseObjects.forEach(function(obj){obj.position.y=(obj.userData.startY||0)-fallDist;});
-    if(scene.fog)scene.fog.density=Math.max(0,0.008-fallProgress*0.002);
-    if(fallProgress>4){
-        groundObjects.forEach(function(obj){scene.remove(obj);});
-        houseObjects.forEach(function(obj){scene.remove(obj);});
-        groundObjects=[];houseObjects=[];animals=[];scene.fog=null;
-        State.phase='floating';
-        setTimeout(startStarDrawing,4000);
-    }
-}
-
-function startStarDrawing(){
-    State.phase='drawing';State.canMove=false;State.canLook=false;
-    document.exitPointerLock();document.body.style.cursor='crosshair';
-    var starCountEl=document.getElementById('darkness-star-count');if(starCountEl)starCountEl.style.display='block';
-    showPrompt('Click to create stars in space');setTimeout(hidePrompt,4000);
-}
-
-function addStar3D(screenX,screenY){
-    var rect=container.getBoundingClientRect();
-    var ndcX=((screenX-rect.left)/stageWidth)*2-1;
-    var ndcY=-((screenY-rect.top)/stageHeight)*2+1;
-    var raycaster=new THREE.Raycaster();
-    raycaster.setFromCamera({x:ndcX,y:ndcY},camera);
-    var distance=10+Math.random()*290;
-    var starPos=new THREE.Vector3();raycaster.ray.at(distance,starPos);
-    var baseSize=0.1+Math.random()*0.15;var size=baseSize*(1+distance/100);
-    var colors=[0xffffee,0xffffff,0xffff66,0xffffaa,0xffcc44,0xffee88];
-    var starColor=colors[Math.floor(Math.random()*colors.length)];
-    var star=new THREE.Mesh(new THREE.SphereGeometry(size,8,8),new THREE.MeshBasicMaterial({color:starColor,transparent:true,opacity:0.9}));
-    star.position.copy(starPos);scene.add(star);
-    if(Math.random()<0.2){var light=new THREE.PointLight(starColor,0.4,15+distance/10);light.position.copy(starPos);scene.add(light);}
-    star.userData.phase=Math.random()*Math.PI*2;star.userData.twinkleSpeed=2+Math.random()*3;
-    stars2D.push(star);State.starCount++;
-    var countEl=document.getElementById('darkness-count');if(countEl)countEl.textContent=State.starCount;
-    playTwinkle();
-    if(State.starCount>=30&&State.phase==='drawing'){setTimeout(startSheepTransformation,500);}
-}
-
-function startSheepTransformation(){
-    State.phase='transforming';
-    var starCountEl=document.getElementById('darkness-star-count');if(starCountEl)starCountEl.style.display='none';
-    hidePrompt();scene.background=new THREE.Color(0xffffff);
-    setTimeout(transformStarsToSheep,150);
-}
-
-function transformStarsToSheep(){
-    var allPositions=[];
-    stars2D.forEach(function(star){allPositions.push(star.position.clone());});
-    fireflies.forEach(function(ff){allPositions.push(ff.position.clone());});
-    stars2D.forEach(function(star){scene.remove(star);});stars2D=[];
-    fireflies.forEach(function(ff){scene.remove(ff);});fireflies=[];
-    scene.background=new THREE.Color(0x0a0a18);
-    scene.add(new THREE.AmbientLight(0x4a4a6a,0.6));
-    var light1=new THREE.DirectionalLight(0x6a6aaa,0.4);light1.position.set(50,50,50);scene.add(light1);
-    camera.fov=75;camera.updateProjectionMatrix();camera.position.set(0,0,30);
-    cameraYaw=Math.PI;cameraPitch=0;updateCamera();colliders=[];chaserSheep=null;sheep=[];
-    allPositions.forEach(function(pos){
-        var s=createSheep3D();s.position.copy(pos);s.rotation.y=Math.random()*Math.PI*2;
-        s.userData.velocity=new THREE.Vector3((Math.random()-0.5)*0.2,(Math.random()-0.5)*0.1,(Math.random()-0.5)*0.2);
-        s.userData.turnTimer=20+Math.random()*40;s.userData.legPhase=Math.random()*Math.PI*2;
-        s.userData.floatPhase=Math.random()*Math.PI*2;s.userData.floatSpeed=0.5+Math.random()*0.5;
-        scene.add(s);sheep.push(s);
-    });
-    setTimeout(function(){if(State.phase==='sheep'&&!State.caught&&!chaserSheep)spawnChaserSheep();},15000);
-    State.phase='sheep';State.canMove=true;State.canLook=true;
-    document.body.style.cursor='default';
-    var canvasEl=document.getElementById('darkness-canvas-container').querySelector('canvas');if(canvasEl)canvasEl.requestPointerLock();
-}
-
-function createSheep3D(){
-    var g=new THREE.Group();
-    var woolMat=new THREE.MeshLambertMaterial({color:0xf5f5f0});
-    var faceMat=new THREE.MeshLambertMaterial({color:0x3a3a3a});
-    var body=new THREE.Mesh(new THREE.SphereGeometry(0.4,8,8),woolMat);body.position.y=0.4;body.scale.set(1.2,1,1);g.add(body);
-    for(var i=0;i<5;i++){
-        var fluff=new THREE.Mesh(new THREE.SphereGeometry(0.2,6,6),woolMat);
-        fluff.position.set((Math.random()-0.5)*0.3,0.4+(Math.random()-0.5)*0.2,(Math.random()-0.5)*0.3);g.add(fluff);
-    }
-    var head=new THREE.Mesh(new THREE.SphereGeometry(0.2,8,8),faceMat);head.position.set(0.5,0.5,0);g.add(head);
-    var eyeMat=new THREE.MeshBasicMaterial({color:0x111111});
-    var eye1=new THREE.Mesh(new THREE.SphereGeometry(0.05),eyeMat);eye1.position.set(0.65,0.55,0.1);g.add(eye1);
-    var eye2=new THREE.Mesh(new THREE.SphereGeometry(0.05),eyeMat);eye2.position.set(0.65,0.55,-0.1);g.add(eye2);
-    var legGeo=new THREE.CylinderGeometry(0.05,0.05,0.4);
-    var leg1=new THREE.Mesh(legGeo,faceMat);leg1.position.set(0.2,0.2,0.15);leg1.name='frontLeft';g.add(leg1);
-    var leg2=new THREE.Mesh(legGeo,faceMat);leg2.position.set(0.2,0.2,-0.15);leg2.name='frontRight';g.add(leg2);
-    var leg3=new THREE.Mesh(legGeo,faceMat);leg3.position.set(-0.2,0.2,0.15);leg3.name='backLeft';g.add(leg3);
-    var leg4=new THREE.Mesh(legGeo,faceMat);leg4.position.set(-0.2,0.2,-0.15);leg4.name='backRight';g.add(leg4);
-    var tail=new THREE.Mesh(new THREE.SphereGeometry(0.1),woolMat);tail.position.set(-0.45,0.4,0);g.add(tail);
-    return g;
-}
-
-function spawnChaserSheep(){
-    if(chaserSheep)return;
-    var s=createSheep3D();
-    var spawnAngle=cameraYaw+Math.PI,spawnDist=40;
-    s.position.set(camera.position.x+Math.sin(spawnAngle)*spawnDist,camera.position.y,camera.position.z+Math.cos(spawnAngle)*spawnDist);
-    s.userData.velocity=new THREE.Vector3(0,0,0);s.userData.legPhase=0;s.userData.isChaser=true;s.scale.setScalar(1.5);
-    s.traverse(function(child){if(child.isMesh&&child.material.color&&child.material.color.getHex()===0xf5f5f0){child.material=child.material.clone();child.material.color.setHex(0xfff0f0);}});
-    scene.add(s);sheep.push(s);chaserSheep=s;
-}
-
-function updateSheep(dt,t){
-    sheep.forEach(function(s){
-        var phase=s.userData.legPhase+t*10;
-        s.children.forEach(function(child){
-            if(child.name==='frontLeft'||child.name==='backRight')child.rotation.x=Math.sin(phase)*0.5;
-            else if(child.name==='frontRight'||child.name==='backLeft')child.rotation.x=Math.sin(phase+Math.PI)*0.5;
-        });
-        if(s.userData.isChaser){
-            var dx=camera.position.x-s.position.x,dy=camera.position.y-s.position.y,dz=camera.position.z-s.position.z;
-            var dist=Math.sqrt(dx*dx+dy*dy+dz*dz);
-            s.rotation.y=Math.atan2(dx,dz)-Math.PI/2;
-            if(dist<2.5&&!State.caught){State.caught=true;sheepCaughtPlayer();}
-            if(dist>1){var speed=0.15;s.position.x+=(dx/dist)*speed;s.position.y+=(dy/dist)*speed;s.position.z+=(dz/dist)*speed;}
-        }else{
-            s.userData.turnTimer-=dt*60;
-            if(s.userData.turnTimer<=0){
-                s.userData.turnTimer=40+Math.random()*80;
-                s.userData.velocity=new THREE.Vector3((Math.random()-0.5)*0.2,(Math.random()-0.5)*0.1,(Math.random()-0.5)*0.2);
-            }
-            s.position.x+=s.userData.velocity.x;s.position.y+=s.userData.velocity.y;s.position.z+=s.userData.velocity.z;
-            s.position.y+=Math.sin(t*s.userData.floatSpeed+s.userData.floatPhase)*0.01;
-            var vLen=s.userData.velocity.length();if(vLen>0.01)s.rotation.y=Math.atan2(s.userData.velocity.x,s.userData.velocity.z)-Math.PI/2;
-            s.rotation.x=Math.sin(t*0.3+s.userData.floatPhase)*0.15;s.rotation.z=Math.cos(t*0.2+s.userData.floatPhase)*0.1;
-            if(Math.abs(s.position.x)>100)s.userData.velocity.x*=-1;
-            if(Math.abs(s.position.y)>50)s.userData.velocity.y*=-1;
-            if(Math.abs(s.position.z)>100)s.userData.velocity.z*=-1;
-        }
+function moduleStart(){
+    loadThreeJS(function(){
+        init();
     });
 }
 
-function sheepCaughtPlayer(){
-    State.canMove=false;State.canLook=false;scene.background=new THREE.Color(0xffffff);
-    setTimeout(function(){
-        scene.background=new THREE.Color(0x000000);
-        sheep.forEach(function(s){scene.remove(s);});sheep=[];chaserSheep=null;
-        showPrompt('The End');
-    },800);
-}
-
-function initAudio(){audioCtx=new(window.AudioContext||window.webkitAudioContext)();masterGain=audioCtx.createGain();masterGain.connect(audioCtx.destination);masterGain.gain.value=0.3;}
-
-function playNoise(type,freq,vol){
-    if(!audioCtx)return;
-    var buf=audioCtx.createBuffer(1,audioCtx.sampleRate*2,audioCtx.sampleRate);var data=buf.getChannelData(0);
-    for(var i=0;i<data.length;i++)data[i]=Math.random()*2-1;
-    var src=audioCtx.createBufferSource();src.buffer=buf;src.loop=true;
-    var flt=audioCtx.createBiquadFilter();flt.type=type;flt.frequency.value=freq;
-    var gain=audioCtx.createGain();gain.gain.value=vol;
-    src.connect(flt);flt.connect(gain);gain.connect(masterGain);src.start();
-}
-
-function playTwinkle(){
-    if(!audioCtx)return;
-    var osc=audioCtx.createOscillator();var gain=audioCtx.createGain();
-    osc.type='sine';osc.frequency.value=800+Math.random()*400;
-    gain.gain.setValueAtTime(0.1,audioCtx.currentTime);gain.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+0.2);
-    osc.connect(gain);gain.connect(masterGain);osc.start();osc.stop(audioCtx.currentTime+0.2);
-}
-
-
-function animate(){
-    if(isPaused)return;
-    animationId=requestAnimationFrame(animate);
-    time+=0.016;
-    
-    if(State.phase==='falling')updateFalling(0.016);
-    
-    if(State.phase==='falling'||State.phase==='floating'){
-        cameraPitch+=(targetPitch-cameraPitch)*0.05;updateCamera();
-    }
-    
-    if(isDreamScene&&State.canMove&&State.locked&&State.phase!=='drawing'&&State.phase!=='transforming'){
-        State.velocity.multiplyScalar(0.9);
-        var dir=new THREE.Vector3();
-        if(State.keys.w)dir.z-=1;if(State.keys.s)dir.z+=1;if(State.keys.a)dir.x-=1;if(State.keys.d)dir.x+=1;
-        dir.normalize();
-        if(dir.length()>0){
-            var forward=new THREE.Vector3(0,0,-1).applyQuaternion(camera.quaternion);forward.y=0;forward.normalize();
-            var right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);right.y=0;right.normalize();
-            var speed=State.phase==='sheep'?0.04:0.02;
-            State.velocity.addScaledVector(forward,-dir.z*speed);State.velocity.addScaledVector(right,dir.x*speed);
-        }
-        var maxV=State.phase==='sheep'?0.2:0.1;State.velocity.clampLength(0,maxV);
-        var newX=camera.position.x+State.velocity.x,newZ=camera.position.z+State.velocity.z;
-        var blocked=false;
-        for(var i=0;i<colliders.length;i++){var c=colliders[i];if(Math.sqrt((newX-c.x)**2+(newZ-c.z)**2)<c.r+0.5){blocked=true;break;}}
-        if(!blocked){
-            camera.position.x=newX;camera.position.z=newZ;
-            if(State.phase!=='sheep'){var targetY=getTerrainHeight(newX,newZ)+1.7;camera.position.y+=(targetY-camera.position.y)*0.1;}
-            if(State.phase==='sheep')camera.position.y=0;
-        }
-    }else if(!isDreamScene&&State.canMove&&State.locked){
-        State.velocity.multiplyScalar(0.85);
-        var moveDir=new THREE.Vector3();
-        if(State.keys.w)moveDir.z-=1;if(State.keys.s)moveDir.z+=1;if(State.keys.a)moveDir.x-=1;if(State.keys.d)moveDir.x+=1;
-        moveDir.normalize();
-        if(moveDir.length()>0){
-            var fwd=new THREE.Vector3(0,0,-1).applyAxisAngle(new THREE.Vector3(0,1,0),cameraYaw);fwd.y=0;fwd.normalize();
-            var rgt=new THREE.Vector3(1,0,0).applyAxisAngle(new THREE.Vector3(0,1,0),cameraYaw);rgt.y=0;rgt.normalize();
-            State.velocity.addScaledVector(fwd,-moveDir.z*0.012);State.velocity.addScaledVector(rgt,moveDir.x*0.012);
-        }
-        State.velocity.clampLength(0,0.08);
-        var nx=camera.position.x+State.velocity.x,nz=camera.position.z+State.velocity.z;
-        var W=HOUSE.width/2-0.5,D=HOUSE.depth/2-0.5;
-        nx=Math.max(-W,Math.min(W,nx));nz=Math.max(-D,Math.min(D,nz));
-        camera.position.x=nx;camera.position.z=nz;
-    }
-    
-    fireflies.forEach(function(ff){
-        if(!ff.userData.basePos)return;
-        ff.position.y=ff.userData.basePos.y+Math.sin(time*ff.userData.speed+ff.userData.phase)*0.4;
-        ff.position.x=ff.userData.basePos.x+Math.sin(time*ff.userData.speed*0.7+ff.userData.phase)*0.2;
-        if(ff.children[1])ff.children[1].material.opacity=0.5+Math.sin(time*3+ff.userData.phase)*0.4;
-    });
-    
-    stars2D.forEach(function(star){
-        if(star.userData&&star.userData.twinkleSpeed){
-            var twinkle=0.6+Math.sin(time*star.userData.twinkleSpeed+star.userData.phase)*0.4;
-            if(star.material)star.material.opacity=twinkle;
-        }
-    });
-    
-    if(State.phase==='sheep')updateSheep(0.016,time);
-    
-    if(State.ledsActive){
-        electronics.forEach(function(e){
-            if(e.visible){var pulse=0.7+Math.sin(time*2+Math.random()*0.1)*0.3;if(e.userData.glow)e.userData.glow.intensity=pulse*0.3;}
-        });
-    }
-    
-    renderer.render(scene,camera);
-}
-
-function dispose(){
+function moduleDispose(){
     isPaused=true;
     if(animationId){cancelAnimationFrame(animationId);animationId=null;}
-    removeEventListeners();
-    if(audioCtx){try{audioCtx.close();}catch(e){}audioCtx=null;}
-    if(renderer){
-        var canvasContainer=document.getElementById('darkness-canvas-container');
-        if(canvasContainer&&renderer.domElement&&renderer.domElement.parentNode===canvasContainer){
-            canvasContainer.removeChild(renderer.domElement);
-        }
-        renderer.dispose();renderer=null;
-    }
-    if(scene){
-        while(scene.children.length>0){
-            var child=scene.children[0];
-            if(child.geometry)child.geometry.dispose();
-            if(child.material){
-                if(Array.isArray(child.material))child.material.forEach(function(m){m.dispose();});
-                else child.material.dispose();
-            }
-            scene.remove(child);
-        }
-        scene=null;
-    }
-    camera=null;
-    lights=[];lamps=[];lightSwitches=[];electronics=[];interactables=[];editorObjects=[];
+    document.removeEventListener('mousemove',onMouseMove);
+    document.removeEventListener('keydown',arguments.callee);
+    document.removeEventListener('keyup',arguments.callee);
+    document.removeEventListener('click',onClick);
+    if(document.pointerLockElement)document.exitPointerLock();
+    if(renderer){renderer.dispose();renderer=null;}
+    scene=null;camera=null;
+    lights=[];lamps=[];lightSwitches=[];electronics=[];interactables=[];
     groundObjects=[];houseObjects=[];fireflies=[];colliders=[];animals=[];sheep=[];stars2D=[];
-    State.lightsOn=[];State.starCount=0;State.caught=false;
     StageController.removeResize("Darkness");
     container=null;
 }
 
-function pause(){
+function modulePause(){
     isPaused=true;
     if(animationId){cancelAnimationFrame(animationId);animationId=null;}
     if(document.pointerLockElement)document.exitPointerLock();
 }
 
-function resume(){
+function moduleResume(){
     isPaused=false;
     if(renderer&&scene&&camera)animate();
 }
 
 function handleResize(){
-    stageWidth=StageController.stageWidth;stageHeight=StageController.stageHeight;
+    stageWidth=StageController.stageWidth;
+    stageHeight=StageController.stageHeight;
     if(renderer&&camera){
-        camera.aspect=stageWidth/stageHeight;camera.updateProjectionMatrix();
+        camera.aspect=stageWidth/stageHeight;
+        camera.updateProjectionMatrix();
         renderer.setSize(stageWidth,stageHeight);
     }
 }
 
-return{init:init,start:start,dispose:dispose,pause:pause,resume:resume,resize:handleResize};
+return{init:moduleInit,start:moduleStart,dispose:moduleDispose,pause:modulePause,resume:moduleResume,resize:handleResize};
 }();
 var OceanBioluminescent=OceanBioluminescent||function(){function init(parentElement){container=parentElement;stageWidth=StageController.stageWidth;stageHeight=StageController.stageHeight;parentElement.innerHTML='<div id="ocean-bio-con" class="contents-data" style="overflow:hidden;position:relative;"><canvas id="ocean-bio-canvas" style="display:block;"></canvas><div id="ocean-instructions" style="position:absolute;top:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,0.8);font-size:14px;text-align:center;pointer-events:none;text-shadow:0 2px 4px rgba(0,0,0,0.5);">Scroll to dive deeper • Move cursor to illuminate</div><div id="depth-meter" style="position:absolute;top:60px;left:20px;color:rgba(255,255,255,0.6);font-size:12px;pointer-events:none;">Depth: <span id="depth-value">0</span>m</div></div>';canvas=document.getElementById("ocean-bio-canvas");canvas.width=stageWidth;canvas.height=stageHeight;ctx=canvas.getContext("2d");particles=[];caustics=[];glowParticles=[];fish=[];kelp=[];rocks=[];animationId=null;isMouseDown=false;mouseX=stageWidth/2;mouseY=stageHeight/2;scrollOffset=0;maxDepth=stageHeight*2;time=0;currentDepth=0;initParticles();initCaustics();initFish();initKelp();initRocks();StageController.addResize("OceanBioluminescent",handleResize)}function initParticles(){particles=[];for(var i=0;i<250;i++){var depthPos=Math.random()*stageHeight*3;particles.push({x:Math.random()*stageWidth,y:depthPos,size:Math.random()*2+0.5,speedX:Math.random()*0.3-0.15,speedY:Math.random()*0.2+0.05,opacity:Math.random()*0.4+0.2,pulse:Math.random()*Math.PI*2,pulseSpeed:Math.random()*0.02+0.01,type:depthPos>stageHeight*2?"deep":"shallow",glowing:false,glowIntensity:0})}}function initCaustics(){caustics=[];for(var i=0;i<12;i++){caustics.push({x:Math.random()*stageWidth,y:Math.random()*stageHeight*0.5,width:stageWidth/3+Math.random()*stageWidth/3,offset:Math.random()*Math.PI*2,speed:Math.random()*0.008+0.003,opacity:0.2})}}function initFish(){fish=[];var fishTypes=[{size:20,speed:1.5,color:"rgba(255,150,80,0.8)"},{size:15,speed:2,color:"rgba(100,200,255,0.7)"},{size:25,speed:1,color:"rgba(255,100,150,0.6)"},{size:12,speed:2.5,color:"rgba(150,255,200,0.8)"}];for(var i=0;i<15;i++){var type=fishTypes[Math.floor(Math.random()*fishTypes.length)];var depthZone=Math.random()*stageHeight*2.5+stageHeight*0.3;fish.push({x:Math.random()*stageWidth,y:depthZone,size:type.size,speed:type.speed*(Math.random()*0.5+0.75),color:type.color,direction:Math.random()>0.5?1:-1,tailAngle:0,tailSpeed:0.15,bodyAngle:0})}}function initKelp(){kelp=[];var kelpBottom=stageHeight*2.8;for(var i=0;i<20;i++){var segments=[];var x=Math.random()*stageWidth;var height=100+Math.random()*150;var segmentCount=Math.floor(height/15);for(var j=0;j<segmentCount;j++){segments.push({x:0,y:j*15,offsetX:0,swaySpeed:0.02+Math.random()*0.01,swayAmount:3+Math.random()*4})}kelp.push({x:x,y:kelpBottom,segments:segments,width:8+Math.random()*8,color:"rgba(50,120,80,0.8)"})}}function initRocks(){rocks=[];var rockBottom=stageHeight*2.9;for(var i=0;i<30;i++){rocks.push({x:Math.random()*stageWidth,y:rockBottom-Math.random()*50,width:30+Math.random()*60,height:20+Math.random()*40,color:"rgba(60,60,80,0.9)"})}}function start(){setupEventListeners();animate()}function dispose(){isPaused=true;if(animationId){cancelAnimationFrame(animationId);animationId=null}removeEventListeners();StageController.removeResize("OceanBioluminescent");ctx=null;canvas=null;container=null;particles=[];caustics=[];glowParticles=[];fish=[];kelp=[];rocks=[]}function pause(){isPaused=true;removeEventListeners();if(animationId){cancelAnimationFrame(animationId);animationId=null}}function resume(){isPaused=false;setupEventListeners();animate()}function handleResize(){stageWidth=StageController.stageWidth;stageHeight=StageController.stageHeight;if(canvas){canvas.width=stageWidth;canvas.height=stageHeight;initParticles();initCaustics();initFish();initKelp();initRocks()}}function setupEventListeners(){StageController.addDown("oceanbio",handleMouseDown);StageController.addMove("oceanbio",handleMouseMove);StageController.addUp("oceanbio",handleMouseUp);if(canvas){canvas.addEventListener("wheel",handleScroll,{passive:false})}}function removeEventListeners(){StageController.removeDown("oceanbio",handleMouseDown);StageController.removeMove("oceanbio",handleMouseMove);StageController.removeUp("oceanbio",handleMouseUp);if(canvas){canvas.removeEventListener("wheel",handleScroll)}}function handleScroll(e){e.preventDefault();scrollOffset+=e.deltaY*0.5;scrollOffset=Math.max(0,Math.min(maxDepth,scrollOffset));currentDepth=Math.floor(scrollOffset/10);var depthDisplay=document.getElementById("depth-value");if(depthDisplay){depthDisplay.textContent=currentDepth}}function handleMouseDown(x,y){isMouseDown=true;createGlowBurst(x,y+scrollOffset)}function handleMouseMove(x,y){mouseX=x;mouseY=y+scrollOffset;if(isMouseDown){createGlowBurst(x,y+scrollOffset)}}function handleMouseUp(){isMouseDown=false}function createGlowBurst(x,y){for(var i=0;i<8;i++){glowParticles.push({x:x,y:y,vx:Math.random()*4-2,vy:Math.random()*4-2,size:Math.random()*5+2,opacity:1,life:1,color:{h:170+Math.random()*40,s:100,l:50+Math.random()*30}})}}function animate(){if(isPaused)return;animationId=requestAnimationFrame(animate);time+=0.016;ctx.save();ctx.clearRect(0,0,stageWidth,stageHeight);ctx.translate(0,-scrollOffset);drawOceanGradient();drawCaustics();drawRocks();drawKelp();updateAndDrawParticles();updateAndDrawFish();updateAndDrawGlowParticles();drawSurface();ctx.restore()}function drawOceanGradient(){var gradient=ctx.createLinearGradient(0,0,0,stageHeight*3);gradient.addColorStop(0,"#87CEEB");gradient.addColorStop(0.15,"#4A90B5");gradient.addColorStop(0.3,"#2A6B8E");gradient.addColorStop(0.5,"#1A4A6B");gradient.addColorStop(0.7,"#0D2F4A");gradient.addColorStop(0.85,"#061829");gradient.addColorStop(1,"#000814");ctx.fillStyle=gradient;ctx.fillRect(0,0,stageWidth,stageHeight*3)}function drawSurface(){if(scrollOffset<stageHeight*0.3){var surfaceY=stageHeight*0.05;ctx.save();ctx.globalAlpha=0.3;ctx.strokeStyle="rgba(255,255,255,0.4)";ctx.lineWidth=2;ctx.beginPath();for(var i=0;i<=stageWidth;i+=20){var waveHeight=Math.sin(time*2+i*0.05)*5;ctx.lineTo(i,surfaceY+waveHeight)}ctx.stroke();ctx.restore()}}function drawCaustics(){var causticsOpacity=Math.max(0,1-scrollOffset/(stageHeight*1.5));if(causticsOpacity<=0)return;for(var i=0;i<caustics.length;i++){var c=caustics[i];c.offset+=c.speed;ctx.save();ctx.globalAlpha=c.opacity*causticsOpacity;ctx.fillStyle="rgba(120,200,255,0.15)";ctx.beginPath();var points=20;for(var j=0;j<=points;j++){var x=c.x+(j/points)*c.width;var y=c.y+(Math.sin(c.offset+j*0.5)*40);if(j===0){ctx.moveTo(x,y)}else{ctx.lineTo(x,y)}}for(var j=points;j>=0;j--){var x=c.x+(j/points)*c.width;var y=c.y+(Math.sin(c.offset+j*0.5)*40)+60;ctx.lineTo(x,y)}ctx.closePath();ctx.fill();ctx.restore()}}function drawRocks(){for(var i=0;i<rocks.length;i++){var r=rocks[i];ctx.save();ctx.fillStyle=r.color;ctx.beginPath();ctx.ellipse(r.x,r.y,r.width/2,r.height/2,0,0,Math.PI*2);ctx.fill();ctx.fillStyle="rgba(40,40,60,0.5)";ctx.beginPath();ctx.ellipse(r.x+r.width*0.15,r.y-r.height*0.2,r.width*0.2,r.height*0.15,0,0,Math.PI*2);ctx.fill();ctx.restore()}}function drawKelp(){for(var i=0;i<kelp.length;i++){var k=kelp[i];ctx.save();ctx.translate(k.x,k.y);ctx.strokeStyle=k.color;ctx.lineWidth=k.width;ctx.lineCap="round";ctx.beginPath();ctx.moveTo(0,0);for(var j=0;j<k.segments.length;j++){var seg=k.segments[j];seg.offsetX=Math.sin(time+j*0.3+i)*seg.swayAmount;ctx.lineTo(seg.offsetX,-(seg.y))}ctx.stroke();ctx.strokeStyle="rgba(40,100,70,0.6)";ctx.lineWidth=k.width*0.6;ctx.beginPath();ctx.moveTo(0,0);for(var j=0;j<k.segments.length;j++){var seg=k.segments[j];ctx.lineTo(seg.offsetX,-(seg.y))}ctx.stroke();ctx.restore()}}function updateAndDrawFish(){for(var i=0;i<fish.length;i++){var f=fish[i];f.x+=f.speed*f.direction;if(f.x<-50){f.x=stageWidth+50;f.direction=Math.random()>0.3?-1:1}if(f.x>stageWidth+50){f.x=-50;f.direction=Math.random()>0.3?1:-1}f.tailAngle+=f.tailSpeed;f.bodyAngle=Math.sin(f.tailAngle)*0.1;ctx.save();ctx.translate(f.x,f.y);ctx.scale(f.direction,1);ctx.rotate(f.bodyAngle);ctx.fillStyle=f.color;ctx.beginPath();ctx.ellipse(0,0,f.size,f.size*0.6,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.moveTo(-f.size*0.8,0);ctx.lineTo(-f.size*1.4,f.size*0.4*Math.sin(f.tailAngle));ctx.lineTo(-f.size*1.4,-f.size*0.4*Math.sin(f.tailAngle));ctx.closePath();ctx.fill();ctx.fillStyle="rgba(0,0,0,0.6)";ctx.beginPath();ctx.arc(f.size*0.5,f.size*0.1,f.size*0.15,0,Math.PI*2);ctx.fill();ctx.restore()}}function updateAndDrawParticles(){for(var i=particles.length-1;i>=0;i--){var p=particles[i];p.x+=p.speedX;p.y+=p.speedY;if(p.y>stageHeight*3){p.y=0;p.x=Math.random()*stageWidth}if(p.x<0)p.x=stageWidth;if(p.x>stageWidth)p.x=0;p.pulse+=p.pulseSpeed;var pulseOpacity=p.opacity*(0.5+Math.sin(p.pulse)*0.5);var distToMouse=Math.sqrt(Math.pow(p.x-mouseX,2)+Math.pow(p.y-mouseY,2));var glowRadius=250;if(distToMouse<glowRadius){p.glowing=true;p.glowIntensity=Math.min(1,(glowRadius-distToMouse)/glowRadius)}else{p.glowIntensity*=0.95;if(p.glowIntensity<0.01){p.glowing=false;p.glowIntensity=0}}ctx.save();ctx.translate(p.x,p.y);if(p.glowing&&p.glowIntensity>0){var glowSize=p.size+p.glowIntensity*20;var glowGradient=ctx.createRadialGradient(0,0,0,0,0,glowSize);glowGradient.addColorStop(0,"rgba(0,255,200,"+p.glowIntensity*0.9+")");glowGradient.addColorStop(0.5,"rgba(0,220,255,"+p.glowIntensity*0.5+")");glowGradient.addColorStop(1,"rgba(0,150,255,0)");ctx.fillStyle=glowGradient;ctx.beginPath();ctx.arc(0,0,glowSize,0,Math.PI*2);ctx.fill()}ctx.globalAlpha=pulseOpacity;var baseColor=p.type==="deep"?"rgba(100,255,240,":"rgba(150,220,255,";ctx.fillStyle=p.glowing?baseColor+pulseOpacity+")":"rgba(130,180,220,"+pulseOpacity+")";ctx.beginPath();ctx.arc(0,0,p.size,0,Math.PI*2);ctx.fill();ctx.restore()}}function updateAndDrawGlowParticles(){for(var i=glowParticles.length-1;i>=0;i--){var g=glowParticles[i];g.x+=g.vx;g.y+=g.vy;g.vy+=0.03;g.vx*=0.98;g.vy*=0.98;g.life-=0.015;g.opacity=g.life;if(g.life<=0){glowParticles.splice(i,1);continue}ctx.save();ctx.translate(g.x,g.y);var glowGradient=ctx.createRadialGradient(0,0,0,0,0,g.size*2.5);glowGradient.addColorStop(0,"hsla("+g.color.h+","+g.color.s+"%,"+g.color.l+"%,"+g.opacity+")");glowGradient.addColorStop(0.4,"hsla("+g.color.h+","+g.color.s+"%,"+g.color.l+"%,"+(g.opacity*0.6)+")");glowGradient.addColorStop(1,"hsla("+g.color.h+","+g.color.s+"%,"+g.color.l+"%,0)");ctx.fillStyle=glowGradient;ctx.beginPath();ctx.arc(0,0,g.size*2.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=g.opacity;ctx.fillStyle="hsl("+g.color.h+","+g.color.s+"%,"+g.color.l+"%)";ctx.beginPath();ctx.arc(0,0,g.size,0,Math.PI*2);ctx.fill();ctx.restore()}}var container,canvas,ctx,stageWidth,stageHeight,particles,caustics,glowParticles,fish,kelp,rocks,animationId,isMouseDown,mouseX,mouseY,scrollOffset,maxDepth,time,currentDepth,isPaused=false;return{init:init,start:start,dispose:dispose,pause:pause,resume:resume,resize:handleResize}}();
 
