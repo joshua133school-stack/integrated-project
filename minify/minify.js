@@ -566,6 +566,7 @@ var airplane = airplane || function() {
     var userOdds = 1;
     var flipLog = [];
     var isFlipping = false;
+    var historyScreenEl, saferRevealEl;
 
     function formatNumber(num) {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -888,6 +889,117 @@ var airplane = airplane || function() {
                 .airplane-history span.t {\
                     color: #c00;\
                 }\
+                .airplane-timeline {\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
+                    width: 100%;\
+                    height: 100%;\
+                    background: #fff;\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                    justify-content: center;\
+                    box-sizing: border-box;\
+                    opacity: 0;\
+                    pointer-events: none;\
+                }\
+                .airplane-timeline.show {\
+                    opacity: 1;\
+                    pointer-events: auto;\
+                }\
+                .airplane-timeline-title {\
+                    font-size: 18px;\
+                    color: #999;\
+                    margin-bottom: 50px;\
+                }\
+                .airplane-timeline-compare {\
+                    display: flex;\
+                    align-items: center;\
+                    justify-content: center;\
+                    gap: 60px;\
+                    margin-bottom: 50px;\
+                }\
+                .airplane-era {\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                    cursor: pointer;\
+                    transition: transform 0.3s ease;\
+                }\
+                .airplane-era:hover {\
+                    transform: scale(1.05);\
+                }\
+                .airplane-era-years {\
+                    font-size: 16px;\
+                    color: #999;\
+                    margin-bottom: 15px;\
+                }\
+                .airplane-era-frac {\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                }\
+                .airplane-era-frac .num {\
+                    font-size: 48px;\
+                    color: #222;\
+                    font-weight: 300;\
+                    line-height: 1;\
+                }\
+                .airplane-era-frac .line {\
+                    width: 100%;\
+                    min-width: 100px;\
+                    height: 2px;\
+                    background: #222;\
+                    margin: 6px 0;\
+                }\
+                .airplane-era-frac .denom {\
+                    font-size: 22px;\
+                    color: #222;\
+                    font-weight: 400;\
+                    line-height: 1;\
+                }\
+                .airplane-era.old .airplane-era-frac .denom {\
+                    color: #c00;\
+                }\
+                .airplane-era.new .airplane-era-frac .denom {\
+                    color: #4a42ad;\
+                }\
+                .airplane-arrow {\
+                    font-size: 36px;\
+                    color: #ccc;\
+                }\
+                .airplane-safer {\
+                    font-size: 72px;\
+                    color: #222;\
+                    font-weight: 300;\
+                    opacity: 0;\
+                    transform: scale(0.5);\
+                    transition: all 0.5s ease;\
+                    margin-bottom: 20px;\
+                }\
+                .airplane-safer.show {\
+                    opacity: 1;\
+                    transform: scale(1);\
+                }\
+                .airplane-safer-label {\
+                    font-size: 18px;\
+                    color: #999;\
+                    opacity: 0;\
+                    transition: opacity 0.5s ease 0.2s;\
+                }\
+                .airplane-safer-label.show {\
+                    opacity: 1;\
+                }\
+                .airplane-timeline-hint {\
+                    font-size: 14px;\
+                    color: #ccc;\
+                    margin-top: 40px;\
+                    transition: opacity 0.3s ease;\
+                }\
+                .airplane-timeline-hint.hide {\
+                    opacity: 0;\
+                }\
             ';
             document.head.appendChild(style);
         }
@@ -969,6 +1081,19 @@ var airplane = airplane || function() {
         historyEl.innerHTML = html;
     }
 
+    function showTimeline() {
+        historyScreenEl.classList.add('show');
+    }
+
+    var saferRevealed = false;
+    function revealSafer() {
+        if (saferRevealed) return;
+        saferRevealed = true;
+        document.getElementById('airplane-safer').classList.add('show');
+        document.getElementById('airplane-safer-label').classList.add('show');
+        document.getElementById('airplane-timeline-hint').classList.add('hide');
+    }
+
     return {
         init: function(parentElement) {
             container = parentElement;
@@ -1023,6 +1148,32 @@ var airplane = airplane || function() {
                         <div class="airplane-coin" id="airplane-coin"></div>\
                         <button class="airplane-flip-btn" id="airplane-flip">Flip</button>\
                         <div class="airplane-history" id="airplane-history"></div>\
+                        <button class="airplane-try-btn" id="airplane-next" style="margin-top:30px;">How did we get here? →</button>\
+                    </div>\
+                    <div class="airplane-timeline" id="airplane-timeline">\
+                        <div class="airplane-timeline-title">Aviation safety over time</div>\
+                        <div class="airplane-timeline-compare">\
+                            <div class="airplane-era old">\
+                                <div class="airplane-era-years">1968 — 1977</div>\
+                                <div class="airplane-era-frac">\
+                                    <span class="num">1</span>\
+                                    <span class="line"></span>\
+                                    <span class="denom">350,000</span>\
+                                </div>\
+                            </div>\
+                            <div class="airplane-arrow">→</div>\
+                            <div class="airplane-era new">\
+                                <div class="airplane-era-years">2018 — 2022</div>\
+                                <div class="airplane-era-frac">\
+                                    <span class="num">1</span>\
+                                    <span class="line"></span>\
+                                    <span class="denom">13,700,000</span>\
+                                </div>\
+                            </div>\
+                        </div>\
+                        <div class="airplane-safer" id="airplane-safer">30×</div>\
+                        <div class="airplane-safer-label" id="airplane-safer-label">safer than 50 years ago</div>\
+                        <div class="airplane-timeline-hint" id="airplane-timeline-hint">click anywhere to reveal</div>\
                     </div>\
                 </div>\
             ';
@@ -1037,6 +1188,8 @@ var airplane = airplane || function() {
             comparisonEl = document.getElementById('airplane-comparison');
             flipBtn = document.getElementById('airplane-flip');
             historyEl = document.getElementById('airplane-history');
+            historyScreenEl = document.getElementById('airplane-timeline');
+            saferRevealEl = document.getElementById('airplane-safer');
         },
 
         start: function() {
@@ -1045,11 +1198,14 @@ var airplane = airplane || function() {
             userOdds = 1;
             flipLog = [];
             isFlipping = false;
+            saferRevealed = false;
 
             sliderEl.addEventListener('input', onSliderChange);
             document.getElementById('airplane-check').addEventListener('click', checkGuess);
             document.getElementById('airplane-try').addEventListener('click', showCoinGame);
             flipBtn.addEventListener('click', flipCoin);
+            document.getElementById('airplane-next').addEventListener('click', showTimeline);
+            historyScreenEl.addEventListener('click', revealSafer);
         },
 
         dispose: function() {
@@ -1059,6 +1215,9 @@ var airplane = airplane || function() {
             var tryBtn = document.getElementById('airplane-try');
             if (tryBtn) tryBtn.removeEventListener('click', showCoinGame);
             if (flipBtn) flipBtn.removeEventListener('click', flipCoin);
+            var nextBtn = document.getElementById('airplane-next');
+            if (nextBtn) nextBtn.removeEventListener('click', showTimeline);
+            if (historyScreenEl) historyScreenEl.removeEventListener('click', revealSafer);
             container = null;
             sliderEl = null;
             valueDisplay = null;
@@ -1070,10 +1229,13 @@ var airplane = airplane || function() {
             comparisonEl = null;
             flipBtn = null;
             historyEl = null;
+            historyScreenEl = null;
+            saferRevealEl = null;
             gameOver = false;
             userOdds = 1;
             flipLog = [];
             isFlipping = false;
+            saferRevealed = false;
         },
 
         pause: function() {},
