@@ -562,6 +562,11 @@ var airplane = airplane || function() {
     var targetValue = 13700000;
     var currentValue = 50000000;
     var gameOver = false;
+    var coinGameEl, coinEl, streakEl, flipBtn, logEntriesEl, impossibleEl;
+    var streak = 0;
+    var flipLog = [];
+    var failCount = 0;
+    var isFlipping = false;
 
     function formatNumber(num) {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -713,6 +718,163 @@ var airplane = airplane || function() {
                     max-width: 600px;\
                     line-height: 1.5;\
                 }\
+                .airplane-coin-explain {\
+                    font-size: 20px;\
+                    color: #4a42ad;\
+                    text-align: center;\
+                    max-width: 600px;\
+                    line-height: 1.5;\
+                    margin-top: 30px;\
+                    padding: 20px;\
+                    background: rgba(74,66,173,0.1);\
+                    border-radius: 10px;\
+                }\
+                .airplane-try-btn {\
+                    margin-top: 30px;\
+                    padding: 15px 40px;\
+                    font-size: 20px;\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    background: #4a42ad;\
+                    color: #fff;\
+                    border: none;\
+                    border-radius: 8px;\
+                    cursor: pointer;\
+                    transition: all 0.3s ease;\
+                }\
+                .airplane-try-btn:hover {\
+                    background: #3a32a0;\
+                    transform: scale(1.05);\
+                }\
+                .airplane-coin-game {\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
+                    width: 100%;\
+                    height: 100%;\
+                    background: #fff;\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                    justify-content: flex-start;\
+                    padding-top: 5%;\
+                    box-sizing: border-box;\
+                    opacity: 0;\
+                    transition: opacity 0.5s ease;\
+                    pointer-events: none;\
+                    overflow-y: auto;\
+                }\
+                .airplane-coin-game.show {\
+                    opacity: 1;\
+                    pointer-events: auto;\
+                }\
+                .airplane-coin-title {\
+                    font-size: 32px;\
+                    color: #222;\
+                    text-align: center;\
+                    margin-bottom: 10px;\
+                }\
+                .airplane-coin-subtitle {\
+                    font-size: 18px;\
+                    color: #666;\
+                    text-align: center;\
+                    margin-bottom: 20px;\
+                }\
+                .airplane-streak {\
+                    font-size: 48px;\
+                    color: #4a42ad;\
+                    font-weight: 600;\
+                    margin-bottom: 20px;\
+                }\
+                .airplane-streak-label {\
+                    font-size: 16px;\
+                    color: #999;\
+                    margin-bottom: 20px;\
+                }\
+                .airplane-coin {\
+                    width: 100px;\
+                    height: 100px;\
+                    border-radius: 50%;\
+                    background: linear-gradient(145deg, #ffd700, #b8860b);\
+                    display: flex;\
+                    align-items: center;\
+                    justify-content: center;\
+                    font-size: 48px;\
+                    margin-bottom: 20px;\
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);\
+                    transition: transform 0.1s ease;\
+                }\
+                .airplane-coin.flipping {\
+                    animation: coinFlip 0.5s ease-out;\
+                }\
+                @keyframes coinFlip {\
+                    0% { transform: rotateY(0deg); }\
+                    100% { transform: rotateY(720deg); }\
+                }\
+                .airplane-flip-btn {\
+                    padding: 15px 50px;\
+                    font-size: 24px;\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    background: #ffd700;\
+                    color: #222;\
+                    border: none;\
+                    border-radius: 8px;\
+                    cursor: pointer;\
+                    transition: all 0.3s ease;\
+                    margin-bottom: 20px;\
+                }\
+                .airplane-flip-btn:hover {\
+                    background: #ffed4a;\
+                    transform: scale(1.05);\
+                }\
+                .airplane-flip-btn:disabled {\
+                    background: #ccc;\
+                    cursor: not-allowed;\
+                    transform: none;\
+                }\
+                .airplane-log {\
+                    width: 90%;\
+                    max-width: 400px;\
+                    max-height: 200px;\
+                    overflow-y: auto;\
+                    background: #f5f5f5;\
+                    border-radius: 10px;\
+                    padding: 15px;\
+                    margin-top: 10px;\
+                }\
+                .airplane-log-title {\
+                    font-size: 14px;\
+                    color: #999;\
+                    margin-bottom: 10px;\
+                    text-align: center;\
+                }\
+                .airplane-log-entry {\
+                    font-size: 14px;\
+                    padding: 5px 10px;\
+                    margin: 3px 0;\
+                    border-radius: 5px;\
+                    display: flex;\
+                    justify-content: space-between;\
+                }\
+                .airplane-log-entry.heads {\
+                    background: rgba(46, 204, 113, 0.2);\
+                    color: #27ae60;\
+                }\
+                .airplane-log-entry.tails {\
+                    background: rgba(231, 76, 60, 0.2);\
+                    color: #c0392b;\
+                }\
+                .airplane-impossible {\
+                    font-size: 36px;\
+                    color: #e74c3c;\
+                    font-weight: 600;\
+                    text-align: center;\
+                    margin-top: 20px;\
+                    opacity: 0;\
+                    transition: opacity 0.5s ease;\
+                }\
+                .airplane-impossible.show {\
+                    opacity: 1;\
+                }\
             ';
             document.head.appendChild(style);
         }
@@ -746,6 +908,54 @@ var airplane = airplane || function() {
         valueDisplay.innerHTML = '1 / <span>' + formatNumber(currentValue) + '</span>';
     }
 
+    function showCoinGame() {
+        coinGameEl.classList.add('show');
+    }
+
+    function flipCoin() {
+        if (isFlipping) return;
+        isFlipping = true;
+        flipBtn.disabled = true;
+
+        coinEl.classList.add('flipping');
+
+        setTimeout(function() {
+            var isHeads = Math.random() < 0.5;
+            coinEl.classList.remove('flipping');
+
+            if (isHeads) {
+                coinEl.textContent = '👑';
+                streak++;
+                addLogEntry(flipLog.length + 1, 'Heads', true);
+            } else {
+                coinEl.textContent = '💀';
+                failCount++;
+                addLogEntry(flipLog.length + 1, 'Tails (Reset!)', false);
+                streak = 0;
+
+                if (failCount >= 2) {
+                    impossibleEl.classList.add('show');
+                }
+            }
+
+            streakEl.textContent = streak;
+            isFlipping = false;
+            flipBtn.disabled = false;
+
+            setTimeout(function() {
+                coinEl.textContent = '🪙';
+            }, 800);
+        }, 500);
+    }
+
+    function addLogEntry(num, result, isHeads) {
+        flipLog.push({ num: num, result: result, isHeads: isHeads });
+        var entry = document.createElement('div');
+        entry.className = 'airplane-log-entry ' + (isHeads ? 'heads' : 'tails');
+        entry.innerHTML = '<span>#' + num + '</span><span>' + result + '</span>';
+        logEntriesEl.insertBefore(entry, logEntriesEl.firstChild);
+    }
+
     return {
         init: function(parentElement) {
             container = parentElement;
@@ -769,6 +979,21 @@ var airplane = airplane || function() {
                         <div class="airplane-result-text">The answer is</div>\
                         <div class="airplane-result-number">1 / 13,700,000</div>\
                         <div class="airplane-result-desc">Flying is one of the safest forms of transportation.<br>비행기는 가장 안전한 교통수단 중 하나입니다.</div>\
+                        <div class="airplane-coin-explain">That\'s the same odds as flipping a coin and getting heads 23 times in a row!<br>동전을 던져서 23번 연속으로 앞면이 나올 확률과 같습니다!</div>\
+                        <button class="airplane-try-btn" id="airplane-try">Try It Yourself →</button>\
+                    </div>\
+                    <div class="airplane-coin-game" id="airplane-coin-game">\
+                        <div class="airplane-coin-title">Flip the Coin</div>\
+                        <div class="airplane-coin-subtitle">Try to get 23 heads in a row</div>\
+                        <div class="airplane-streak" id="airplane-streak">0</div>\
+                        <div class="airplane-streak-label">consecutive heads</div>\
+                        <div class="airplane-coin" id="airplane-coin">🪙</div>\
+                        <button class="airplane-flip-btn" id="airplane-flip">Flip!</button>\
+                        <div class="airplane-impossible" id="airplane-impossible">Near Impossible!</div>\
+                        <div class="airplane-log" id="airplane-log">\
+                            <div class="airplane-log-title">Flip History</div>\
+                            <div id="airplane-log-entries"></div>\
+                        </div>\
                     </div>\
                 </div>\
             ';
@@ -777,26 +1002,51 @@ var airplane = airplane || function() {
             valueDisplay = document.getElementById('airplane-value');
             hintText = document.getElementById('airplane-hint');
             resultScreen = document.getElementById('airplane-result');
+            coinGameEl = document.getElementById('airplane-coin-game');
+            coinEl = document.getElementById('airplane-coin');
+            streakEl = document.getElementById('airplane-streak');
+            flipBtn = document.getElementById('airplane-flip');
+            logEntriesEl = document.getElementById('airplane-log-entries');
+            impossibleEl = document.getElementById('airplane-impossible');
         },
 
         start: function() {
             gameOver = false;
             currentValue = 50000000;
+            streak = 0;
+            flipLog = [];
+            failCount = 0;
+            isFlipping = false;
 
             sliderEl.addEventListener('input', onSliderChange);
             document.getElementById('airplane-check').addEventListener('click', checkGuess);
+            document.getElementById('airplane-try').addEventListener('click', showCoinGame);
+            flipBtn.addEventListener('click', flipCoin);
         },
 
         dispose: function() {
             if (sliderEl) sliderEl.removeEventListener('input', onSliderChange);
             var checkBtn = document.getElementById('airplane-check');
             if (checkBtn) checkBtn.removeEventListener('click', checkGuess);
+            var tryBtn = document.getElementById('airplane-try');
+            if (tryBtn) tryBtn.removeEventListener('click', showCoinGame);
+            if (flipBtn) flipBtn.removeEventListener('click', flipCoin);
             container = null;
             sliderEl = null;
             valueDisplay = null;
             hintText = null;
             resultScreen = null;
+            coinGameEl = null;
+            coinEl = null;
+            streakEl = null;
+            flipBtn = null;
+            logEntriesEl = null;
+            impossibleEl = null;
             gameOver = false;
+            streak = 0;
+            flipLog = [];
+            failCount = 0;
+            isFlipping = false;
         },
 
         pause: function() {},
