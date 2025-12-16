@@ -706,10 +706,28 @@ var airplane = airplane || function() {
                     margin-bottom: 20px;\
                 }\
                 .airplane-result-number {\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                    margin-bottom: 40px;\
+                }\
+                .airplane-result-number .frac-num {\
                     font-size: 72px;\
                     color: #4a42ad;\
                     font-weight: 600;\
-                    margin-bottom: 40px;\
+                    line-height: 1;\
+                }\
+                .airplane-result-number .frac-line {\
+                    width: 200px;\
+                    height: 4px;\
+                    background: #4a42ad;\
+                    margin: 10px 0;\
+                }\
+                .airplane-result-number .frac-denom {\
+                    font-size: 48px;\
+                    color: #4a42ad;\
+                    font-weight: 600;\
+                    line-height: 1;\
                 }\
                 .airplane-result-desc {\
                     font-size: 24px;\
@@ -799,9 +817,24 @@ var airplane = airplane || function() {
                     align-items: center;\
                     justify-content: center;\
                     font-size: 48px;\
+                    font-weight: 700;\
+                    color: #8B6914;\
                     margin-bottom: 20px;\
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.2);\
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 2px 4px rgba(255,255,255,0.4), inset 0 -2px 4px rgba(0,0,0,0.2);\
                     transition: transform 0.1s ease;\
+                    border: 4px solid #DAA520;\
+                    text-shadow: 1px 1px 2px rgba(255,255,255,0.3);\
+                    font-family: "Crimson Text", Georgia, serif;\
+                }\
+                .airplane-coin.heads {\
+                    background: linear-gradient(145deg, #4ade80, #22c55e);\
+                    border-color: #16a34a;\
+                    color: #166534;\
+                }\
+                .airplane-coin.tails {\
+                    background: linear-gradient(145deg, #f87171, #ef4444);\
+                    border-color: #dc2626;\
+                    color: #991b1b;\
                 }\
                 .airplane-coin.flipping {\
                     animation: coinFlip 0.5s ease-out;\
@@ -918,17 +951,20 @@ var airplane = airplane || function() {
         flipBtn.disabled = true;
 
         coinEl.classList.add('flipping');
+        coinEl.classList.remove('heads', 'tails');
 
         setTimeout(function() {
             var isHeads = Math.random() < 0.5;
             coinEl.classList.remove('flipping');
 
             if (isHeads) {
-                coinEl.textContent = '👑';
+                coinEl.textContent = 'H';
+                coinEl.classList.add('heads');
                 streak++;
                 addLogEntry(flipLog.length + 1, 'Heads', true);
             } else {
-                coinEl.textContent = '💀';
+                coinEl.textContent = 'T';
+                coinEl.classList.add('tails');
                 failCount++;
                 addLogEntry(flipLog.length + 1, 'Tails (Reset!)', false);
                 streak = 0;
@@ -943,7 +979,8 @@ var airplane = airplane || function() {
             flipBtn.disabled = false;
 
             setTimeout(function() {
-                coinEl.textContent = '🪙';
+                coinEl.textContent = '?';
+                coinEl.classList.remove('heads', 'tails');
             }, 800);
         }, 500);
     }
@@ -977,7 +1014,11 @@ var airplane = airplane || function() {
                     <button class="airplane-check-btn" id="airplane-check">Check</button>\
                     <div class="airplane-result" id="airplane-result">\
                         <div class="airplane-result-text">The answer is</div>\
-                        <div class="airplane-result-number">1 / 13,700,000</div>\
+                        <div class="airplane-result-number">\
+                            <span class="frac-num">1</span>\
+                            <span class="frac-line"></span>\
+                            <span class="frac-denom">13,700,000</span>\
+                        </div>\
                         <div class="airplane-result-desc">Flying is one of the safest forms of transportation.<br>비행기는 가장 안전한 교통수단 중 하나입니다.</div>\
                         <div class="airplane-coin-explain">That\'s the same odds as flipping a coin and getting heads 23 times in a row!<br>동전을 던져서 23번 연속으로 앞면이 나올 확률과 같습니다!</div>\
                         <button class="airplane-try-btn" id="airplane-try">Try It Yourself →</button>\
@@ -987,7 +1028,7 @@ var airplane = airplane || function() {
                         <div class="airplane-coin-subtitle">Try to get 23 heads in a row</div>\
                         <div class="airplane-streak" id="airplane-streak">0</div>\
                         <div class="airplane-streak-label">consecutive heads</div>\
-                        <div class="airplane-coin" id="airplane-coin">🪙</div>\
+                        <div class="airplane-coin" id="airplane-coin">?</div>\
                         <button class="airplane-flip-btn" id="airplane-flip">Flip!</button>\
                         <div class="airplane-impossible" id="airplane-impossible">Near Impossible!</div>\
                         <div class="airplane-log" id="airplane-log">\
