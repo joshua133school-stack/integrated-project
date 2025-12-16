@@ -4420,13 +4420,12 @@ function onIframeDone(){
     runPhase2();
 }
 
-// Phase 2: Background (2s) -> "What's Beyond..." (4s) -> "What does darkness mean..." -> Golden words -> Background (2s) -> end
+// Phase 2: Background (2s) -> Golden words -> Background (2s) -> "What does darkness mean..." (4s) -> Background (2s) -> end
 function runPhase2(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
 
     var introHTML='<div id="darkness-intro2" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;opacity:0;transition:opacity 1s ease;">';
-    introHTML+='<div id="darkness-text2a" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div>';
     introHTML+='<div id="darkness-text2b" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:38px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What does darkness mean to you?</div>';
     introHTML+='<div class="darkness-word2" style="position:absolute;top:20%;left:25%;font-family:Crimson Text,Georgia,serif;font-size:56px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Fireflies</div>';
     introHTML+='<div class="darkness-word2" style="position:absolute;top:35%;left:65%;font-family:Crimson Text,Georgia,serif;font-size:52px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Night Sea</div>';
@@ -4437,7 +4436,6 @@ function runPhase2(){
     con.innerHTML=introHTML;
 
     var intro2=document.getElementById('darkness-intro2');
-    var text2a=document.getElementById('darkness-text2a');
     var text2b=document.getElementById('darkness-text2b');
     var words=document.querySelectorAll('.darkness-word2');
 
@@ -4445,20 +4443,12 @@ function runPhase2(){
     setTimeout(function(){if(intro2)intro2.style.opacity='1';},100);
 
     // Timeline for phase 2:
-    // 0-2s: just background
-    // 2-6s: "What's Beyond the Darkness?" visible
-    // 6-8s: background only
-    // 8-12s: "What does darkness mean to you?" visible
-    // 12s+: golden words one by one
+    // 0-2s: background only
+    // 2s+: golden words one by one (1.5s each visible, 2s interval)
+    // After words + 2s: "What does darkness mean to you?" (4s)
+    // After text + 2s: fade out
 
-    wordTimeouts.push(setTimeout(function(){if(text2a)text2a.style.opacity='1';},2000));
-    wordTimeouts.push(setTimeout(function(){if(text2a)text2a.style.opacity='0';},6000));
-
-    wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='1';},8000));
-    wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='0';},12000));
-
-    // Golden words starting at 13s
-    var wordStart=13000;
+    var wordStart=2000;
     var wordDuration=1500;
     var wordInterval=2000;
 
@@ -4469,8 +4459,13 @@ function runPhase2(){
         })(i);
     }
 
-    // After all words + 2s background, fade out
-    var endTime=wordStart+(words.length*wordInterval)+2000;
+    // After all words done + 2s background
+    var textStart=wordStart+(words.length*wordInterval)+2000;
+    wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='1';},textStart));
+    wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='0';},textStart+4000));
+
+    // After text fades + 2s background, fade out
+    var endTime=textStart+4000+2000;
     wordTimeouts.push(setTimeout(function(){
         if(intro2)intro2.style.opacity='0';
     },endTime));
