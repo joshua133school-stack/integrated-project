@@ -4356,17 +4356,17 @@ function start(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
 
-    // Create intro screen
-    var introHTML='<div id="darkness-intro" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:10;">';
-    introHTML+='<div id="darkness-text1" style="font-family:Crimson Text,Georgia,serif;font-size:42px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 20px rgba(0,0,0,0.8);margin-bottom:20px;">What\'s Beyond the Darkness?</div>';
-    introHTML+='<div id="darkness-text2" style="font-family:Crimson Text,Georgia,serif;font-size:32px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 20px rgba(0,0,0,0.8);margin-bottom:40px;">What does darkness mean to you?</div>';
-    introHTML+='<div id="darkness-words" style="display:flex;flex-direction:column;align-items:center;gap:15px;">';
-    introHTML+='<div class="darkness-word" style="font-family:Crimson Text,Georgia,serif;font-size:28px;color:#7fdbff;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 15px rgba(127,219,255,0.5);">Fireflies</div>';
-    introHTML+='<div class="darkness-word" style="font-family:Crimson Text,Georgia,serif;font-size:28px;color:#39cccc;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 15px rgba(57,204,204,0.5);">Night Sea</div>';
-    introHTML+='<div class="darkness-word" style="font-family:Crimson Text,Georgia,serif;font-size:28px;color:#b19cd9;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 15px rgba(177,156,217,0.5);">Milkyway</div>';
-    introHTML+='<div class="darkness-word" style="font-family:Crimson Text,Georgia,serif;font-size:28px;color:#dda0dd;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 15px rgba(221,160,221,0.5);">Universe</div>';
-    introHTML+='<div class="darkness-word" style="font-family:Crimson Text,Georgia,serif;font-size:28px;color:#ffdc00;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 15px rgba(255,220,0,0.5);">Christmas</div>';
-    introHTML+='</div></div>';
+    // Create intro screen with positioned words
+    var introHTML='<div id="darkness-intro" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;">';
+    introHTML+='<div id="darkness-text1" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div>';
+    introHTML+='<div id="darkness-text2" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:38px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What does darkness mean to you?</div>';
+    // Words positioned in different places - all golden
+    introHTML+='<div class="darkness-word" data-word="0" style="position:absolute;top:20%;left:25%;font-family:Crimson Text,Georgia,serif;font-size:56px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Fireflies</div>';
+    introHTML+='<div class="darkness-word" data-word="1" style="position:absolute;top:35%;left:65%;font-family:Crimson Text,Georgia,serif;font-size:52px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Night Sea</div>';
+    introHTML+='<div class="darkness-word" data-word="2" style="position:absolute;top:55%;left:20%;font-family:Crimson Text,Georgia,serif;font-size:58px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Milkyway</div>';
+    introHTML+='<div class="darkness-word" data-word="3" style="position:absolute;top:70%;left:55%;font-family:Crimson Text,Georgia,serif;font-size:54px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Universe</div>';
+    introHTML+='<div class="darkness-word" data-word="4" style="position:absolute;top:45%;left:45%;font-family:Crimson Text,Georgia,serif;font-size:60px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Christmas</div>';
+    introHTML+='</div>';
     con.innerHTML=introHTML;
 
     // Animation sequence
@@ -4374,24 +4374,34 @@ function start(){
     var text2=document.getElementById('darkness-text2');
     var words=document.querySelectorAll('.darkness-word');
 
-    // Show first text immediately
+    // Show first text immediately, fade out after 4 seconds
     setTimeout(function(){if(text1)text1.style.opacity='1';},100);
+    wordTimeouts.push(setTimeout(function(){if(text1)text1.style.opacity='0';},4000));
 
-    // Show second text after 5 seconds
+    // Show second text after 5 seconds, fade out after 4 seconds
     wordTimeouts.push(setTimeout(function(){if(text2)text2.style.opacity='1';},5000));
+    wordTimeouts.push(setTimeout(function(){if(text2)text2.style.opacity='0';},9000));
 
-    // Show words one by one starting at 10 seconds
-    var wordDelay=10000;
+    // Show words one by one starting at 10 seconds, each appears and disappears
+    var wordStartDelay=10000;
+    var wordDuration=1500; // How long each word stays visible
+    var wordInterval=2000; // Time between word appearances
+
     for(var i=0;i<words.length;i++){
         (function(index){
+            // Show word
             wordTimeouts.push(setTimeout(function(){
                 if(words[index])words[index].style.opacity='1';
-            },wordDelay+index*800));
+            },wordStartDelay+index*wordInterval));
+            // Hide word
+            wordTimeouts.push(setTimeout(function(){
+                if(words[index])words[index].style.opacity='0';
+            },wordStartDelay+index*wordInterval+wordDuration));
         })(i);
     }
 
-    // Start iframe after all words shown + 5 seconds
-    var iframeDelay=wordDelay+(words.length*800)+5000;
+    // Start iframe after all words shown + 3 seconds
+    var iframeDelay=wordStartDelay+(words.length*wordInterval)+3000;
     introTimeout=setTimeout(function(){
         startIframe();
     },iframeDelay);
