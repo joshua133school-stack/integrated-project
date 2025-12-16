@@ -85,12 +85,10 @@ var Developing = Developing || function() {
                     position: relative;\
                     overflow: hidden;\
                 }\
-                .developing-text {\
-                    font-family: "Crimson Text", Georgia, serif;\
-                    font-size: 48px;\
-                    color: #000;\
-                    letter-spacing: 8px;\
-                    text-transform: lowercase;\
+                .developing-img {\
+                    max-width: 80%;\
+                    max-height: 80%;\
+                    object-fit: contain;\
                     animation: developingPulse 2s ease-in-out infinite;\
                 }\
                 @keyframes developingPulse {\
@@ -105,7 +103,7 @@ var Developing = Developing || function() {
     return {
         init: function(parentElement) {
             container = parentElement;
-            container.innerHTML = '<div class="developing-experience"><div class="developing-text">developing...</div></div>';
+            container.innerHTML = '<div class="developing-experience"><img class="developing-img" src="data/images/developing.webp" alt="developing"></div>';
             addStyles();
         },
         start: function() {},
