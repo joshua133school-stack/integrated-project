@@ -602,14 +602,28 @@ var airplane = airplane || function() {
                     margin-bottom: 60px;\
                 }\
                 .airplane-fraction {\
-                    font-size: 72px;\
-                    color: #222;\
-                    text-align: center;\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
                     margin-bottom: 40px;\
-                    font-weight: 600;\
                 }\
-                .airplane-fraction span {\
+                .airplane-fraction .frac-num {\
+                    font-size: 64px;\
+                    color: #222;\
+                    font-weight: 300;\
+                    line-height: 1;\
+                }\
+                .airplane-fraction .frac-line {\
+                    width: 200px;\
+                    height: 2px;\
+                    background: #222;\
+                    margin: 8px 0;\
+                }\
+                .airplane-fraction .frac-denom {\
+                    font-size: 36px;\
                     color: #4a42ad;\
+                    font-weight: 400;\
+                    line-height: 1;\
                 }\
                 .airplane-slider-container {\
                     width: 80%;\
@@ -904,7 +918,7 @@ var airplane = airplane || function() {
 
     function onSliderChange() {
         currentValue = parseInt(sliderEl.value);
-        valueDisplay.innerHTML = '1 / <span>' + formatNumber(currentValue) + '</span>';
+        document.getElementById('airplane-denom').textContent = formatNumber(currentValue);
     }
 
     function showCoinGame() {
@@ -964,7 +978,11 @@ var airplane = airplane || function() {
                 <div class="airplane-game">\
                     <div class="airplane-title">Chances of Death on a Plane</div>\
                     <div class="airplane-title-kr">비행기 탑승 중 사망 확률</div>\
-                    <div class="airplane-fraction" id="airplane-value">1 / <span>50,000,000</span></div>\
+                    <div class="airplane-fraction" id="airplane-value">\
+                        <span class="frac-num">1</span>\
+                        <span class="frac-line"></span>\
+                        <span class="frac-denom" id="airplane-denom">50,000,000</span>\
+                    </div>\
                     <div class="airplane-slider-container">\
                         <input type="range" class="airplane-slider" id="airplane-slider" min="1" max="100000000" value="50000000">\
                     </div>\
