@@ -560,7 +560,7 @@ var FireflyTown = FireflyTown || function() {
 var airplane = airplane || function() {
     var container, sliderEl, valueDisplay, hintText, resultScreen;
     var targetValue = 13700000;
-    var currentValue = 50000000;
+    var currentValue = 25000000;
     var gameOver = false;
     var coinGameEl, coinEl, flipBtn, historyEl, userFracEl, comparisonEl;
     var userOdds = 1;
@@ -981,14 +981,14 @@ var airplane = airplane || function() {
                     <div class="airplane-fraction" id="airplane-value">\
                         <span class="frac-num">1</span>\
                         <span class="frac-line"></span>\
-                        <span class="frac-denom" id="airplane-denom">50,000,000</span>\
+                        <span class="frac-denom" id="airplane-denom">25,000,000</span>\
                     </div>\
                     <div class="airplane-slider-container">\
-                        <input type="range" class="airplane-slider" id="airplane-slider" min="1" max="100000000" value="50000000">\
+                        <input type="range" class="airplane-slider" id="airplane-slider" min="1" max="50000000" value="25000000">\
                     </div>\
                     <div class="airplane-range-labels">\
                         <span>1</span>\
-                        <span>100,000,000</span>\
+                        <span>50,000,000</span>\
                     </div>\
                     <div class="airplane-hint" id="airplane-hint">Slide to guess, then check!</div>\
                     <button class="airplane-check-btn" id="airplane-check">Check</button>\
@@ -1041,7 +1041,7 @@ var airplane = airplane || function() {
 
         start: function() {
             gameOver = false;
-            currentValue = 50000000;
+            currentValue = 25000000;
             userOdds = 1;
             flipLog = [];
             isFlipping = false;
