@@ -562,10 +562,9 @@ var airplane = airplane || function() {
     var targetValue = 13700000;
     var currentValue = 50000000;
     var gameOver = false;
-    var coinGameEl, coinEl, streakEl, flipBtn, historyEl, impossibleEl;
+    var coinGameEl, coinEl, streakEl, flipBtn, historyEl;
     var streak = 0;
     var flipLog = [];
-    var failCount = 0;
     var isFlipping = false;
 
     function formatNumber(num) {
@@ -847,17 +846,6 @@ var airplane = airplane || function() {
                 .airplane-history span.t {\
                     color: #c00;\
                 }\
-                .airplane-impossible {\
-                    font-size: 14px;\
-                    color: #999;\
-                    text-align: center;\
-                    margin-top: 30px;\
-                    opacity: 0;\
-                    font-style: italic;\
-                }\
-                .airplane-impossible.show {\
-                    opacity: 1;\
-                }\
             ';
             document.head.appendChild(style);
         }
@@ -912,13 +900,8 @@ var airplane = airplane || function() {
                 flipLog.push('H');
             } else {
                 coinEl.textContent = 'tails';
-                failCount++;
                 flipLog.push('T');
                 streak = 0;
-
-                if (failCount >= 2) {
-                    impossibleEl.classList.add('show');
-                }
             }
 
             streakEl.textContent = streak;
@@ -972,7 +955,6 @@ var airplane = airplane || function() {
                         <div class="airplane-coin" id="airplane-coin"></div>\
                         <button class="airplane-flip-btn" id="airplane-flip">Flip</button>\
                         <div class="airplane-history" id="airplane-history"></div>\
-                        <div class="airplane-impossible" id="airplane-impossible">nearly impossible</div>\
                     </div>\
                 </div>\
             ';
@@ -986,7 +968,6 @@ var airplane = airplane || function() {
             streakEl = document.getElementById('airplane-streak');
             flipBtn = document.getElementById('airplane-flip');
             historyEl = document.getElementById('airplane-history');
-            impossibleEl = document.getElementById('airplane-impossible');
         },
 
         start: function() {
@@ -994,7 +975,6 @@ var airplane = airplane || function() {
             currentValue = 50000000;
             streak = 0;
             flipLog = [];
-            failCount = 0;
             isFlipping = false;
 
             sliderEl.addEventListener('input', onSliderChange);
@@ -1020,11 +1000,9 @@ var airplane = airplane || function() {
             streakEl = null;
             flipBtn = null;
             historyEl = null;
-            impossibleEl = null;
             gameOver = false;
             streak = 0;
             flipLog = [];
-            failCount = 0;
             isFlipping = false;
         },
 
