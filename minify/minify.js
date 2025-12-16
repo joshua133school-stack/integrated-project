@@ -562,8 +562,8 @@ var airplane = airplane || function() {
     var targetValue = 13700000;
     var currentValue = 50000000;
     var gameOver = false;
-    var coinGameEl, coinEl, streakEl, flipBtn, historyEl;
-    var streak = 0;
+    var coinGameEl, coinEl, flipBtn, historyEl, userFracEl, comparisonEl;
+    var userOdds = 1;
     var flipLog = [];
     var isFlipping = false;
 
@@ -777,23 +777,51 @@ var airplane = airplane || function() {
                     pointer-events: auto;\
                 }\
                 .airplane-coin-title {\
-                    font-size: 24px;\
+                    font-size: 20px;\
                     color: #222;\
                     text-align: center;\
-                    margin-bottom: 30px;\
+                    margin-bottom: 40px;\
                     font-weight: 400;\
                 }\
-                .airplane-streak {\
-                    font-size: 72px;\
+                .airplane-compare {\
+                    display: flex;\
+                    align-items: center;\
+                    justify-content: center;\
+                    gap: 30px;\
+                    margin-bottom: 40px;\
+                }\
+                .airplane-frac {\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                }\
+                .airplane-frac .num {\
+                    font-size: 48px;\
                     color: #222;\
                     font-weight: 300;\
-                    margin-bottom: 5px;\
+                    line-height: 1;\
                 }\
-                .airplane-streak-label {\
-                    font-size: 14px;\
+                .airplane-frac .line {\
+                    width: 100%;\
+                    min-width: 80px;\
+                    height: 2px;\
+                    background: #222;\
+                    margin: 6px 0;\
+                }\
+                .airplane-frac .denom {\
+                    font-size: 24px;\
+                    color: #222;\
+                    font-weight: 400;\
+                    line-height: 1;\
+                }\
+                .airplane-frac-label {\
+                    font-size: 12px;\
                     color: #999;\
-                    margin-bottom: 40px;\
-                    text-transform: lowercase;\
+                    margin-top: 8px;\
+                }\
+                .airplane-compare-symbol {\
+                    font-size: 36px;\
+                    color: #222;\
                 }\
                 .airplane-coin {\
                     width: 80px;\
@@ -896,19 +924,28 @@ var airplane = airplane || function() {
 
             if (isHeads) {
                 coinEl.textContent = 'heads';
-                streak++;
+                userOdds = userOdds * 2;
                 flipLog.push('H');
             } else {
                 coinEl.textContent = 'tails';
                 flipLog.push('T');
-                streak = 0;
+                userOdds = 1;
             }
 
-            streakEl.textContent = streak;
+            updateComparison();
             updateHistory();
             isFlipping = false;
             flipBtn.disabled = false;
         }, 400);
+    }
+
+    function updateComparison() {
+        userFracEl.textContent = formatNumber(userOdds);
+        if (userOdds >= 13700000) {
+            comparisonEl.textContent = '≥';
+        } else {
+            comparisonEl.textContent = '<';
+        }
     }
 
     function updateHistory() {
@@ -950,8 +987,21 @@ var airplane = airplane || function() {
                     </div>\
                     <div class="airplane-coin-game" id="airplane-coin-game">\
                         <div class="airplane-coin-title">Can you flip 23 heads in a row?</div>\
-                        <div class="airplane-streak" id="airplane-streak">0</div>\
-                        <div class="airplane-streak-label">in a row</div>\
+                        <div class="airplane-compare">\
+                            <div class="airplane-frac">\
+                                <span class="num">1</span>\
+                                <span class="line"></span>\
+                                <span class="denom">13,700,000</span>\
+                                <span class="airplane-frac-label">plane crash</span>\
+                            </div>\
+                            <div class="airplane-compare-symbol" id="airplane-comparison"><</div>\
+                            <div class="airplane-frac">\
+                                <span class="num">1</span>\
+                                <span class="line"></span>\
+                                <span class="denom" id="airplane-user-frac">1</span>\
+                                <span class="airplane-frac-label">your odds</span>\
+                            </div>\
+                        </div>\
                         <div class="airplane-coin" id="airplane-coin"></div>\
                         <button class="airplane-flip-btn" id="airplane-flip">Flip</button>\
                         <div class="airplane-history" id="airplane-history"></div>\
@@ -965,7 +1015,8 @@ var airplane = airplane || function() {
             resultScreen = document.getElementById('airplane-result');
             coinGameEl = document.getElementById('airplane-coin-game');
             coinEl = document.getElementById('airplane-coin');
-            streakEl = document.getElementById('airplane-streak');
+            userFracEl = document.getElementById('airplane-user-frac');
+            comparisonEl = document.getElementById('airplane-comparison');
             flipBtn = document.getElementById('airplane-flip');
             historyEl = document.getElementById('airplane-history');
         },
@@ -973,7 +1024,7 @@ var airplane = airplane || function() {
         start: function() {
             gameOver = false;
             currentValue = 50000000;
-            streak = 0;
+            userOdds = 1;
             flipLog = [];
             isFlipping = false;
 
@@ -997,11 +1048,12 @@ var airplane = airplane || function() {
             resultScreen = null;
             coinGameEl = null;
             coinEl = null;
-            streakEl = null;
+            userFracEl = null;
+            comparisonEl = null;
             flipBtn = null;
             historyEl = null;
             gameOver = false;
-            streak = 0;
+            userOdds = 1;
             flipLog = [];
             isFlipping = false;
         },
