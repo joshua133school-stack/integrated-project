@@ -562,7 +562,7 @@ var airplane = airplane || function() {
     var targetValue = 13700000;
     var currentValue = 50000000;
     var gameOver = false;
-    var coinGameEl, coinEl, streakEl, flipBtn, logEntriesEl, impossibleEl;
+    var coinGameEl, coinEl, streakEl, flipBtn, stampGridEl, stampCountEl, impossibleEl;
     var streak = 0;
     var flipLog = [];
     var failCount = 0;
@@ -864,37 +864,68 @@ var airplane = airplane || function() {
                     cursor: not-allowed;\
                     transform: none;\
                 }\
-                .airplane-log {\
-                    width: 90%;\
-                    max-width: 400px;\
-                    max-height: 200px;\
-                    overflow-y: auto;\
-                    background: #f5f5f5;\
-                    border-radius: 10px;\
-                    padding: 15px;\
-                    margin-top: 10px;\
+                .airplane-stamp-card {\
+                    width: 300px;\
+                    background: linear-gradient(145deg, #fffef0, #fff8dc);\
+                    border-radius: 15px;\
+                    padding: 20px;\
+                    margin-top: 20px;\
+                    box-shadow: 0 4px 15px rgba(0,0,0,0.1), inset 0 0 0 3px #d4af37;\
+                    border: 2px solid #b8860b;\
                 }\
-                .airplane-log-title {\
+                .airplane-stamp-card-title {\
                     font-size: 14px;\
-                    color: #999;\
-                    margin-bottom: 10px;\
+                    color: #8B6914;\
                     text-align: center;\
+                    margin-bottom: 15px;\
+                    font-weight: 600;\
+                    text-transform: uppercase;\
+                    letter-spacing: 1px;\
                 }\
-                .airplane-log-entry {\
-                    font-size: 14px;\
-                    padding: 5px 10px;\
-                    margin: 3px 0;\
-                    border-radius: 5px;\
+                .airplane-stamp-grid {\
+                    display: grid;\
+                    grid-template-columns: repeat(5, 1fr);\
+                    gap: 8px;\
+                }\
+                .airplane-stamp-slot {\
+                    width: 42px;\
+                    height: 42px;\
+                    border-radius: 50%;\
+                    border: 2px dashed #ccc;\
                     display: flex;\
-                    justify-content: space-between;\
+                    align-items: center;\
+                    justify-content: center;\
+                    font-size: 10px;\
+                    color: #ccc;\
+                    background: rgba(255,255,255,0.5);\
+                    transition: all 0.3s ease;\
                 }\
-                .airplane-log-entry.heads {\
-                    background: rgba(46, 204, 113, 0.2);\
-                    color: #27ae60;\
+                .airplane-stamp-slot.stamped {\
+                    border: 2px solid #16a34a;\
+                    background: linear-gradient(145deg, #4ade80, #22c55e);\
+                    color: #fff;\
+                    font-size: 20px;\
+                    font-weight: 700;\
+                    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);\
+                    animation: stampIn 0.3s ease;\
                 }\
-                .airplane-log-entry.tails {\
-                    background: rgba(231, 76, 60, 0.2);\
-                    color: #c0392b;\
+                @keyframes stampIn {\
+                    0% { transform: scale(1.5) rotate(-15deg); opacity: 0; }\
+                    50% { transform: scale(0.9) rotate(5deg); }\
+                    100% { transform: scale(1) rotate(0deg); opacity: 1; }\
+                }\
+                .airplane-stamp-slot.erasing {\
+                    animation: stampOut 0.2s ease forwards;\
+                }\
+                @keyframes stampOut {\
+                    0% { transform: scale(1); opacity: 1; }\
+                    100% { transform: scale(0); opacity: 0; }\
+                }\
+                .airplane-stamp-count {\
+                    text-align: center;\
+                    margin-top: 12px;\
+                    font-size: 12px;\
+                    color: #8B6914;\
                 }\
                 .airplane-impossible {\
                     font-size: 36px;\
@@ -961,12 +992,12 @@ var airplane = airplane || function() {
                 coinEl.textContent = 'H';
                 coinEl.classList.add('heads');
                 streak++;
-                addLogEntry(flipLog.length + 1, 'Heads', true);
+                addStamp();
             } else {
                 coinEl.textContent = 'T';
                 coinEl.classList.add('tails');
                 failCount++;
-                addLogEntry(flipLog.length + 1, 'Tails (Reset!)', false);
+                eraseAllStamps();
                 streak = 0;
 
                 if (failCount >= 2) {
@@ -975,6 +1006,7 @@ var airplane = airplane || function() {
             }
 
             streakEl.textContent = streak;
+            updateStampCount();
             isFlipping = false;
             flipBtn.disabled = false;
 
@@ -985,12 +1017,30 @@ var airplane = airplane || function() {
         }, 500);
     }
 
-    function addLogEntry(num, result, isHeads) {
-        flipLog.push({ num: num, result: result, isHeads: isHeads });
-        var entry = document.createElement('div');
-        entry.className = 'airplane-log-entry ' + (isHeads ? 'heads' : 'tails');
-        entry.innerHTML = '<span>#' + num + '</span><span>' + result + '</span>';
-        logEntriesEl.insertBefore(entry, logEntriesEl.firstChild);
+    function addStamp() {
+        var slots = stampGridEl.querySelectorAll('.airplane-stamp-slot');
+        if (streak <= slots.length) {
+            var slot = slots[streak - 1];
+            slot.classList.add('stamped');
+            slot.textContent = '✓';
+        }
+    }
+
+    function eraseAllStamps() {
+        var stampedSlots = stampGridEl.querySelectorAll('.airplane-stamp-slot.stamped');
+        stampedSlots.forEach(function(slot, index) {
+            setTimeout(function() {
+                slot.classList.add('erasing');
+                setTimeout(function() {
+                    slot.classList.remove('stamped', 'erasing');
+                    slot.textContent = (parseInt(slot.dataset.num));
+                }, 200);
+            }, index * 50);
+        });
+    }
+
+    function updateStampCount() {
+        stampCountEl.textContent = streak + ' / 23 stamps collected';
     }
 
     return {
@@ -1031,9 +1081,34 @@ var airplane = airplane || function() {
                         <div class="airplane-coin" id="airplane-coin">?</div>\
                         <button class="airplane-flip-btn" id="airplane-flip">Flip!</button>\
                         <div class="airplane-impossible" id="airplane-impossible">Near Impossible!</div>\
-                        <div class="airplane-log" id="airplane-log">\
-                            <div class="airplane-log-title">Flip History</div>\
-                            <div id="airplane-log-entries"></div>\
+                        <div class="airplane-stamp-card">\
+                            <div class="airplane-stamp-card-title">Stamp Card</div>\
+                            <div class="airplane-stamp-grid" id="airplane-stamp-grid">\
+                                <div class="airplane-stamp-slot" data-num="1">1</div>\
+                                <div class="airplane-stamp-slot" data-num="2">2</div>\
+                                <div class="airplane-stamp-slot" data-num="3">3</div>\
+                                <div class="airplane-stamp-slot" data-num="4">4</div>\
+                                <div class="airplane-stamp-slot" data-num="5">5</div>\
+                                <div class="airplane-stamp-slot" data-num="6">6</div>\
+                                <div class="airplane-stamp-slot" data-num="7">7</div>\
+                                <div class="airplane-stamp-slot" data-num="8">8</div>\
+                                <div class="airplane-stamp-slot" data-num="9">9</div>\
+                                <div class="airplane-stamp-slot" data-num="10">10</div>\
+                                <div class="airplane-stamp-slot" data-num="11">11</div>\
+                                <div class="airplane-stamp-slot" data-num="12">12</div>\
+                                <div class="airplane-stamp-slot" data-num="13">13</div>\
+                                <div class="airplane-stamp-slot" data-num="14">14</div>\
+                                <div class="airplane-stamp-slot" data-num="15">15</div>\
+                                <div class="airplane-stamp-slot" data-num="16">16</div>\
+                                <div class="airplane-stamp-slot" data-num="17">17</div>\
+                                <div class="airplane-stamp-slot" data-num="18">18</div>\
+                                <div class="airplane-stamp-slot" data-num="19">19</div>\
+                                <div class="airplane-stamp-slot" data-num="20">20</div>\
+                                <div class="airplane-stamp-slot" data-num="21">21</div>\
+                                <div class="airplane-stamp-slot" data-num="22">22</div>\
+                                <div class="airplane-stamp-slot" data-num="23">23</div>\
+                            </div>\
+                            <div class="airplane-stamp-count" id="airplane-stamp-count">0 / 23 stamps collected</div>\
                         </div>\
                     </div>\
                 </div>\
@@ -1047,7 +1122,8 @@ var airplane = airplane || function() {
             coinEl = document.getElementById('airplane-coin');
             streakEl = document.getElementById('airplane-streak');
             flipBtn = document.getElementById('airplane-flip');
-            logEntriesEl = document.getElementById('airplane-log-entries');
+            stampGridEl = document.getElementById('airplane-stamp-grid');
+            stampCountEl = document.getElementById('airplane-stamp-count');
             impossibleEl = document.getElementById('airplane-impossible');
         },
 
@@ -1081,7 +1157,8 @@ var airplane = airplane || function() {
             coinEl = null;
             streakEl = null;
             flipBtn = null;
-            logEntriesEl = null;
+            stampGridEl = null;
+            stampCountEl = null;
             impossibleEl = null;
             gameOver = false;
             streak = 0;
