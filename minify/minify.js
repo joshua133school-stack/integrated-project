@@ -4345,7 +4345,13 @@ this.friction;this.vy*=this.friction;this.vy+=this.gravity;this.x+=this.vx;this.
 this.rotate},dispose:function(){this.stage.removeChild(this.mc);this.mc.destroy(!0);this.mc=null}};q.prototype={move:function(d){var a=Math.sin(d*c)*-(this.w2-2)*this.index+this.centerY;this.x=Math.cos(d*c)*-(this.w2-2)*this.index+this.centerX;this.y=a;this.rotation=d},draw:function(){this.mc.rotation=this.rotation*c;this.mc.x=this.x;this.mc.y=this.y},dispose:function(){this.stage.removeChild(this.mc);this.mc.destroy();this.mc=null}};d.WiperItem=m;d.WiperLine=g;d.WebglItem=k;d.WebglLine=q})(window);
 
 var Darkness=Darkness||function(){
-var container,iframe,introTimeout,wordTimeouts=[];
+var container,iframe,introTimeout,wordTimeouts=[],closeBtn;
+
+function clearAllTimeouts(){
+    if(introTimeout)clearTimeout(introTimeout);
+    for(var i=0;i<wordTimeouts.length;i++)clearTimeout(wordTimeouts[i]);
+    wordTimeouts=[];
+}
 
 function init(parentElement){
     container=parentElement;
@@ -4353,85 +4359,129 @@ function init(parentElement){
 }
 
 function start(){
+    runPhase1();
+}
+
+// Phase 1: Background (2s) -> "What's Beyond..." (4s) -> Background (2s) -> iframe
+function runPhase1(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
 
-    // Create intro screen with positioned words
-    var introHTML='<div id="darkness-intro" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;">';
-    introHTML+='<div id="darkness-text1" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div>';
-    introHTML+='<div id="darkness-text2" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:38px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What does darkness mean to you?</div>';
-    // Words positioned in different places - all golden
-    introHTML+='<div class="darkness-word" data-word="0" style="position:absolute;top:20%;left:25%;font-family:Crimson Text,Georgia,serif;font-size:56px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Fireflies</div>';
-    introHTML+='<div class="darkness-word" data-word="1" style="position:absolute;top:35%;left:65%;font-family:Crimson Text,Georgia,serif;font-size:52px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Night Sea</div>';
-    introHTML+='<div class="darkness-word" data-word="2" style="position:absolute;top:55%;left:20%;font-family:Crimson Text,Georgia,serif;font-size:58px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Milkyway</div>';
-    introHTML+='<div class="darkness-word" data-word="3" style="position:absolute;top:70%;left:55%;font-family:Crimson Text,Georgia,serif;font-size:54px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Universe</div>';
-    introHTML+='<div class="darkness-word" data-word="4" style="position:absolute;top:45%;left:45%;font-family:Crimson Text,Georgia,serif;font-size:60px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Christmas</div>';
-    introHTML+='</div>';
-    con.innerHTML=introHTML;
+    con.innerHTML='<div id="darkness-intro" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;"><div id="darkness-text1" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div></div>';
 
-    // Animation sequence
     var text1=document.getElementById('darkness-text1');
-    var text2=document.getElementById('darkness-text2');
-    var words=document.querySelectorAll('.darkness-word');
 
-    // Show first text immediately, fade out after 4 seconds
-    setTimeout(function(){if(text1)text1.style.opacity='1';},100);
-    wordTimeouts.push(setTimeout(function(){if(text1)text1.style.opacity='0';},4000));
-
-    // Show second text after 5 seconds, fade out after 4 seconds
-    wordTimeouts.push(setTimeout(function(){if(text2)text2.style.opacity='1';},5000));
-    wordTimeouts.push(setTimeout(function(){if(text2)text2.style.opacity='0';},9000));
-
-    // Show words one by one starting at 10 seconds, each appears and disappears
-    var wordStartDelay=10000;
-    var wordDuration=1500; // How long each word stays visible
-    var wordInterval=2000; // Time between word appearances
-
-    for(var i=0;i<words.length;i++){
-        (function(index){
-            // Show word
-            wordTimeouts.push(setTimeout(function(){
-                if(words[index])words[index].style.opacity='1';
-            },wordStartDelay+index*wordInterval));
-            // Hide word
-            wordTimeouts.push(setTimeout(function(){
-                if(words[index])words[index].style.opacity='0';
-            },wordStartDelay+index*wordInterval+wordDuration));
-        })(i);
-    }
-
-    // Start iframe after all words shown + 3 seconds
-    var iframeDelay=wordStartDelay+(words.length*wordInterval)+3000;
-    introTimeout=setTimeout(function(){
-        startIframe();
-    },iframeDelay);
+    // 2s background, then show text
+    wordTimeouts.push(setTimeout(function(){if(text1)text1.style.opacity='1';},2000));
+    // Text visible for 4s, then fade out
+    wordTimeouts.push(setTimeout(function(){if(text1)text1.style.opacity='0';},6000));
+    // 2s more background, then start iframe
+    wordTimeouts.push(setTimeout(function(){startIframe();},8000));
 }
 
 function startIframe(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
+
     var intro=document.getElementById('darkness-intro');
     if(intro){
         intro.style.transition='opacity 1s ease';
         intro.style.opacity='0';
-        setTimeout(function(){
-            if(intro&&intro.parentNode)intro.parentNode.removeChild(intro);
-        },1000);
+        setTimeout(function(){if(intro&&intro.parentNode)intro.parentNode.removeChild(intro);},1000);
     }
+
     iframe=document.createElement('iframe');
     iframe.src='minify/darknessgame.html';
-    iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;top:0;left:0;';
+    iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;top:0;left:0;z-index:5;';
     con.appendChild(iframe);
+
+    // Add continue button
+    closeBtn=document.createElement('div');
+    closeBtn.id='darkness-continue';
+    closeBtn.innerHTML='Continue →';
+    closeBtn.style.cssText='position:absolute;bottom:30px;right:30px;padding:15px 30px;background:rgba(255,215,0,0.9);color:#000;font-family:Crimson Text,Georgia,serif;font-size:20px;cursor:pointer;z-index:20;border-radius:5px;transition:all 0.3s ease;';
+    closeBtn.onmouseover=function(){this.style.background='rgba(255,215,0,1)';this.style.transform='scale(1.05)';};
+    closeBtn.onmouseout=function(){this.style.background='rgba(255,215,0,0.9)';this.style.transform='scale(1)';};
+    closeBtn.onclick=function(){onIframeDone();};
+    con.appendChild(closeBtn);
+}
+
+function onIframeDone(){
+    var con=document.getElementById('darkness-con');
+    if(!con)return;
+
+    // Remove iframe and button
+    if(iframe&&iframe.parentNode)iframe.parentNode.removeChild(iframe);
+    iframe=null;
+    if(closeBtn&&closeBtn.parentNode)closeBtn.parentNode.removeChild(closeBtn);
+    closeBtn=null;
+
+    // Start phase 2
+    runPhase2();
+}
+
+// Phase 2: Background (2s) -> "What's Beyond..." (4s) -> "What does darkness mean..." -> Golden words -> Background (2s) -> end
+function runPhase2(){
+    var con=document.getElementById('darkness-con');
+    if(!con)return;
+
+    var introHTML='<div id="darkness-intro2" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;opacity:0;transition:opacity 1s ease;">';
+    introHTML+='<div id="darkness-text2a" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div>';
+    introHTML+='<div id="darkness-text2b" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:38px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What does darkness mean to you?</div>';
+    introHTML+='<div class="darkness-word2" style="position:absolute;top:20%;left:25%;font-family:Crimson Text,Georgia,serif;font-size:56px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Fireflies</div>';
+    introHTML+='<div class="darkness-word2" style="position:absolute;top:35%;left:65%;font-family:Crimson Text,Georgia,serif;font-size:52px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Night Sea</div>';
+    introHTML+='<div class="darkness-word2" style="position:absolute;top:55%;left:20%;font-family:Crimson Text,Georgia,serif;font-size:58px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Milkyway</div>';
+    introHTML+='<div class="darkness-word2" style="position:absolute;top:70%;left:55%;font-family:Crimson Text,Georgia,serif;font-size:54px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Universe</div>';
+    introHTML+='<div class="darkness-word2" style="position:absolute;top:45%;left:45%;font-family:Crimson Text,Georgia,serif;font-size:60px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Christmas</div>';
+    introHTML+='</div>';
+    con.innerHTML=introHTML;
+
+    var intro2=document.getElementById('darkness-intro2');
+    var text2a=document.getElementById('darkness-text2a');
+    var text2b=document.getElementById('darkness-text2b');
+    var words=document.querySelectorAll('.darkness-word2');
+
+    // Fade in background
+    setTimeout(function(){if(intro2)intro2.style.opacity='1';},100);
+
+    // Timeline for phase 2:
+    // 0-2s: just background
+    // 2-6s: "What's Beyond the Darkness?" visible
+    // 6-8s: background only
+    // 8-12s: "What does darkness mean to you?" visible
+    // 12s+: golden words one by one
+
+    wordTimeouts.push(setTimeout(function(){if(text2a)text2a.style.opacity='1';},2000));
+    wordTimeouts.push(setTimeout(function(){if(text2a)text2a.style.opacity='0';},6000));
+
+    wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='1';},8000));
+    wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='0';},12000));
+
+    // Golden words starting at 13s
+    var wordStart=13000;
+    var wordDuration=1500;
+    var wordInterval=2000;
+
+    for(var i=0;i<words.length;i++){
+        (function(index){
+            wordTimeouts.push(setTimeout(function(){if(words[index])words[index].style.opacity='1';},wordStart+index*wordInterval));
+            wordTimeouts.push(setTimeout(function(){if(words[index])words[index].style.opacity='0';},wordStart+index*wordInterval+wordDuration));
+        })(i);
+    }
+
+    // After all words + 2s background, fade out
+    var endTime=wordStart+(words.length*wordInterval)+2000;
+    wordTimeouts.push(setTimeout(function(){
+        if(intro2)intro2.style.opacity='0';
+    },endTime));
 }
 
 function dispose(){
-    if(introTimeout)clearTimeout(introTimeout);
-    for(var i=0;i<wordTimeouts.length;i++)clearTimeout(wordTimeouts[i]);
-    wordTimeouts=[];
-    if(iframe&&iframe.parentNode){
-        iframe.parentNode.removeChild(iframe);
-    }
+    clearAllTimeouts();
+    if(iframe&&iframe.parentNode)iframe.parentNode.removeChild(iframe);
+    if(closeBtn&&closeBtn.parentNode)closeBtn.parentNode.removeChild(closeBtn);
     iframe=null;
+    closeBtn=null;
     container=null;
 }
 
