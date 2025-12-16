@@ -558,280 +558,249 @@ var FireflyTown = FireflyTown || function() {
 }();
 
 var airplane = airplane || function() {
-    var container, videoElement, isPlaying = false, fullscreenContainer;
+    var container, sliderEl, valueDisplay, hintText, resultScreen;
+    var targetValue = 13700000;
+    var currentValue = 50000000;
+    var gameOver = false;
 
-    // Define private methods here
-    function setupEventListeners() {
-        const introScreen = container.querySelector('.airplane-intro-screen');
-
-        introScreen.addEventListener('click', () => {
-            playVideo();
-        });
-    }
-
-    function playVideo() {
-        // Create fullscreen video container
-        fullscreenContainer = document.createElement('div');
-        fullscreenContainer.className = 'airplane-fullscreen-container';
-        fullscreenContainer.innerHTML = `
-            <video class="airplane-video" controls autoplay playsinline>
-                <source src="data/videos/plane1.mp4" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-        `;
-
-        document.body.appendChild(fullscreenContainer);
-
-        // Setup video and attempt fullscreen
-        setTimeout(() => {
-            setupVideo();
-            requestFullscreen();
-        }, 100);
-    }
-
-    function requestFullscreen() {
-        if (videoElement) {
-            // Try to request fullscreen on the video element
-            if (videoElement.requestFullscreen) {
-                videoElement.requestFullscreen().catch(err => {
-                    console.log('Fullscreen request failed:', err);
-                });
-            } else if (videoElement.webkitRequestFullscreen) {
-                videoElement.webkitRequestFullscreen();
-            } else if (videoElement.mozRequestFullScreen) {
-                videoElement.mozRequestFullScreen();
-            } else if (videoElement.msRequestFullscreen) {
-                videoElement.msRequestFullscreen();
-            }
-        }
-    }
-
-    function exitFullscreen() {
-        if (document.exitFullscreen) {
-            document.exitFullscreen();
-        } else if (document.webkitExitFullscreen) {
-            document.webkitExitFullscreen();
-        } else if (document.mozCancelFullScreen) {
-            document.mozCancelFullScreen();
-        } else if (document.msExitFullscreen) {
-            document.msExitFullscreen();
-        }
-    }
-
-    function setupVideo() {
-        videoElement = fullscreenContainer.querySelector('.airplane-video');
-
-        // Add event listener for when video ends
-        videoElement.addEventListener('ended', () => {
-            exitFullscreen();
-            // Remove fullscreen container
-            if (fullscreenContainer && fullscreenContainer.parentNode) {
-                fullscreenContainer.parentNode.removeChild(fullscreenContainer);
-            }
-            // Close the experience
-            const closeButton = document.querySelector('#close-bt');
-            if (closeButton) {
-                closeButton.click();
-            }
-        });
-
-        // Handle fullscreen change
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-        document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-        document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-    }
-
-    function handleFullscreenChange() {
-        // If exited fullscreen manually, clean up
-        if (!document.fullscreenElement && !document.webkitFullscreenElement &&
-            !document.mozFullScreenElement && !document.msFullscreenElement) {
-            if (videoElement && !videoElement.ended) {
-                videoElement.pause();
-            }
-            if (fullscreenContainer && fullscreenContainer.parentNode) {
-                fullscreenContainer.parentNode.removeChild(fullscreenContainer);
-            }
-        }
+    function formatNumber(num) {
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
     }
 
     function addStyles() {
         if (!document.getElementById('airplane-styles')) {
-            const style = document.createElement('style');
+            var style = document.createElement('style');
             style.id = 'airplane-styles';
-            style.innerHTML = `
-                .airplane-experience {
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    background: #000;
-                }
-
-                .airplane-intro-screen {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100vw;
-                    height: 100vh;
-                    z-index: 9999;
-                    cursor: pointer;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    background: linear-gradient(to bottom, #001428 0%, #003560 100%);
-                    animation: popIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-                }
-
-                @keyframes popIn {
-                    0% {
-                        transform: scale(0.3);
-                        opacity: 0;
-                    }
-                    50% {
-                        transform: scale(1.05);
-                    }
-                    100% {
-                        transform: scale(1);
-                        opacity: 1;
-                    }
-                }
-
-                .airplane-intro-image {
-                    max-width: 95vw;
-                    max-height: 95vh;
-                    width: auto;
-                    height: auto;
-                    object-fit: contain;
-                    transition: transform 0.3s ease, filter 0.3s ease;
-                    filter: drop-shadow(0 10px 30px rgba(0, 0, 0, 0.5));
-                }
-
-                .airplane-intro-screen:hover .airplane-intro-image {
-                    transform: scale(1.05);
-                    filter: drop-shadow(0 15px 40px rgba(0, 0, 0, 0.7)) brightness(1.1);
-                }
-
-                .airplane-play-overlay {
-                    position: absolute;
-                    width: 150px;
-                    height: 150px;
-                    background: rgba(255, 255, 255, 0.95);
-                    border-radius: 50%;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    pointer-events: none;
-                    animation: pulse 2s ease-in-out infinite;
-                    box-shadow: 0 0 60px rgba(255, 255, 255, 0.6);
-                }
-
-                @keyframes pulse {
-                    0%, 100% {
-                        transform: scale(1);
-                        opacity: 0.9;
-                    }
-                    50% {
-                        transform: scale(1.15);
-                        opacity: 1;
-                    }
-                }
-
-                .airplane-play-triangle {
-                    width: 0;
-                    height: 0;
-                    border-left: 50px solid #000;
-                    border-top: 30px solid transparent;
-                    border-bottom: 30px solid transparent;
-                    margin-left: 12px;
-                }
-
-                .airplane-fullscreen-container {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100vw;
-                    height: 100vh;
-                    z-index: 10000;
-                    background: #000;
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                }
-
-                .airplane-video {
-                    width: 100%;
-                    height: 100%;
-                    object-fit: contain;
-                    animation: fadeIn 0.3s ease-in;
-                }
-
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                    }
-                    to {
-                        opacity: 1;
-                    }
-                }
-            `;
+            style.innerHTML = '\
+                .airplane-game {\
+                    width: 100%;\
+                    height: 100%;\
+                    background: #fff;\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                    justify-content: flex-start;\
+                    padding-top: 10%;\
+                    box-sizing: border-box;\
+                    font-family: "Crimson Text", Georgia, serif;\
+                }\
+                .airplane-title {\
+                    font-size: 42px;\
+                    color: #222;\
+                    text-align: center;\
+                    margin-bottom: 10px;\
+                    line-height: 1.3;\
+                }\
+                .airplane-title-kr {\
+                    font-size: 28px;\
+                    color: #666;\
+                    text-align: center;\
+                    margin-bottom: 60px;\
+                }\
+                .airplane-fraction {\
+                    font-size: 72px;\
+                    color: #222;\
+                    text-align: center;\
+                    margin-bottom: 40px;\
+                    font-weight: 600;\
+                }\
+                .airplane-fraction span {\
+                    color: #4a42ad;\
+                }\
+                .airplane-slider-container {\
+                    width: 80%;\
+                    max-width: 600px;\
+                    margin-bottom: 30px;\
+                }\
+                .airplane-slider {\
+                    width: 100%;\
+                    height: 20px;\
+                    -webkit-appearance: none;\
+                    appearance: none;\
+                    background: linear-gradient(to right, #ddd, #4a42ad);\
+                    border-radius: 10px;\
+                    outline: none;\
+                    cursor: pointer;\
+                }\
+                .airplane-slider::-webkit-slider-thumb {\
+                    -webkit-appearance: none;\
+                    appearance: none;\
+                    width: 40px;\
+                    height: 40px;\
+                    background: #4a42ad;\
+                    border-radius: 50%;\
+                    cursor: grab;\
+                    box-shadow: 0 4px 15px rgba(74,66,173,0.4);\
+                }\
+                .airplane-slider::-moz-range-thumb {\
+                    width: 40px;\
+                    height: 40px;\
+                    background: #4a42ad;\
+                    border-radius: 50%;\
+                    cursor: grab;\
+                    border: none;\
+                    box-shadow: 0 4px 15px rgba(74,66,173,0.4);\
+                }\
+                .airplane-range-labels {\
+                    display: flex;\
+                    justify-content: space-between;\
+                    width: 80%;\
+                    max-width: 600px;\
+                    font-size: 14px;\
+                    color: #999;\
+                    margin-bottom: 40px;\
+                }\
+                .airplane-hint {\
+                    font-size: 36px;\
+                    color: #222;\
+                    text-align: center;\
+                    min-height: 50px;\
+                    transition: all 0.3s ease;\
+                }\
+                .airplane-hint.higher { color: #e74c3c; }\
+                .airplane-hint.lower { color: #3498db; }\
+                .airplane-check-btn {\
+                    margin-top: 30px;\
+                    padding: 15px 50px;\
+                    font-size: 24px;\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    background: #4a42ad;\
+                    color: #fff;\
+                    border: none;\
+                    border-radius: 8px;\
+                    cursor: pointer;\
+                    transition: all 0.3s ease;\
+                }\
+                .airplane-check-btn:hover {\
+                    background: #3a32a0;\
+                    transform: scale(1.05);\
+                }\
+                .airplane-result {\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
+                    width: 100%;\
+                    height: 100%;\
+                    background: #fff;\
+                    display: flex;\
+                    flex-direction: column;\
+                    align-items: center;\
+                    justify-content: center;\
+                    opacity: 0;\
+                    transition: opacity 0.5s ease;\
+                    pointer-events: none;\
+                }\
+                .airplane-result.show {\
+                    opacity: 1;\
+                    pointer-events: auto;\
+                }\
+                .airplane-result-text {\
+                    font-size: 48px;\
+                    color: #222;\
+                    text-align: center;\
+                    margin-bottom: 20px;\
+                }\
+                .airplane-result-number {\
+                    font-size: 72px;\
+                    color: #4a42ad;\
+                    font-weight: 600;\
+                    margin-bottom: 40px;\
+                }\
+                .airplane-result-desc {\
+                    font-size: 24px;\
+                    color: #666;\
+                    text-align: center;\
+                    max-width: 600px;\
+                    line-height: 1.5;\
+                }\
+            ';
             document.head.appendChild(style);
         }
     }
 
-    // Return the public interface that matches the expected pattern
+    function checkGuess() {
+        if (gameOver) return;
+
+        var diff = Math.abs(currentValue - targetValue);
+        var percentDiff = diff / targetValue;
+
+        if (percentDiff <= 0.1) {
+            // Within 10% - correct!
+            gameOver = true;
+            showResult();
+        } else if (currentValue < targetValue) {
+            hintText.textContent = '↑ Higher';
+            hintText.className = 'airplane-hint higher';
+        } else {
+            hintText.textContent = '↓ Lower';
+            hintText.className = 'airplane-hint lower';
+        }
+    }
+
+    function showResult() {
+        resultScreen.classList.add('show');
+    }
+
+    function onSliderChange() {
+        currentValue = parseInt(sliderEl.value);
+        valueDisplay.innerHTML = '1 / <span>' + formatNumber(currentValue) + '</span>';
+    }
+
     return {
         init: function(parentElement) {
             container = parentElement;
-            container.innerHTML = `
-                <div class="airplane-experience">
-                    <div class="airplane-intro-screen">
-                        <img src="data/images/plane1.webp"
-                             class="airplane-intro-image"
-                             alt="Click on the plane to watch video">
-                    </div>
-                </div>
-            `;
-
             addStyles();
+
+            container.innerHTML = '\
+                <div class="airplane-game">\
+                    <div class="airplane-title">Chances of Death on a Plane</div>\
+                    <div class="airplane-title-kr">비행기 탑승 중 사망 확률</div>\
+                    <div class="airplane-fraction" id="airplane-value">1 / <span>50,000,000</span></div>\
+                    <div class="airplane-slider-container">\
+                        <input type="range" class="airplane-slider" id="airplane-slider" min="1" max="100000000" value="50000000">\
+                    </div>\
+                    <div class="airplane-range-labels">\
+                        <span>1</span>\
+                        <span>100,000,000</span>\
+                    </div>\
+                    <div class="airplane-hint" id="airplane-hint">Slide to guess, then check!</div>\
+                    <button class="airplane-check-btn" id="airplane-check">Check</button>\
+                    <div class="airplane-result" id="airplane-result">\
+                        <div class="airplane-result-text">The answer is</div>\
+                        <div class="airplane-result-number">1 / 13,700,000</div>\
+                        <div class="airplane-result-desc">Flying is one of the safest forms of transportation.<br>비행기는 가장 안전한 교통수단 중 하나입니다.</div>\
+                    </div>\
+                </div>\
+            ';
+
+            sliderEl = document.getElementById('airplane-slider');
+            valueDisplay = document.getElementById('airplane-value');
+            hintText = document.getElementById('airplane-hint');
+            resultScreen = document.getElementById('airplane-result');
         },
 
         start: function() {
-            setupEventListeners();
+            gameOver = false;
+            currentValue = 50000000;
+
+            sliderEl.addEventListener('input', onSliderChange);
+            document.getElementById('airplane-check').addEventListener('click', checkGuess);
         },
 
         dispose: function() {
-            if (videoElement) {
-                videoElement.pause();
-                videoElement.src = '';
-            }
-            if (fullscreenContainer && fullscreenContainer.parentNode) {
-                fullscreenContainer.parentNode.removeChild(fullscreenContainer);
-            }
-            // Clean up event listeners
-            document.removeEventListener('fullscreenchange', handleFullscreenChange);
-            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-            document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-            document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-
-            exitFullscreen();
+            if (sliderEl) sliderEl.removeEventListener('input', onSliderChange);
+            var checkBtn = document.getElementById('airplane-check');
+            if (checkBtn) checkBtn.removeEventListener('click', checkGuess);
             container = null;
-            videoElement = null;
-            fullscreenContainer = null;
+            sliderEl = null;
+            valueDisplay = null;
+            hintText = null;
+            resultScreen = null;
+            gameOver = false;
         },
 
-        pause: function() {
-            if (videoElement && !videoElement.paused) {
-                videoElement.pause();
-            }
-        },
-
-        resume: function() {
-            if (videoElement && videoElement.paused) {
-                videoElement.play();
-            }
-        }
+        pause: function() {},
+        resume: function() {}
     };
 }();
 
