@@ -1970,6 +1970,8 @@
             document.getElementById('house-checklist').classList.add('visible');
 
             // Start static ambient sound for household
+            initAudio();
+            playNoise('highpass', 3000, 0.015);
             const staticAudio = document.getElementById('audio-static');
             if (staticAudio) {
                 staticAudio.volume = 0.3;
@@ -2873,6 +2875,9 @@
                 staticAudio.currentTime = 0;
             }
 
+            // Stop static noise
+            if (masterGain) masterGain.gain.value = 0;
+
             // Set dream mode
             isDreamScene = true;
             State.phase = 'dream_exploring';
@@ -3024,10 +3029,7 @@
             createAnimals();
             createSky();
 
-            initAudio();
-            playNoise('highpass', 3000, 0.015);
-
-            // Start countryside audio
+                        // Start countryside audio
             const countrysideAudio = document.getElementById('audio-countryside');
             if (countrysideAudio) {
                 countrysideAudio.volume = 0.5;
