@@ -4799,9 +4799,16 @@ function startIframe(){
     }
 
     iframe=document.createElement('iframe');
-    iframe.src='minify/darknessgame.html';
+    iframe.src='minify/darknessreallyfinalized.html';
     iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;top:0;left:0;z-index:5;';
     con.appendChild(iframe);
+
+    // Listen for game end message from iframe
+    window.addEventListener('message',function(e){
+        if(e.data&&e.data.type==='darknessGameEnd'){
+            onIframeDone();
+        }
+    });
 
     // Add continue button
     closeBtn=document.createElement('div');
