@@ -2210,12 +2210,6 @@
             overlay.style.transition = 'opacity 0.15s';
             overlay.classList.add('visible');
 
-            // Notify parent that game has ended after fade completes
-            setTimeout(function() {
-                if (window.parent && window.parent !== window) {
-                    window.parent.postMessage({ type: 'darknessGameEnd' }, '*');
-                }
-            }, 4500);
             
             setTimeout(() => {
                 overlay.classList.remove('visible');
