@@ -4799,7 +4799,9 @@ function startIframe(){
     }
 
     iframe=document.createElement('iframe');
-    iframe.src='minify/darknessreallyfinalized.html';
+    // Detect language and load appropriate version
+    var lang=localStorage.getItem('oasis-language')||document.documentElement.lang||'en';
+    iframe.src=lang==='ko'?'minify/darknessreallyfinalized_ko.html':'minify/darknessreallyfinalized.html';
     iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;top:0;left:0;z-index:5;';
     con.appendChild(iframe);
 
