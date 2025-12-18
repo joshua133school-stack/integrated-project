@@ -4744,13 +4744,6 @@
             colliders = [];
             fallProgress = 0;
             
-            // Stop countryside audio
-            const countrysideAudio = document.getElementById('audio-countryside');
-            if (countrysideAudio) {
-                countrysideAudio.pause();
-                countrysideAudio.currentTime = 0;
-            }
-            
             // Check off lookup task
             const task = document.getElementById('task-dream-lookup');
             task.classList.add('completed');
