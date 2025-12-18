@@ -108,6 +108,7 @@
     <audio id="audio-countryside" loop preload="auto"><source src="../data/countrysound.mp4" type="audio/mp4"></audio>
     <audio id="audio-sheep" loop preload="auto"><source src="../data/sheepsound.mp4" type="audio/mp4"></audio>
     <audio id="audio-waves" loop preload="auto"><source src="../data/wavessound.mp3" type="audio/mpeg"></audio>
+    <audio id="audio-thunder" loop preload="auto"><source src="../data/thundersound.mp3" type="audio/mpeg"></audio>
     <audio id="audio-christmas" loop preload="auto"><source src="../data/christmassound.mp3" type="audio/mpeg"></audio>
 
     <!-- House Checklist -->
@@ -5011,6 +5012,12 @@
                 // Start storm sequence after a delay
                 setTimeout(() => {
                     oceanPhase = 'storm_building';
+                    // Start thunder sound
+                    const thunderAudio = document.getElementById('audio-thunder');
+                    if (thunderAudio) {
+                        thunderAudio.volume = 0.5;
+                        thunderAudio.play().catch(e => console.log('Thunder audio play failed:', e));
+                    }
                 }, 12000);
             }, 500);
         }
@@ -5502,9 +5509,24 @@
                 if (stormIntensity <= 0) {
                     oceanPhase = 'dawn';
                     oceanTime = 0;
+                    // Fade out thunder sound
+                    const thunderAudio = document.getElementById('audio-thunder');
+                    if (thunderAudio && !thunderAudio.paused) {
+                        let vol = thunderAudio.volume;
+                        const fadeOut = setInterval(() => {
+                            vol -= 0.025;
+                            if (vol <= 0) {
+                                thunderAudio.pause();
+                                thunderAudio.currentTime = 0;
+                                clearInterval(fadeOut);
+                            } else {
+                                thunderAudio.volume = vol;
+                            }
+                        }, 100);
+                    }
                 }
             }
-            
+
             if (oceanPhase === 'dawn') {
                 // Transition to sunrise
                 const dawnProgress = Math.min(1, oceanTime * 0.05);
