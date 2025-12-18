@@ -135,9 +135,9 @@
     <div id="lights-remaining"></div>
     <div id="fade-overlay"></div>
     
-    <audio id="audio-countryside" loop preload="auto"><source src="/data/countrysound.mp4" type="audio/mp4"></audio>
-    <audio id="audio-sheep" loop preload="auto"><source src="/data/sheepsound.mp4" type="audio/mp4"></audio>
-    <audio id="audio-waves" loop preload="auto"><source src="/data/wavessound.mp4" type="audio/mp4"></audio>
+    <audio id="audio-countryside" loop preload="auto"><source src="../data/countrysound.mp4" type="audio/mp4"></audio>
+    <audio id="audio-sheep" loop preload="auto"><source src="../data/sheepsound.mp4" type="audio/mp4"></audio>
+    <audio id="audio-waves" loop preload="auto"><source src="../data/wavessound.mp4" type="audio/mp4"></audio>
     
     <!-- Editor UI -->
     <div id="editor-mode-hint">EDITOR MODE - Press Tab to exit</div>
@@ -4835,6 +4835,12 @@
             }
             
             if (State.starCount >= 30 && State.phase === 'drawing') {
+                // Stop countryside audio when all stars drawn
+                const countrysideAudio = document.getElementById('audio-countryside');
+                if (countrysideAudio) {
+                    countrysideAudio.pause();
+                    countrysideAudio.currentTime = 0;
+                }
                 setTimeout(startSheepTransformation, 500);
             }
         }
@@ -5750,7 +5756,7 @@
                 });
                 
                 // After 20 seconds at peak, transition to lighthouse focus
-                if (oceanTime > 20) {
+                if (oceanTime > 12) {
                     oceanPhase = 'lighthouse';
                     oceanTime = 0;
                     
@@ -5786,7 +5792,7 @@
                 }
                 
                 // After 10 seconds, start calming
-                if (oceanTime > 10) {
+                if (oceanTime > 6) {
                     oceanPhase = 'calming';
                     oceanTime = 0;
                 }
@@ -5837,7 +5843,7 @@
             
             if (oceanPhase === 'dawn') {
                 // Transition to sunrise
-                const dawnProgress = Math.min(1, oceanTime * 0.03);
+                const dawnProgress = Math.min(1, oceanTime * 0.05);
                 
                 waveAmplitude = 0.4 + Math.sin(time * 0.3) * 0.1;
                 
@@ -5885,7 +5891,7 @@
                 }
                 
                 // Beautiful morning colors
-                const sunriseProgress = Math.min(1, oceanTime * 0.02);
+                const sunriseProgress = Math.min(1, oceanTime * 0.04);
                 const skyColor = new THREE.Color(0x7a5a4a).lerp(new THREE.Color(0x6a8aaa), sunriseProgress);
                 scene.background = skyColor;
                 
@@ -5902,7 +5908,7 @@
                 }
                 
                 // After 15 seconds of peace, transition to Christmas
-                if (oceanTime > 15) {
+                if (oceanTime > 8) {
                     // Hide ocean checklist
                     document.getElementById('ocean-checklist').classList.remove('visible');
                     
