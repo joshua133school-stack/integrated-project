@@ -4775,7 +4775,7 @@ function runPhase1(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
 
-    con.innerHTML='<div id="darkness-intro" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;"><div id="darkness-text1" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div></div>';
+    con.innerHTML='<div id="darkness-intro" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(\"data/images/darknessintro.webp\");background-size:cover;background-position:center;z-index:10;"><div id="darkness-text1" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div></div>';
 
     var text1=document.getElementById('darkness-text1');
 
@@ -4838,7 +4838,7 @@ function runPhase2(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
 
-    var introHTML='<div id="darkness-intro2" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;opacity:0;transition:opacity 1s ease;">';
+    var introHTML='<div id="darkness-intro2" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(\"data/images/darknessintro.webp\");background-size:cover;background-position:center;z-index:10;opacity:0;transition:opacity 1s ease;">';
     introHTML+='<div id="darkness-text2b" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:38px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What does darkness mean to you?</div>';
     introHTML+='<div class="darkness-word2" style="position:absolute;top:20%;left:25%;font-family:Crimson Text,Georgia,serif;font-size:56px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Fireflies</div>';
     introHTML+='<div class="darkness-word2" style="position:absolute;top:35%;left:65%;font-family:Crimson Text,Georgia,serif;font-size:52px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Night Sea</div>';
