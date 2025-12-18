@@ -4754,11 +4754,67 @@ this.rotate},dispose:function(){this.stage.removeChild(this.mc);this.mc.destroy(
 
 var Darkness=Darkness||function(){
 var container,iframe,introTimeout,wordTimeouts=[];
+var introAudio=null;
+var audioCtx=null;
 
 function clearAllTimeouts(){
     if(introTimeout)clearTimeout(introTimeout);
     for(var i=0;i<wordTimeouts.length;i++)clearTimeout(wordTimeouts[i]);
     wordTimeouts=[];
+}
+
+// Create intro audio element
+function createIntroAudio(){
+    if(!introAudio){
+        introAudio=new Audio('data/introfinal.mp3');
+        introAudio.loop=true;
+        introAudio.volume=0.4;
+    }
+    return introAudio;
+}
+
+// Play a bright, long ding sound using Web Audio API
+function playDing(){
+    if(!audioCtx){
+        audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    }
+    var osc=audioCtx.createOscillator();
+    var osc2=audioCtx.createOscillator();
+    var gain=audioCtx.createGain();
+
+    osc.type='sine';
+    osc.frequency.value=880; // A5
+    osc2.type='sine';
+    osc2.frequency.value=1320; // E6 (harmonic)
+
+    gain.gain.setValueAtTime(0.3,audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+1.5);
+
+    osc.connect(gain);
+    osc2.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start();
+    osc2.start();
+    osc.stop(audioCtx.currentTime+1.5);
+    osc2.stop(audioCtx.currentTime+1.5);
+}
+
+// Fade out and stop intro audio
+function fadeOutIntroAudio(){
+    if(introAudio&&!introAudio.paused){
+        var vol=introAudio.volume;
+        var fadeOut=setInterval(function(){
+            vol-=0.02;
+            if(vol<=0){
+                introAudio.pause();
+                introAudio.currentTime=0;
+                clearInterval(fadeOut);
+            }else{
+                introAudio.volume=vol;
+            }
+        },50);
+    }
 }
 
 function init(parentElement){
@@ -4775,12 +4831,20 @@ function runPhase1(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
 
+    // Start intro music
+    createIntroAudio();
+    introAudio.volume=0.4;
+    introAudio.play().catch(function(e){console.log('Intro audio play failed:',e);});
+
     con.innerHTML='<div id="darkness-intro" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;"><div id="darkness-text1" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:48px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What\'s Beyond the Darkness?</div></div>';
 
     var text1=document.getElementById('darkness-text1');
 
-    // 2s background, then show text
-    wordTimeouts.push(setTimeout(function(){if(text1)text1.style.opacity='1';},2000));
+    // 2s background, then show text with ding
+    wordTimeouts.push(setTimeout(function(){
+        if(text1)text1.style.opacity='1';
+        playDing();
+    },2000));
     // Text visible for 4s, then fade out
     wordTimeouts.push(setTimeout(function(){if(text1)text1.style.opacity='0';},6000));
     // 2s more background, then start iframe
@@ -4790,6 +4854,9 @@ function runPhase1(){
 function startIframe(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
+
+    // Fade out intro music before house scene
+    fadeOutIntroAudio();
 
     var intro=document.getElementById('darkness-intro');
     if(intro){
@@ -4838,6 +4905,11 @@ function runPhase2(){
     var con=document.getElementById('darkness-con');
     if(!con)return;
 
+    // Start intro music for extro
+    createIntroAudio();
+    introAudio.volume=0.4;
+    introAudio.play().catch(function(e){console.log('Extro audio play failed:',e);});
+
     var introHTML='<div id="darkness-intro2" style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:url(data/images/darknessintro.webp);background-size:cover;background-position:center;z-index:10;opacity:0;transition:opacity 1s ease;">';
     introHTML+='<div id="darkness-text2b" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:Crimson Text,Georgia,serif;font-size:38px;color:#fff;text-align:center;opacity:0;transition:opacity 1s ease;text-shadow:0 2px 30px rgba(0,0,0,0.9);">What does darkness mean to you?</div>';
     introHTML+='<div class="darkness-word2" style="position:absolute;top:20%;left:25%;font-family:Crimson Text,Georgia,serif;font-size:56px;color:#ffd700;opacity:0;transition:opacity 0.8s ease;text-shadow:0 0 30px rgba(255,215,0,0.8),0 0 60px rgba(255,215,0,0.4);">Fireflies</div>';
@@ -4867,20 +4939,27 @@ function runPhase2(){
 
     for(var i=0;i<words.length;i++){
         (function(index){
-            wordTimeouts.push(setTimeout(function(){if(words[index])words[index].style.opacity='1';},wordStart+index*wordInterval));
+            wordTimeouts.push(setTimeout(function(){
+                if(words[index])words[index].style.opacity='1';
+                playDing();
+            },wordStart+index*wordInterval));
             wordTimeouts.push(setTimeout(function(){if(words[index])words[index].style.opacity='0';},wordStart+index*wordInterval+wordDuration));
         })(i);
     }
 
     // After all words done + 2s background
     var textStart=wordStart+(words.length*wordInterval)+2000;
-    wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='1';},textStart));
+    wordTimeouts.push(setTimeout(function(){
+        if(text2b)text2b.style.opacity='1';
+        playDing();
+    },textStart));
     wordTimeouts.push(setTimeout(function(){if(text2b)text2b.style.opacity='0';},textStart+4000));
 
     // After text fades + 2s background, fade out
     var endTime=textStart+4000+2000;
     wordTimeouts.push(setTimeout(function(){
         if(intro2)intro2.style.opacity='0';
+        fadeOutIntroAudio();
     },endTime));
 }
 
