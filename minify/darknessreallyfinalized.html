@@ -4744,6 +4744,15 @@
             colliders = [];
             fallProgress = 0;
             
+            // Restore audio for star ding sounds
+            if (masterGain) masterGain.gain.value = 0.3;
+
+            // Ensure countryside audio keeps playing
+            const countrysideAudio = document.getElementById('audio-countryside');
+            if (countrysideAudio && countrysideAudio.paused) {
+                countrysideAudio.play().catch(e => console.log('Audio play failed:', e));
+            }
+
             // Check off lookup task
             const task = document.getElementById('task-dream-lookup');
             task.classList.add('completed');
@@ -4776,7 +4785,12 @@
             document.body.style.cursor = 'crosshair';
             showPrompt('Click to create stars in space');
             setTimeout(hidePrompt, 4000);
-            
+
+            // Ensure countryside audio keeps playing during star drawing
+            const countrysideAudio = document.getElementById('audio-countryside');
+            if (countrysideAudio && countrysideAudio.paused) {
+                countrysideAudio.play().catch(e => console.log('Audio play failed:', e));
+            }
         }
 
         function addStar3D(screenX, screenY) {
