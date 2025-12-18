@@ -5590,7 +5590,7 @@
             lighthouseGroup.add(spotlight.target);
             
             // Light beam cone (visual effect) - small end at lighthouse, spreads outward
-            const beamGeo = new THREE.CylinderGeometry(25, 2, 200, 16, 1, true);
+            const beamGeo = new THREE.CylinderGeometry(2, 25, 200, 16, 1, true);
             const beamMat = new THREE.MeshBasicMaterial({
                 color: 0xffffcc,
                 transparent: true,
@@ -5598,7 +5598,7 @@
                 side: THREE.DoubleSide
             });
             lighthouseBeam = new THREE.Mesh(beamGeo, beamMat);
-            lighthouseBeam.rotation.x = -Math.PI / 2;  // Flipped to point narrow end at lighthouse
+            lighthouseBeam.rotation.x = Math.PI / 2;  // Flipped to point narrow end at lighthouse
             lighthouseBeam.position.set(0, 35, 100);  // Extend outward from lamp
             lighthouseGroup.add(lighthouseBeam);
             
