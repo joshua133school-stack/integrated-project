@@ -46,37 +46,7 @@
             transition: opacity 1s ease;
         }
         #fade-overlay.visible { opacity: 1; pointer-events: all; }
-        
-        
-        /* Editor Mode Styles */
-        #editor-panel {
-            position: fixed; top: 10px; left: 10px;
-            background: rgba(0,0,0,0.85); color: white;
-            padding: 15px; border-radius: 8px; z-index: 150;
-            width: 260px; font-size: 12px; font-family: Arial, sans-serif;
-            display: none;
-        }
-        #editor-panel.visible { display: block; }
-        #editor-panel h3 { color: #8cf; margin: 8px 0 5px; font-size: 13px; }
-        #editor-panel button {
-            background: #456; color: white; border: none;
-            padding: 5px 10px; margin: 2px; border-radius: 3px; cursor: pointer;
-        }
-        #editor-panel button:hover { background: #567; }
-        #editor-panel .selected-name { color: #8cf; font-weight: bold; }
-        #editor-panel .coords { color: #aaa; font-family: monospace; }
-        #editor-changes {
-            background: #112; padding: 8px; border-radius: 5px;
-            max-height: 150px; overflow-y: auto; font-family: monospace;
-            font-size: 10px; color: #0f0; margin-top: 8px;
-        }
-        #editor-mode-hint {
-            position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
-            background: rgba(100,50,50,0.9); color: white; padding: 8px 20px;
-            border-radius: 5px; z-index: 150; display: none; font-family: Arial;
-        }
-        #editor-mode-hint.visible { display: block; }
-        
+
         .scene-checklist {
             position: fixed;
             top: 30px;
@@ -138,26 +108,6 @@
     <audio id="audio-countryside" loop preload="auto"><source src="../data/countrysound.mp4" type="audio/mp4"></audio>
     <audio id="audio-sheep" loop preload="auto"><source src="../data/sheepsound.mp4" type="audio/mp4"></audio>
     <audio id="audio-waves" loop preload="auto"><source src="../data/wavessound.mp4" type="audio/mp4"></audio>
-    
-    <!-- Editor UI -->
-    <div id="editor-mode-hint">EDITOR MODE - Press Tab to exit</div>
-    <div id="editor-panel">
-        <h3>🛠️ Editor Mode</h3>
-        <p style="color:#888;font-size:10px;">Look at object + E to select | G to grab | Arrow keys to move</p>
-        
-        <h3>Selected</h3>
-        <div id="editor-selected">None - look at object and press E</div>
-        
-        <h3>Controls</h3>
-        <button onclick="editorDuplicate()">Duplicate</button>
-        <button onclick="editorDelete()">Delete</button>
-        <button onclick="editorDeselect()">Deselect (Esc)</button>
-        
-        <h3>Changes Log</h3>
-        <button onclick="editorCopyChanges()">📋 Copy Changes</button>
-        <button onclick="editorClearChanges()">Clear</button>
-        <div id="editor-changes">No changes yet</div>
-    </div>
 
     <!-- House Checklist -->
     <div id="house-checklist" class="scene-checklist">
@@ -287,7 +237,7 @@
         let streamMesh = null;
         let fallProgress = 0;
         let targetPitch = 0;
-        let audioCtx, masterGain;
+        let audioCtx, masterGain, noiseSource;
         let stars2D = [];
         let sheep = [];
         let sheepDebugFrames = 0;
@@ -331,14 +281,6 @@
         let lookingAtStars = false;
         let eyesClosed = false;
         let starField = [];
-        
-        // Editor mode
-        let editorMode = false;
-        let editorObjects = [];  // All editable objects
-        let editorSelected = null;
-        let editorHighlighted = null;
-        let editorGrabbing = false;
-        let editorChanges = [];
 
         function init() {
             State.velocity = new THREE.Vector3();
@@ -366,63 +308,17 @@
             
             document.addEventListener('mousemove', onMouseMove);
             document.addEventListener('keydown', e => {
-                // Toggle editor mode with Tab
-                if (e.code === 'Tab') {
-                    e.preventDefault();
-                    toggleEditorMode();
-                    return;
+                if (e.code === 'KeyW') State.keys.w = true;
+                if (e.code === 'KeyA') State.keys.a = true;
+                if (e.code === 'KeyS') State.keys.s = true;
+                if (e.code === 'KeyD') State.keys.d = true;
+                if (e.code === 'KeyF' && flashlight && (State.phase === 'turnOffLights' || State.phase === 'scared' || State.phase === 'turnOnLights' || State.phase === 'turnOffLights2' || State.phase === 'goToBed2' || State.phase === 'goToBed1')) {
+                    flashlight.visible = !flashlight.visible;
                 }
-                
-                // Editor mode controls
-                if (editorMode) {
-                    // E to select object under crosshair
-                    if (e.code === 'KeyE') {
-                        editorSelectUnderCrosshair();
-                    }
-                    // G to grab/move
-                    if (e.code === 'KeyG' && editorSelected) {
-                        editorGrabbing = !editorGrabbing;
-                        updateEditorUI();
-                    }
-                    // Escape to deselect
-                    if (e.code === 'Escape') {
-                        editorDeselect();
-                    }
-                    // Arrow keys to move selected object
-                    if (editorSelected && editorGrabbing) {
-                        const step = e.shiftKey ? 0.5 : 0.1;
-                        let moved = false;
-                        if (e.code === 'ArrowLeft') { editorSelected.position.x -= step; moved = true; }
-                        if (e.code === 'ArrowRight') { editorSelected.position.x += step; moved = true; }
-                        if (e.code === 'ArrowUp') { editorSelected.position.z -= step; moved = true; }
-                        if (e.code === 'ArrowDown') { editorSelected.position.z += step; moved = true; }
-                        if (e.code === 'PageUp') { editorSelected.position.y += step; moved = true; }
-                        if (e.code === 'PageDown') { editorSelected.position.y -= step; moved = true; }
-                        if (moved) {
-                            editorLogChange(editorSelected);
-                            updateEditorUI();
-                        }
-                        return;
-                    }
-                }
-                
-                // Normal movement (when not grabbing)
-                if (!editorGrabbing) {
-                    if (e.code === 'KeyW') State.keys.w = true;
-                    if (e.code === 'KeyA') State.keys.a = true;
-                    if (e.code === 'KeyS') State.keys.s = true;
-                    if (e.code === 'KeyD') State.keys.d = true;
-                    if (e.code === 'KeyF' && flashlight && (State.phase === 'turnOffLights' || State.phase === 'scared' || State.phase === 'turnOnLights' || State.phase === 'turnOffLights2' || State.phase === 'goToBed2' || State.phase === 'goToBed1')) {
-                        flashlight.visible = !flashlight.visible;
-                    }
-                }
-                // Arrow keys for movement when not in grab mode
-                if (!editorMode || !editorGrabbing) {
-                    if (e.code === 'ArrowUp') State.keys.w = true;
-                    if (e.code === 'ArrowLeft') State.keys.a = true;
-                    if (e.code === 'ArrowDown') State.keys.s = true;
-                    if (e.code === 'ArrowRight') State.keys.d = true;
-                }
+                if (e.code === 'ArrowUp') State.keys.w = true;
+                if (e.code === 'ArrowLeft') State.keys.a = true;
+                if (e.code === 'ArrowDown') State.keys.s = true;
+                if (e.code === 'ArrowRight') State.keys.d = true;
             });
             document.addEventListener('keyup', e => {
                 if (e.code === 'KeyW') State.keys.w = false;
@@ -730,11 +626,7 @@
             const rug = new THREE.Mesh(new THREE.PlaneGeometry(5, 3), new THREE.MeshLambertMaterial({ color: 0x6a5a4a }));
             rug.rotation.x = -Math.PI / 2;
             rug.position.set(0, 0.01, -5);
-            rug.name = `LR_Rug_${editorObjectCounter++}`;
-            rug.userData.editable = true;
-            rug.userData.type = 'rug';
             scene.add(rug);
-            editorObjects.push(rug);
 
             // === PLANT REMOVED ===
 
@@ -881,11 +773,7 @@
                 new THREE.MeshLambertMaterial({ color: 0x6a3a3a }));
             fpRug.rotation.x = -Math.PI / 2;
             fpRug.position.set(fpX, 0.015, fpZ - 1.8);
-            fpRug.name = `FP_Rug_${editorObjectCounter++}`;
-            fpRug.userData.editable = true;
-            fpRug.userData.type = 'rug';
             scene.add(fpRug);
-            editorObjects.push(fpRug);
             
             // === TWO COZY ARMCHAIRS facing fireplace ===
             const cozyFabric = new THREE.MeshLambertMaterial({ color: 0x5a4a3a });
@@ -1001,14 +889,9 @@
             bulb.position.y = 1.5;
             bulb.userData.shade = true;
             lampGroup.add(bulb);
-            
+
             lampGroup.position.set(x, y, z);
-            lampGroup.name = `FloorLamp_${room}_${editorObjectCounter++}`;
-            lampGroup.userData.editable = true;
-            lampGroup.userData.type = 'floorLamp';
-            lampGroup.userData.originalPos = { x, y, z };
             scene.add(lampGroup);
-            editorObjects.push(lampGroup);
             
             // Light
             const light = new THREE.PointLight(0xfff5e6, 0.8, 10);
@@ -1032,11 +915,7 @@
             plantGroup.add(plant);
             
             plantGroup.position.set(x, y, z);
-            plantGroup.name = `Plant_${editorObjectCounter++}`;
-            plantGroup.userData.editable = true;
-            plantGroup.userData.type = 'plant';
             scene.add(plantGroup);
-            editorObjects.push(plantGroup);
         }
 
         function createBedroom() {
@@ -1143,11 +1022,7 @@
             const rug = new THREE.Mesh(new THREE.PlaneGeometry(3, 2), new THREE.MeshLambertMaterial({ color: 0x7a6a5a }));
             rug.rotation.x = -Math.PI / 2;
             rug.position.set(bedX + 1.8, 0.01, bedZ);
-            rug.name = `BR_Rug_${editorObjectCounter++}`;
-            rug.userData.editable = true;
-            rug.userData.type = 'rug';
             scene.add(rug);
-            editorObjects.push(rug);
 
             // === BENCH AT FOOT OF BED (facing bed, back towards +x) ===
             const benchX = bedX + bedFrameWidth/2 + 0.8;  // In front of footboard
@@ -1159,11 +1034,7 @@
             const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.5, 12),
                 new THREE.MeshLambertMaterial({ color: 0x8a7a6a }));
             basket.position.set(-7.5, 0.25, -7.5);
-            basket.name = `BR_LaundryBasket_${editorObjectCounter++}`;
-            basket.userData.editable = true;
-            basket.userData.type = 'basket';
             scene.add(basket);
-            editorObjects.push(basket);
 
             // === SMALL BOOKCASE against bedroom wall (near door) ===
             // Against bedroom wall (x = -6), facing into bedroom (-x direction)
@@ -1198,11 +1069,7 @@
             const rug2 = new THREE.Mesh(new THREE.PlaneGeometry(2, 1.5), new THREE.MeshLambertMaterial({ color: 0x6a5a6a }));
             rug2.rotation.x = -Math.PI / 2;
             rug2.position.set(-8.4, 0.01, -8.6);
-            rug2.name = `BR_Rug2_${editorObjectCounter++}`;
-            rug2.userData.editable = true;
-            rug2.userData.type = 'rug';
             scene.add(rug2);
-            editorObjects.push(rug2);
 
             // === CEILING LIGHT ===
             createCeilingLight(-11, HOUSE.height - 0.1, -2, 'bedroom');
@@ -1314,11 +1181,7 @@
             const trashBin = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.15, 0.5, 12),
                 new THREE.MeshLambertMaterial({ color: 0x4a4a4a }));
             trashBin.position.set(9, 0.25, -7.5);
-            trashBin.name = `KT_TrashBin_${editorObjectCounter++}`;
-            trashBin.userData.editable = true;
-            trashBin.userData.type = 'furniture';
             scene.add(trashBin);
-            editorObjects.push(trashBin);
 
             // === PAPER TOWEL HOLDER on counter ===
             const towelHolder = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.35, 12),
@@ -1524,11 +1387,7 @@
             umbrella.position.y = 0.5;
             umbrellaGroup.add(umbrella);
             umbrellaGroup.position.set(-15, 0, 6);
-            umbrellaGroup.name = `HW_UmbrellaStand_${editorObjectCounter++}`;
-            umbrellaGroup.userData.editable = true;
-            umbrellaGroup.userData.type = 'furniture';
             scene.add(umbrellaGroup);
-            editorObjects.push(umbrellaGroup);
 
             // === PLANT ===
             createPlant(-15.4, 0, 5.5);
@@ -1582,11 +1441,7 @@
                 new THREE.MeshLambertMaterial({ color: 0x4a3a2a }));
             mat.rotation.x = -Math.PI / 2;
             mat.position.set(0, 0.02, 8.5);
-            mat.name = `HW_Doormat_${editorObjectCounter++}`;
-            mat.userData.editable = true;
-            mat.userData.type = 'rug';
             scene.add(mat);
-            editorObjects.push(mat);
         }
 
         function createWallSconce(x, y, z, room, rotY = 0) {
@@ -1630,17 +1485,10 @@
             lamps.push({ light, bulb, room, group: sconce });
         }
 
-        let editorObjectCounter = 0;
-        
-        function addBox(x, y, z, w, h, d, mat, name) {
+        function addBox(x, y, z, w, h, d, mat) {
             const box = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
             box.position.set(x, y, z);
-            box.name = name || `Box_${editorObjectCounter++}`;
-            box.userData.editable = true;
-            box.userData.originalPos = { x, y, z };
-            box.userData.dimensions = { w, h, d };
             scene.add(box);
-            editorObjects.push(box);
             return box;
         }
 
@@ -2516,192 +2364,6 @@
             }
         }
 
-        // ============ EDITOR FUNCTIONS ============
-        
-        function toggleEditorMode() {
-            editorMode = !editorMode;
-            document.getElementById('editor-panel').classList.toggle('visible', editorMode);
-            document.getElementById('editor-mode-hint').classList.toggle('visible', editorMode);
-            
-            if (!editorMode) {
-                editorDeselect();
-                editorGrabbing = false;
-            }
-        }
-        
-        function editorSelectUnderCrosshair() {
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(editorObjects, true);
-            
-            if (intersects.length > 0) {
-                let obj = intersects[0].object;
-                // Find parent if it's a group
-                while (obj.parent && !obj.userData.editable) {
-                    obj = obj.parent;
-                }
-                if (obj.userData.editable) {
-                    editorSelect(obj);
-                }
-            }
-        }
-        
-        function editorSelect(obj) {
-            editorDeselect();
-            editorSelected = obj;
-            editorSetHighlight(obj, 0x444400);
-            updateEditorUI();
-        }
-        
-        function editorDeselect() {
-            if (editorSelected) {
-                editorSetHighlight(editorSelected, 0x000000);
-            }
-            editorSelected = null;
-            editorGrabbing = false;
-            updateEditorUI();
-        }
-        
-        function editorSetHighlight(obj, color) {
-            obj.traverse(child => {
-                if (child.material && child.material.emissive) {
-                    child.material.emissive.setHex(color);
-                }
-            });
-        }
-        
-        function editorCheckHighlight() {
-            if (!editorMode || editorGrabbing) return;
-            
-            // Clear previous highlight
-            if (editorHighlighted && editorHighlighted !== editorSelected) {
-                editorSetHighlight(editorHighlighted, 0x000000);
-            }
-            
-            raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
-            const intersects = raycaster.intersectObjects(editorObjects, true);
-            
-            if (intersects.length > 0) {
-                let obj = intersects[0].object;
-                while (obj.parent && !obj.userData.editable) {
-                    obj = obj.parent;
-                }
-                if (obj.userData.editable && obj !== editorSelected) {
-                    editorHighlighted = obj;
-                    editorSetHighlight(obj, 0x222222);
-                }
-            } else {
-                editorHighlighted = null;
-            }
-        }
-        
-        function updateEditorUI() {
-            const el = document.getElementById('editor-selected');
-            if (editorSelected) {
-                const p = editorSelected.position;
-                el.innerHTML = `
-                    <div class="selected-name">${editorSelected.name}</div>
-                    <div class="coords">X: ${p.x.toFixed(2)} Y: ${p.y.toFixed(2)} Z: ${p.z.toFixed(2)}</div>
-                    <div style="color:${editorGrabbing ? '#f80' : '#888'}">${editorGrabbing ? '⚡ GRABBING - Arrow keys to move' : 'Press G to grab'}</div>
-                `;
-            } else {
-                el.textContent = 'None - look at object and press E';
-            }
-        }
-        
-        function editorLogChange(obj) {
-            const p = obj.position;
-            const existing = editorChanges.findIndex(c => c.name === obj.name);
-            
-            const entry = {
-                name: obj.name,
-                type: obj.userData.type || 'box',
-                action: 'MOVED',
-                x: p.x.toFixed(2),
-                y: p.y.toFixed(2),
-                z: p.z.toFixed(2)
-            };
-            
-            if (existing >= 0) {
-                editorChanges[existing] = entry;
-            } else {
-                editorChanges.push(entry);
-            }
-            
-            updateEditorChangesLog();
-        }
-        
-        function updateEditorChangesLog() {
-            const log = document.getElementById('editor-changes');
-            if (editorChanges.length === 0) {
-                log.textContent = 'No changes yet';
-                return;
-            }
-            
-            log.textContent = editorChanges.map(c => 
-                `${c.name}: (${c.x}, ${c.y}, ${c.z})`
-            ).join('\n');
-        }
-        
-        function editorDuplicate() {
-            if (!editorSelected) return;
-            const clone = editorSelected.clone();
-            clone.position.x += 1;
-            clone.name = editorSelected.name + '_copy';
-            clone.userData = { ...editorSelected.userData, originalPos: null };
-            scene.add(clone);
-            editorObjects.push(clone);
-            editorLogChange(clone);
-            editorSelect(clone);
-        }
-        
-        function editorDelete() {
-            if (!editorSelected) return;
-            const entry = {
-                name: editorSelected.name,
-                action: 'DELETED',
-                x: '-', y: '-', z: '-'
-            };
-            editorChanges.push(entry);
-            updateEditorChangesLog();
-            
-            scene.remove(editorSelected);
-            editorObjects = editorObjects.filter(o => o !== editorSelected);
-            editorDeselect();
-        }
-        
-        function editorCopyChanges() {
-            if (editorChanges.length === 0) {
-                alert('No changes to copy!');
-                return;
-            }
-            
-            let output = '// ========== EDITOR CHANGES ==========\n';
-            output += '// Copy this to Claude to apply changes\n\n';
-            
-            editorChanges.forEach(c => {
-                if (c.action === 'DELETED') {
-                    output += `// DELETE: ${c.name}\n`;
-                } else {
-                    output += `// ${c.name}\n`;
-                    output += `// New position: (${c.x}, ${c.y}, ${c.z})\n`;
-                }
-                output += '\n';
-            });
-            
-            navigator.clipboard.writeText(output).then(() => {
-                alert('Changes copied to clipboard!');
-            }).catch(() => {
-                // Fallback
-                console.log(output);
-                alert('Check console for changes (Ctrl+Shift+J)');
-            });
-        }
-        
-        function editorClearChanges() {
-            editorChanges = [];
-            updateEditorChangesLog();
-        }
-
         function animate(now) {
             requestAnimationFrame(animate);
             
@@ -2801,12 +2463,7 @@
             }
             
             checkInteractionHint();
-            
-            // Editor mode highlighting
-            if (editorMode) {
-                editorCheckHighlight();
-            }
-            
+
             // Animate electronics
             electronics.forEach((led, i) => {
                 if (led.visible) {
@@ -2876,7 +2533,7 @@
             }
 
             // Stop static noise
-            if (masterGain) masterGain.gain.value = 0;
+            stopNoise();
 
             // Set dream mode
             isDreamScene = true;
@@ -4743,9 +4400,6 @@
             hidePrompt();
             colliders = [];
             fallProgress = 0;
-            
-            // Restore audio for star ding sounds
-            if (masterGain) masterGain.gain.value = 0.3;
 
             // Ensure countryside audio keeps playing
             const countrysideAudio = document.getElementById('audio-countryside');
@@ -6838,6 +6492,14 @@
             flt.connect(gain);
             gain.connect(masterGain);
             src.start();
+            noiseSource = src;  // Store reference to stop later
+        }
+
+        function stopNoise() {
+            if (noiseSource) {
+                try { noiseSource.stop(); } catch(e) {}
+                noiseSource = null;
+            }
         }
 
         function playTwinkle() {
