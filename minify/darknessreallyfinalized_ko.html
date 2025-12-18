@@ -4744,6 +4744,9 @@
             colliders = [];
             fallProgress = 0;
             
+            // Restore audio for star ding sounds
+            if (masterGain) masterGain.gain.value = 0.3;
+            
             // Check off lookup task
             const task = document.getElementById('task-dream-lookup');
             task.classList.add('completed');
