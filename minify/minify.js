@@ -4755,7 +4755,6 @@ this.rotate},dispose:function(){this.stage.removeChild(this.mc);this.mc.destroy(
 var Darkness=Darkness||function(){
 var container,iframe,introTimeout,wordTimeouts=[];
 var introAudio=null;
-var audioCtx=null;
 
 function clearAllTimeouts(){
     if(introTimeout)clearTimeout(introTimeout);
@@ -4773,31 +4772,11 @@ function createIntroAudio(){
     return introAudio;
 }
 
-// Play a bright, long ding sound using Web Audio API
+// Play ding sound from audio file
 function playDing(){
-    if(!audioCtx){
-        audioCtx=new (window.AudioContext||window.webkitAudioContext)();
-    }
-    var osc=audioCtx.createOscillator();
-    var osc2=audioCtx.createOscillator();
-    var gain=audioCtx.createGain();
-
-    osc.type='sine';
-    osc.frequency.value=880; // A5
-    osc2.type='sine';
-    osc2.frequency.value=1320; // E6 (harmonic)
-
-    gain.gain.setValueAtTime(0.3,audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01,audioCtx.currentTime+1.5);
-
-    osc.connect(gain);
-    osc2.connect(gain);
-    gain.connect(audioCtx.destination);
-
-    osc.start();
-    osc2.start();
-    osc.stop(audioCtx.currentTime+1.5);
-    osc2.stop(audioCtx.currentTime+1.5);
+    var ding=new Audio('data/introfinalding.mp3');
+    ding.volume=0.5;
+    ding.play().catch(function(e){console.log('Ding audio play failed:',e);});
 }
 
 // Fade out and stop intro audio
