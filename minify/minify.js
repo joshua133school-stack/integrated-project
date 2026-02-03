@@ -1823,7 +1823,8 @@ var thunderClass = thunderClass || function() {
 var injection = injection || function() {
     var container, currentStep = 0, mosaicRemoved = false, mosaicRemoved2 = false, pixelationLevel = 40, pixelationLevel2 = 40, fadeInterval = null, fadeInterval2 = null, canvas, ctx, sourceImage, canvas2, ctx2, sourceImage2;
 
-    const steps = ['mosaic', 'mosaic2', 'gallery', 'simulation', 'actual-size'];
+    const steps = ['threejs-scene', 'mosaic', 'mosaic2', 'gallery', 'simulation', 'actual-size'];
+    var threeJsIframe = null;
 
     function setupEventListeners() {
         const removeMosaicBtn = container.querySelector('#remove-mosaic-btn');
@@ -2127,6 +2128,24 @@ var injection = injection || function() {
                     width: 90%;
                     max-width: 800px;
                     animation: fadeIn 0.5s ease-in;
+                }
+
+                .injection-threejs-container {
+                    position: relative;
+                    width: 100%;
+                    max-width: 900px;
+                    height: 500px;
+                    margin: 20px 0;
+                    border-radius: 15px;
+                    overflow: hidden;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+                    background: #1a1a2e;
+                }
+
+                .injection-threejs-container iframe {
+                    width: 100%;
+                    height: 100%;
+                    border: none;
                 }
 
                 .injection-mosaic-container {
@@ -2701,8 +2720,17 @@ var injection = injection || function() {
             var t = window.i18n ? window.i18n.t : function(k) { return k; };
             container.innerHTML = `
                 <div class="injection-experience">
-                    <!-- Step 1: Mosaic Needle -->
+                    <!-- Step 1: Three.js 3D Scene -->
                     <div class="injection-step" style="display: flex;">
+                        <h1 class="injection-title" data-i18n="injection.explore3D">${t('injection.explore3D') || 'Explore the Injection Scene'}</h1>
+                        <p class="injection-subtitle" data-i18n="injection.explore3DSubtitle">${t('injection.explore3DSubtitle') || 'Drag to rotate, scroll to zoom. Hover over syringes to learn about needle gauges.'}</p>
+                        <div class="injection-threejs-container">
+                            <iframe id="injection-threejs-iframe" src="minify/injectionscene.html" frameborder="0" allowfullscreen></iframe>
+                        </div>
+                    </div>
+
+                    <!-- Step 2: Mosaic Needle -->
+                    <div class="injection-step" style="display: none;">
                         <div class="injection-mosaic-container">
                             <canvas id="mosaic-canvas"></canvas>
                             <img id="source-image" src="data/images/injectionimg1.jpg" alt="Needle" crossorigin="anonymous">
@@ -2710,7 +2738,7 @@ var injection = injection || function() {
                         <button id="remove-mosaic-btn" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
                     </div>
 
-                    <!-- Step 2: Second Mosaic Needle -->
+                    <!-- Step 3: Second Mosaic Needle -->
                     <div class="injection-step" style="display: none;">
                         <div class="injection-mosaic-container">
                             <canvas id="mosaic-canvas-2"></canvas>
@@ -2719,7 +2747,7 @@ var injection = injection || function() {
                         <button id="remove-mosaic-btn-2" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
                     </div>
 
-                    <!-- Step 3: Gallery -->
+                    <!-- Step 4: Gallery -->
                     <div class="injection-step" style="display: none;">
                         <h1 class="injection-title" data-i18n="injection.injectionTypes">${t('injection.injectionTypes')}</h1>
                         <p class="injection-subtitle" data-i18n="injection.typesSubtitle">${t('injection.typesSubtitle')}</p>
@@ -2743,7 +2771,7 @@ var injection = injection || function() {
                         </div>
                     </div>
 
-                    <!-- Step 4: Simulation -->
+                    <!-- Step 5: Simulation -->
                     <div class="injection-step" style="display: none;">
                         <div class="injection-skin-simulation">
                             <!-- Timer Display -->
@@ -2777,7 +2805,7 @@ var injection = injection || function() {
                         <button id="start-simulation-btn" class="injection-btn" data-i18n="injection.startInjection">${t('injection.startInjection')}</button>
                     </div>
 
-                    <!-- Step 5: Actual Size -->
+                    <!-- Step 6: Actual Size -->
                     <div class="injection-step" style="display: none;">
                         <h1 class="injection-title" data-i18n="injection.actualNeedleSize">${t('injection.actualNeedleSize')}</h1>
                         <p class="injection-subtitle" data-i18n="injection.needleSizeSubtitle">${t('injection.needleSizeSubtitle')}</p>
@@ -2816,6 +2844,8 @@ var injection = injection || function() {
         start: function() {
             setupEventListeners();
             initCanvas();
+            // Store reference to Three.js iframe for cleanup
+            threeJsIframe = container.querySelector('#injection-threejs-iframe');
             showStep(0);
         },
 
@@ -2827,6 +2857,11 @@ var injection = injection || function() {
             if (fadeInterval2) {
                 clearInterval(fadeInterval2);
                 fadeInterval2 = null;
+            }
+            // Clean up Three.js iframe
+            if (threeJsIframe) {
+                threeJsIframe.src = 'about:blank';
+                threeJsIframe = null;
             }
             currentStep = 0;
             mosaicRemoved = false;
