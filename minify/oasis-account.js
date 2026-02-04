@@ -51,13 +51,26 @@ var OasisAccount = (function() {
     }
 
     /**
+     * Simple hash function for password (not cryptographically secure, but fine for local storage)
+     */
+    function hashPassword(password) {
+        var hash = 0;
+        for (var i = 0; i < password.length; i++) {
+            var char = password.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(36);
+    }
+
+    /**
      * Register new user
      */
-    function register(name, email) {
+    function register(name, password) {
         currentUser = {
             id: Date.now().toString(36),
             name: name || 'Patient',
-            email: email || '',
+            passwordHash: password ? hashPassword(password) : '',
             created: new Date().toISOString(),
             history: []
         };
@@ -66,6 +79,14 @@ var OasisAccount = (function() {
         updateHeaderUI();
         closePanels();
         return currentUser;
+    }
+
+    /**
+     * Validate password
+     */
+    function validatePassword(password) {
+        if (!currentUser || !currentUser.passwordHash) return true;
+        return hashPassword(password) === currentUser.passwordHash;
     }
 
     /**
@@ -435,14 +456,27 @@ var OasisAccount = (function() {
                 right: 15px;
                 background: none;
                 border: none;
-                font-size: 20px;
+                font-size: 24px;
                 cursor: pointer;
-                color: #bbb;
-                padding: 5px;
+                color: #999;
+                padding: 10px;
                 line-height: 1;
+                z-index: 10;
+                transition: color 0.2s;
             }
             .oasis-note-close:hover {
-                color: #666;
+                color: #333;
+            }
+
+            /* Password input */
+            .oasis-note-input[type="password"] {
+                letter-spacing: 2px;
+            }
+            .oasis-note-error {
+                color: #c44;
+                font-size: 12px;
+                margin-top: 5px;
+                font-family: 'Roboto', sans-serif;
             }
 
             /* Dashboard Content */
@@ -900,6 +934,13 @@ var OasisAccount = (function() {
                     <input type="text" class="oasis-note-input" id="oasis-name-input" placeholder="Enter your name...">
                 </div>
 
+                <div class="oasis-note-field">
+                    <div class="oasis-note-label">Password</div>
+                    <input type="password" class="oasis-note-input" id="oasis-password-input" placeholder="Create a password...">
+                </div>
+
+                <div id="oasis-register-error" class="oasis-note-error" style="display:none;"></div>
+
                 <button class="oasis-note-btn" onclick="OasisAccount.submitRegister()">Create File</button>
                 <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToCheckIn()">Already Registered</button>
             </div>
@@ -911,6 +952,8 @@ var OasisAccount = (function() {
      */
     function renderCheckInView() {
         var panel = document.getElementById('oasis-note-panel');
+        var hasPassword = currentUser && currentUser.passwordHash;
+
         panel.innerHTML = `
             <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
             <div class="oasis-note-paper">
@@ -921,6 +964,14 @@ var OasisAccount = (function() {
                     <div class="oasis-note-label">Patient</div>
                     <div class="oasis-note-value">${currentUser.name}</div>
                 </div>
+
+                ${hasPassword ? `
+                <div class="oasis-note-field">
+                    <div class="oasis-note-label">Password</div>
+                    <input type="password" class="oasis-note-input" id="oasis-checkin-password" placeholder="Enter password...">
+                </div>
+                <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
+                ` : ''}
 
                 <div class="oasis-session-info">
                     <div class="oasis-session-stat">
@@ -1061,14 +1112,51 @@ var OasisAccount = (function() {
      */
     function submitRegister() {
         var nameInput = document.getElementById('oasis-name-input');
+        var passwordInput = document.getElementById('oasis-password-input');
+        var errorEl = document.getElementById('oasis-register-error');
+
         var name = nameInput ? nameInput.value.trim() : '';
-        register(name || 'Patient');
+        var password = passwordInput ? passwordInput.value : '';
+
+        if (!name) {
+            if (errorEl) {
+                errorEl.textContent = 'Please enter your name';
+                errorEl.style.display = 'block';
+            }
+            return;
+        }
+
+        if (!password) {
+            if (errorEl) {
+                errorEl.textContent = 'Please create a password';
+                errorEl.style.display = 'block';
+            }
+            return;
+        }
+
+        register(name, password);
     }
 
     /**
      * Check in (login)
      */
     function checkIn() {
+        var passwordInput = document.getElementById('oasis-checkin-password');
+        var errorEl = document.getElementById('oasis-checkin-error');
+
+        // If user has a password, validate it
+        if (currentUser && currentUser.passwordHash) {
+            var password = passwordInput ? passwordInput.value : '';
+
+            if (!validatePassword(password)) {
+                if (errorEl) {
+                    errorEl.textContent = 'Incorrect password';
+                    errorEl.style.display = 'block';
+                }
+                return;
+            }
+        }
+
         isLoggedIn = true;
         updateHeaderUI();
         closePanels();
