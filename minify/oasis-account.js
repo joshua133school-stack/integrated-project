@@ -688,6 +688,9 @@ var OasisAccount = (function() {
             .oasis-note-input[type="password"] {
                 letter-spacing: 2px;
             }
+            .oasis-note-input[type="password"]::placeholder {
+                letter-spacing: normal;
+            }
             .oasis-note-error {
                 color: #c44;
                 font-size: 12px;
