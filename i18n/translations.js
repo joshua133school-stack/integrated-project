@@ -205,6 +205,111 @@ const translations = {
             socialEvents: { title: "Social Events", date: "Fear of Social Events" },
             germs: { title: "Germs", date: "Fear of Germs" },
             driving: { title: "Driving", date: "Fear of Driving" }
+        },
+
+        // Checkup test (end of experience)
+        checkup: {
+            sessionComplete: "Session Complete",
+            quickCheckin: "Quick Check-in",
+            submit: "Submit",
+            skip: "Skip",
+            notAtAll: "Not at all",
+            veryMuch: "Very much",
+            questions: {
+                airplane: {
+                    q1: "How anxious do you feel about flying right now?",
+                    q2: "How much does the thought of a flight still worry you?",
+                    q3: "How much discomfort do you still feel about air travel?"
+                },
+                injection: {
+                    q1: "How anxious do you feel about needles right now?",
+                    q2: "How much does the thought of an injection still worry you?",
+                    q3: "How much discomfort do you still feel about medical procedures?"
+                },
+                thunder: {
+                    q1: "How anxious do you feel about thunderstorms?",
+                    q2: "How much would a storm still disturb you?",
+                    q3: "How much unease do you still feel about severe weather?"
+                },
+                darkness: {
+                    q1: "How anxious do you feel about darkness now?",
+                    q2: "How much does being in the dark still worry you?",
+                    q3: "How much discomfort do you feel in dark spaces?"
+                },
+                heights: {
+                    q1: "How anxious do you feel about heights right now?",
+                    q2: "How much does being up high still worry you?",
+                    q3: "How much discomfort do you feel at elevated places?"
+                }
+            }
+        },
+
+        // Account / Doctor's note panel
+        account: {
+            registerCheckin: "Register / Check-in",
+            checkedIn: "Checked In",
+            register: "Register",
+            checkIn: "Check In",
+            checkOut: "Check Out",
+            endSession: "End Session",
+            patientId: "Patient ID",
+            totalSessions: "Total Sessions",
+            noSessions: "No sessions recorded yet.",
+            completeExperience: "Complete an experience to begin.",
+            completeDiagnostic: "Complete a diagnostic to begin tracking your progress.",
+            recentActivity: "Recent Activity",
+            sessions: "sessions",
+            session: "session",
+            change: "change",
+            improving: "Improving",
+            rising: "Rising",
+            stable: "Stable",
+            // Form fields
+            name: "Name",
+            email: "Email",
+            password: "Password",
+            patient: "Patient",
+            enterName: "Enter your name...",
+            enterEmail: "Enter your email...",
+            createPassword: "Create a password...",
+            enterPassword: "Enter password...",
+            // Panel titles and buttons
+            newPatientFile: "New Patient File",
+            createFile: "Create File",
+            alreadyRegistered: "Already Registered",
+            newPatient: "New Patient",
+            welcomeBack: "Welcome Back",
+            signIn: "Sign In",
+            globalAccount: "Global Account",
+            localStorage: "Local Storage",
+            findYourFile: "Find Your File",
+            noAccountFound: "No account found on this device.",
+            dataStoredLocally: "Your data is stored locally in this browser.",
+            registerNewAccount: "Register New Account",
+            // Error messages
+            enterNameError: "Please enter your name",
+            enterEmailError: "Please enter your email",
+            createPasswordError: "Please create a password",
+            passwordLengthError: "Password must be at least 6 characters",
+            enterPasswordError: "Please enter your password",
+            incorrectPassword: "Incorrect password",
+            // Phobia short names (for session view)
+            phobiaShort: {
+                airplane: "Flying",
+                injection: "Needles",
+                thunder: "Thunder",
+                darkness: "Darkness",
+                heights: "Heights"
+            },
+            // Phobia full names
+            phobias: {
+                airplane: "Fear of Flying",
+                injection: "Fear of Needles",
+                thunder: "Fear of Thunder",
+                darkness: "Fear of Darkness",
+                heights: "Fear of Heights",
+                ocean: "Fear of Water"
+            }
         }
     },
 
@@ -411,6 +516,111 @@ const translations = {
             socialEvents: { title: "사회적 행사", date: "사회 공포증" },
             germs: { title: "세균", date: "세균 공포증" },
             driving: { title: "운전", date: "운전 공포증" }
+        },
+
+        // Checkup test (end of experience)
+        checkup: {
+            sessionComplete: "세션 완료",
+            quickCheckin: "간단한 체크인",
+            submit: "제출",
+            skip: "건너뛰기",
+            notAtAll: "전혀 아님",
+            veryMuch: "매우 그렇다",
+            questions: {
+                airplane: {
+                    q1: "지금 비행에 대해 얼마나 불안하신가요?",
+                    q2: "비행에 대한 생각이 여전히 얼마나 걱정되시나요?",
+                    q3: "항공 여행에 대해 여전히 얼마나 불편하신가요?"
+                },
+                injection: {
+                    q1: "지금 바늘에 대해 얼마나 불안하신가요?",
+                    q2: "주사에 대한 생각이 여전히 얼마나 걱정되시나요?",
+                    q3: "의료 시술에 대해 여전히 얼마나 불편하신가요?"
+                },
+                thunder: {
+                    q1: "천둥번개에 대해 얼마나 불안하신가요?",
+                    q2: "폭풍이 여전히 얼마나 당신을 방해할까요?",
+                    q3: "악천후에 대해 여전히 얼마나 불안하신가요?"
+                },
+                darkness: {
+                    q1: "지금 어둠에 대해 얼마나 불안하신가요?",
+                    q2: "어두운 곳에 있는 것이 여전히 얼마나 걱정되시나요?",
+                    q3: "어두운 공간에서 얼마나 불편하신가요?"
+                },
+                heights: {
+                    q1: "지금 높은 곳에 대해 얼마나 불안하신가요?",
+                    q2: "높은 곳에 있는 것이 여전히 얼마나 걱정되시나요?",
+                    q3: "높은 장소에서 얼마나 불편하신가요?"
+                }
+            }
+        },
+
+        // Account / Doctor's note panel
+        account: {
+            registerCheckin: "등록 / 체크인",
+            checkedIn: "체크인 완료",
+            register: "등록",
+            checkIn: "체크인",
+            checkOut: "체크아웃",
+            endSession: "세션 종료",
+            patientId: "환자 ID",
+            totalSessions: "총 세션",
+            noSessions: "아직 기록된 세션이 없습니다.",
+            completeExperience: "시작하려면 체험을 완료하세요.",
+            completeDiagnostic: "진행 상황 추적을 시작하려면 진단을 완료하세요.",
+            recentActivity: "최근 활동",
+            sessions: "세션",
+            session: "세션",
+            change: "변화",
+            improving: "개선 중",
+            rising: "상승 중",
+            stable: "안정적",
+            // Form fields
+            name: "이름",
+            email: "이메일",
+            password: "비밀번호",
+            patient: "환자",
+            enterName: "이름을 입력하세요...",
+            enterEmail: "이메일을 입력하세요...",
+            createPassword: "비밀번호를 만드세요...",
+            enterPassword: "비밀번호 입력...",
+            // Panel titles and buttons
+            newPatientFile: "새 환자 파일",
+            createFile: "파일 생성",
+            alreadyRegistered: "이미 등록됨",
+            newPatient: "새 환자",
+            welcomeBack: "다시 오신 것을 환영합니다",
+            signIn: "로그인",
+            globalAccount: "글로벌 계정",
+            localStorage: "로컬 저장소",
+            findYourFile: "파일 찾기",
+            noAccountFound: "이 장치에서 계정을 찾을 수 없습니다.",
+            dataStoredLocally: "데이터는 이 브라우저에 로컬로 저장됩니다.",
+            registerNewAccount: "새 계정 등록",
+            // Error messages
+            enterNameError: "이름을 입력해주세요",
+            enterEmailError: "이메일을 입력해주세요",
+            createPasswordError: "비밀번호를 만들어주세요",
+            passwordLengthError: "비밀번호는 최소 6자 이상이어야 합니다",
+            enterPasswordError: "비밀번호를 입력해주세요",
+            incorrectPassword: "비밀번호가 틀렸습니다",
+            // Phobia short names (for session view)
+            phobiaShort: {
+                airplane: "비행",
+                injection: "주사",
+                thunder: "천둥",
+                darkness: "어둠",
+                heights: "높은 곳"
+            },
+            // Phobia full names
+            phobias: {
+                airplane: "비행 공포증",
+                injection: "주사 공포증",
+                thunder: "천둥 공포증",
+                darkness: "어둠 공포증",
+                heights: "고소 공포증",
+                ocean: "물 공포증"
+            }
         }
     }
 };
