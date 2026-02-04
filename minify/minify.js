@@ -3368,7 +3368,7 @@ var thunderClass = thunderClass || function() {
 var injection = injection || function() {
     var container, currentStep = 0, mosaicRemoved = false, mosaicRemoved2 = false, pixelationLevel = 40, pixelationLevel2 = 40, fadeInterval = null, fadeInterval2 = null, canvas, ctx, sourceImage, canvas2, ctx2, sourceImage2;
 
-    const steps = ['mosaic', 'mosaic2', 'comparison', 'threejs-game', 'breathing'];
+    const steps = ['mosaic', 'mosaic2', 'comparison', 'injection-demo', 'threejs-game', 'breathing'];
     var threeJsIframe = null;
 
     function setupEventListeners() {
@@ -3376,6 +3376,8 @@ var injection = injection || function() {
         const removeMosaicBtn2 = container.querySelector('#remove-mosaic-btn-2');
         const nextBtn = container.querySelector('#injection-next-btn');
         const prevBtn = container.querySelector('#injection-prev-btn');
+        const threejsNextBtn = container.querySelector('#threejs-next-btn');
+        const startDemoBtn = container.querySelector('#start-demo-btn');
 
         if (removeMosaicBtn) {
             removeMosaicBtn.addEventListener('mousedown', function() { startMosaicRemoval(1); });
@@ -3400,6 +3402,40 @@ var injection = injection || function() {
         if (prevBtn) {
             prevBtn.addEventListener('click', prevStep);
         }
+
+        if (threejsNextBtn) {
+            threejsNextBtn.addEventListener('click', nextStep);
+        }
+
+        if (startDemoBtn) {
+            startDemoBtn.addEventListener('click', startInjectionDemo);
+        }
+    }
+
+    function startInjectionDemo() {
+        const demoArea = container.querySelector('.injection-demo-area');
+        const armPrompt = container.querySelector('.arm-prompt');
+        const syringe = container.querySelector('.demo-syringe');
+        const btn = container.querySelector('#start-demo-btn');
+
+        btn.style.display = 'none';
+        armPrompt.style.opacity = '0';
+
+        // Quick injection animation
+        setTimeout(function() {
+            syringe.classList.add('injecting');
+        }, 300);
+
+        setTimeout(function() {
+            syringe.classList.remove('injecting');
+            syringe.classList.add('done');
+        }, 800);
+
+        setTimeout(function() {
+            syringe.classList.remove('done');
+            btn.style.display = 'block';
+            armPrompt.style.opacity = '1';
+        }, 2500);
     }
 
     function initCanvas() {
@@ -3900,6 +3936,98 @@ var injection = injection || function() {
                     border-radius: 2px;
                 }
 
+                /* Injection Demo */
+                .injection-demo-container {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 30px;
+                }
+
+                .injection-demo-area {
+                    position: relative;
+                    width: 400px;
+                    height: 300px;
+                    background: linear-gradient(180deg, #f5d0c5 0%, #e8c4b8 50%, #ddb5a5 100%);
+                    border-radius: 20px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+                    overflow: hidden;
+                }
+
+                .arm-prompt {
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    font-size: 18px;
+                    color: #8b6f66;
+                    text-align: center;
+                    transition: opacity 0.3s ease;
+                }
+
+                .demo-syringe {
+                    position: absolute;
+                    top: -80px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 8px;
+                    height: 60px;
+                    background: linear-gradient(to right, #a8a8a8, #e8e8e8, #a8a8a8);
+                    border-radius: 2px;
+                    transition: top 0.5s ease-in-out;
+                }
+
+                .demo-syringe::before {
+                    content: '';
+                    position: absolute;
+                    top: -30px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 30px;
+                    height: 30px;
+                    background: linear-gradient(to right, #ddd, #fff, #ddd);
+                    border: 2px solid #999;
+                    border-radius: 4px;
+                }
+
+                .demo-syringe::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -8px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 4px solid transparent;
+                    border-right: 4px solid transparent;
+                    border-top: 8px solid #c0c0c0;
+                }
+
+                .demo-syringe.injecting {
+                    top: 120px;
+                }
+
+                .demo-syringe.done {
+                    top: -80px;
+                }
+
+                #start-demo-btn {
+                    padding: 15px 40px;
+                    font-size: 16px;
+                    border: 2px solid #333;
+                    border-radius: 30px;
+                    background: #fff;
+                    color: #333;
+                    cursor: pointer;
+                    transition: all 0.3s ease;
+                }
+
+                #start-demo-btn:hover {
+                    background: #333;
+                    color: #fff;
+                }
+
                 .breathing-container {
                     display: flex;
                     align-items: center;
@@ -3979,14 +4107,26 @@ var injection = injection || function() {
                         </div>
                     </div>
 
-                    <!-- Step 4: Three.js 3D Scene (Game) -->
+                    <!-- Step 4: Injection Speed Demo -->
+                    <div class="injection-step" style="display: none;">
+                        <div class="injection-demo-container">
+                            <div class="injection-demo-area">
+                                <div class="arm-prompt">Put arm here</div>
+                                <div class="demo-syringe"></div>
+                            </div>
+                            <button id="start-demo-btn">Start</button>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Three.js 3D Scene (Game) -->
                     <div class="injection-step threejs-fullscreen" style="display: none;">
                         <div class="injection-threejs-container">
                             <iframe id="injection-threejs-iframe" src="minify/injectionscene.html" frameborder="0" allowfullscreen></iframe>
                         </div>
+                        <button id="threejs-next-btn" class="injection-nav-btn threejs-nav-btn" data-i18n="common.next">${t('common.next') || 'Next'}</button>
                     </div>
 
-                    <!-- Step 5: Breathing Exercise -->
+                    <!-- Step 6: Breathing Exercise -->
                     <div class="injection-step" style="display: none;">
                         <div class="breathing-container">
                             <div class="breathing-circle"></div>
