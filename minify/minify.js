@@ -3368,7 +3368,7 @@ var thunderClass = thunderClass || function() {
 var injection = injection || function() {
     var container, currentStep = 0, mosaicRemoved = false, mosaicRemoved2 = false, pixelationLevel = 40, pixelationLevel2 = 40, fadeInterval = null, fadeInterval2 = null, canvas, ctx, sourceImage, canvas2, ctx2, sourceImage2;
 
-    const steps = ['threejs-scene', 'mosaic', 'mosaic2'];
+    const steps = ['mosaic', 'mosaic2', 'comparison', 'threejs-game'];
     var threeJsIframe = null;
 
     function setupEventListeners() {
@@ -3376,11 +3376,6 @@ var injection = injection || function() {
         const removeMosaicBtn2 = container.querySelector('#remove-mosaic-btn-2');
         const nextBtn = container.querySelector('#injection-next-btn');
         const prevBtn = container.querySelector('#injection-prev-btn');
-        const threejsNextBtn = container.querySelector('#threejs-next-btn');
-
-        if (threejsNextBtn) {
-            threejsNextBtn.addEventListener('click', nextStep);
-        }
 
         if (removeMosaicBtn) {
             removeMosaicBtn.addEventListener('mousedown', function() { startMosaicRemoval(1); });
@@ -3774,6 +3769,113 @@ var injection = injection || function() {
                     color: #666;
                 }
 
+                .needle-comparison {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 40px;
+                    padding: 60px;
+                }
+
+                .comparison-item {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 60px;
+                }
+
+                /* Pencil tip - yellow/orange cone */
+                .shape-pencil {
+                    width: 0;
+                    height: 0;
+                    border-left: 8px solid transparent;
+                    border-right: 8px solid transparent;
+                    border-bottom: 80px solid #f4d03f;
+                    position: relative;
+                }
+                .shape-pencil::after {
+                    content: '';
+                    position: absolute;
+                    top: 60px;
+                    left: -4px;
+                    width: 0;
+                    height: 0;
+                    border-left: 4px solid transparent;
+                    border-right: 4px solid transparent;
+                    border-bottom: 20px solid #2c3e50;
+                }
+
+                /* Human hair - very thin line */
+                .shape-hair {
+                    width: 1px;
+                    height: 100px;
+                    background: linear-gradient(to bottom, #8b4513, #d2691e, #8b4513);
+                    border-radius: 1px;
+                }
+
+                /* Medical injection needle - thin silver */
+                .shape-needle {
+                    width: 3px;
+                    height: 120px;
+                    background: linear-gradient(to right, #a8a8a8, #e8e8e8, #a8a8a8);
+                    position: relative;
+                    border-radius: 0 0 1px 1px;
+                }
+                .shape-needle::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -15px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 2px solid transparent;
+                    border-right: 2px solid transparent;
+                    border-top: 15px solid #c0c0c0;
+                }
+
+                /* Sewing needle - thicker with eye hole */
+                .shape-sewing {
+                    width: 4px;
+                    height: 100px;
+                    background: linear-gradient(to right, #888, #ccc, #888);
+                    border-radius: 2px 2px 0 0;
+                    position: relative;
+                }
+                .shape-sewing::before {
+                    content: '';
+                    position: absolute;
+                    top: 8px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 2px;
+                    height: 6px;
+                    background: #f5f5f5;
+                    border-radius: 1px;
+                }
+                .shape-sewing::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -12px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 0;
+                    height: 0;
+                    border-left: 2px solid transparent;
+                    border-right: 2px solid transparent;
+                    border-top: 12px solid #999;
+                }
+
+                /* Cactus spine - green tapered */
+                .shape-cactus {
+                    width: 6px;
+                    height: 70px;
+                    background: linear-gradient(to bottom, #228b22, #32cd32);
+                    clip-path: polygon(50% 100%, 0% 0%, 100% 0%);
+                    border-radius: 2px;
+                }
+
                 @keyframes fadeIn {
                     from {
                         opacity: 0;
@@ -3798,16 +3900,8 @@ var injection = injection || function() {
             var t = window.i18n ? window.i18n.t : function(k) { return k; };
             container.innerHTML = `
                 <div class="injection-experience">
-                    <!-- Step 1: Three.js 3D Scene (Fullscreen) -->
-                    <div class="injection-step threejs-fullscreen" style="display: flex;">
-                        <div class="injection-threejs-container">
-                            <iframe id="injection-threejs-iframe" src="minify/injectionscene.html" frameborder="0" allowfullscreen></iframe>
-                        </div>
-                        <button id="threejs-next-btn" class="injection-nav-btn threejs-nav-btn" data-i18n="common.next">${t('common.next') || 'Next'}</button>
-                    </div>
-
-                    <!-- Step 2: Mosaic Needle -->
-                    <div class="injection-step" style="display: none;">
+                    <!-- Step 1: Mosaic Needle -->
+                    <div class="injection-step" style="display: flex;">
                         <div class="injection-mosaic-container">
                             <canvas id="mosaic-canvas"></canvas>
                             <img id="source-image" src="data/images/injectionimg1.jpg" alt="Needle" crossorigin="anonymous">
@@ -3815,13 +3909,31 @@ var injection = injection || function() {
                         <button id="remove-mosaic-btn" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
                     </div>
 
-                    <!-- Step 3: Second Mosaic Needle -->
+                    <!-- Step 2: Second Mosaic Needle -->
                     <div class="injection-step" style="display: none;">
                         <div class="injection-mosaic-container">
                             <canvas id="mosaic-canvas-2"></canvas>
                             <img id="source-image-2" src="data/images/injection2.webp" alt="Needle" crossorigin="anonymous">
                         </div>
                         <button id="remove-mosaic-btn-2" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
+                    </div>
+
+                    <!-- Step 3: Needle Size Comparison -->
+                    <div class="injection-step" style="display: none;">
+                        <div class="needle-comparison">
+                            <div class="comparison-item"><div class="shape-pencil"></div></div>
+                            <div class="comparison-item"><div class="shape-hair"></div></div>
+                            <div class="comparison-item"><div class="shape-needle"></div></div>
+                            <div class="comparison-item"><div class="shape-sewing"></div></div>
+                            <div class="comparison-item"><div class="shape-cactus"></div></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 4: Three.js 3D Scene (Game) -->
+                    <div class="injection-step threejs-fullscreen" style="display: none;">
+                        <div class="injection-threejs-container">
+                            <iframe id="injection-threejs-iframe" src="minify/injectionscene.html" frameborder="0" allowfullscreen></iframe>
+                        </div>
                     </div>
 
                     <!-- Navigation -->
