@@ -509,8 +509,8 @@ var OasisAccount = (function() {
                 right: 18px;
                 width: 20px;
                 height: 24px;
-                background: rgba(255,255,255,0.12);
-                border: 1px solid rgba(255,255,255,0.2);
+                background: rgba(0,0,0,0.05);
+                border: 1px solid rgba(0,0,0,0.3);
                 border-radius: 1px;
                 cursor: pointer;
                 display: flex;
@@ -524,20 +524,20 @@ var OasisAccount = (function() {
                 backdrop-filter: blur(10px);
             }
             .oasis-account-btn:hover {
-                background: rgba(255,255,255,0.2);
+                background: rgba(0,0,0,0.1);
                 transform: scale(1.08);
             }
             .oasis-account-btn .note-line {
                 width: 10px;
                 height: 1px;
-                background: rgba(255,255,255,0.6);
+                background: rgba(0,0,0,0.5);
             }
             .oasis-account-btn.checked-in {
                 background: rgba(76, 175, 80, 0.2);
                 border-color: rgba(76, 175, 80, 0.35);
             }
             .oasis-account-btn.checked-in .note-line {
-                background: rgba(255,255,255,0.8);
+                background: rgba(76, 175, 80, 0.8);
             }
 
             /* Panel Overlay */
