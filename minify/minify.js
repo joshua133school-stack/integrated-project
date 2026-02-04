@@ -3771,18 +3771,42 @@ var injection = injection || function() {
 
                 .needle-comparison {
                     display: flex;
-                    flex-direction: column;
-                    align-items: center;
+                    flex-direction: row;
+                    align-items: flex-end;
                     justify-content: center;
-                    gap: 40px;
+                    gap: 80px;
                     padding: 60px;
                 }
 
                 .comparison-item {
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
-                    justify-content: center;
-                    height: 60px;
+                    justify-content: flex-end;
+                    height: 180px;
+                    position: relative;
+                    cursor: pointer;
+                }
+
+                .comparison-item::after {
+                    content: attr(data-label);
+                    position: absolute;
+                    bottom: -50px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: #333;
+                    color: #fff;
+                    padding: 8px 12px;
+                    border-radius: 8px;
+                    font-size: 14px;
+                    white-space: nowrap;
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: opacity 0.3s ease;
+                }
+
+                .comparison-item:hover::after {
+                    opacity: 1;
                 }
 
                 /* Pencil tip - yellow/orange cone */
@@ -3808,15 +3832,15 @@ var injection = injection || function() {
 
                 /* Human hair - very thin line */
                 .shape-hair {
-                    width: 1px;
+                    width: 0.5px;
                     height: 100px;
-                    background: linear-gradient(to bottom, #8b4513, #d2691e, #8b4513);
-                    border-radius: 1px;
+                    background: #8b4513;
+                    box-shadow: 0 0 1px #d2691e;
                 }
 
                 /* Medical injection needle - thin silver */
                 .shape-needle {
-                    width: 3px;
+                    width: 1.5px;
                     height: 120px;
                     background: linear-gradient(to right, #a8a8a8, #e8e8e8, #a8a8a8);
                     position: relative;
@@ -3825,14 +3849,14 @@ var injection = injection || function() {
                 .shape-needle::after {
                     content: '';
                     position: absolute;
-                    bottom: -15px;
+                    bottom: -12px;
                     left: 50%;
                     transform: translateX(-50%);
                     width: 0;
                     height: 0;
-                    border-left: 2px solid transparent;
-                    border-right: 2px solid transparent;
-                    border-top: 15px solid #c0c0c0;
+                    border-left: 1px solid transparent;
+                    border-right: 1px solid transparent;
+                    border-top: 12px solid #c0c0c0;
                 }
 
                 /* Sewing needle - thicker with eye hole */
@@ -3921,11 +3945,11 @@ var injection = injection || function() {
                     <!-- Step 3: Needle Size Comparison -->
                     <div class="injection-step" style="display: none;">
                         <div class="needle-comparison">
-                            <div class="comparison-item"><div class="shape-pencil"></div></div>
-                            <div class="comparison-item"><div class="shape-hair"></div></div>
-                            <div class="comparison-item"><div class="shape-needle"></div></div>
-                            <div class="comparison-item"><div class="shape-sewing"></div></div>
-                            <div class="comparison-item"><div class="shape-cactus"></div></div>
+                            <div class="comparison-item" data-label="Pencil Tip • 0.5mm"><div class="shape-pencil"></div></div>
+                            <div class="comparison-item" data-label="Human Hair • 0.07mm"><div class="shape-hair"></div></div>
+                            <div class="comparison-item" data-label="Medical Needle • 0.4mm"><div class="shape-needle"></div></div>
+                            <div class="comparison-item" data-label="Sewing Needle • 0.8mm"><div class="shape-sewing"></div></div>
+                            <div class="comparison-item" data-label="Cactus Spine • 1.0mm"><div class="shape-cactus"></div></div>
                         </div>
                     </div>
 
