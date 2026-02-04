@@ -1170,12 +1170,37 @@ var OasisAccount = (function() {
      * Switch to check-in view
      */
     function switchToCheckIn() {
-        // If they say "already registered" but no user, just show register
+        // If no user stored, show check-in form to find account
         if (!currentUser) {
-            renderRegisterView();
+            renderCheckInSearchView();
             return;
         }
         renderCheckInView();
+    }
+
+    /**
+     * Render check-in search view (no stored user - need to find account)
+     */
+    function renderCheckInSearchView() {
+        var panel = document.getElementById('oasis-note-panel');
+        panel.innerHTML = `
+            <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
+            <div class="oasis-note-paper">
+                <h2>Check-in</h2>
+                <div class="note-subtitle">Find Your File</div>
+
+                <div class="oasis-note-field" style="margin-top: 20px;">
+                    <div class="oasis-note-value" style="font-size: 14px; color: #888; font-style: italic;">
+                        No account found on this device.<br>
+                        Your data is stored locally in this browser.
+                    </div>
+                </div>
+
+                <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
+
+                <button class="oasis-note-btn" onclick="OasisAccount.switchToRegister()">Register New Account</button>
+            </div>
+        `;
     }
 
     /**
