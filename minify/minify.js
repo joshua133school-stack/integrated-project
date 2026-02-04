@@ -430,6 +430,12 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
             animationFrameId = null;
         }
 
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('airplane', answers.slice(), score);
+        }
+
         // Hide diagnostic screen
         diagnosticScreen.style.opacity = '0';
 
@@ -765,6 +771,11 @@ var injectionDiagnostic = injectionDiagnostic || function() {
 
     function onContinueClick() {
         if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('injection', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
@@ -1018,6 +1029,11 @@ var thunderDiagnostic = thunderDiagnostic || function() {
 
     function onContinueClick() {
         if (lightningTimeout) { clearTimeout(lightningTimeout); lightningTimeout = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('thunder', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
@@ -1284,6 +1300,11 @@ var darknessDiagnostic = darknessDiagnostic || function() {
 
     function onContinueClick() {
         if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('darkness', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
@@ -1585,6 +1606,11 @@ var heightsDiagnostic = heightsDiagnostic || function() {
 
     function onContinueClick() {
         if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('heights', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
