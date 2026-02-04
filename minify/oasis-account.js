@@ -313,15 +313,19 @@ var OasisAccount = (function() {
                 border-radius: 4px;
                 box-shadow: 0 10px 60px rgba(0,0,0,0.25);
                 z-index: 10001;
-                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 font-family: 'Crimson Text', Georgia, serif;
                 overflow: hidden;
+                visibility: hidden;
             }
             .oasis-note-panel.active {
                 transform: translate(-50%, -50%);
+                visibility: visible;
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             }
             .oasis-note-panel.closing {
                 transform: translate(-150vw, -50%);
+                visibility: visible;
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
             }
 
             /* Lined paper effect */
@@ -336,6 +340,8 @@ var OasisAccount = (function() {
                 );
                 background-position: 0 20px;
                 min-height: 300px;
+                max-height: 80vh;
+                overflow-y: auto;
             }
 
             /* Red margin line */
@@ -476,6 +482,60 @@ var OasisAccount = (function() {
                 color: #c44;
                 font-size: 12px;
                 margin-top: 5px;
+                font-family: 'Roboto', sans-serif;
+            }
+
+            /* Session phobia cards with progress */
+            .oasis-phobia-item {
+                margin-bottom: 18px;
+                padding-bottom: 15px;
+                border-bottom: 1px dashed rgba(200, 180, 160, 0.4);
+            }
+            .oasis-phobia-item:last-child {
+                border-bottom: none;
+                margin-bottom: 0;
+            }
+            .oasis-phobia-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            .oasis-phobia-name {
+                font-size: 16px;
+                color: #2c2c2c;
+                text-transform: capitalize;
+            }
+            .oasis-phobia-trend {
+                font-size: 12px;
+                font-family: 'Roboto', sans-serif;
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+            .oasis-phobia-trend.improving { color: #4CAF50; }
+            .oasis-phobia-trend.stable { color: #2196F3; }
+            .oasis-phobia-trend.increasing { color: #FF9800; }
+            .oasis-progress-track {
+                height: 6px;
+                background: rgba(200, 180, 160, 0.3);
+                border-radius: 3px;
+                overflow: hidden;
+            }
+            .oasis-progress-fill {
+                height: 100%;
+                border-radius: 3px;
+                transition: width 0.5s ease;
+            }
+            .oasis-progress-fill.improving { background: #4CAF50; }
+            .oasis-progress-fill.stable { background: #2196F3; }
+            .oasis-progress-fill.increasing { background: #FF9800; }
+            .oasis-phobia-meta {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 6px;
+                font-size: 11px;
+                color: #999;
                 font-family: 'Roboto', sans-serif;
             }
 
@@ -1010,13 +1070,14 @@ var OasisAccount = (function() {
                 </div>
             `;
         } else {
-            // Session stats
+            // Total sessions
             html += `
-                <div class="oasis-session-info">
+                <div class="oasis-session-info" style="margin-bottom: 25px;">
                     <div class="oasis-session-stat">
                         <span>Total Sessions</span>
                         <span>${analytics.totalSessions}</span>
                     </div>
+                </div>
             `;
 
             // Phobia names
@@ -1028,21 +1089,31 @@ var OasisAccount = (function() {
                 heights: 'Heights'
             };
 
-            // Show each tracked phobia
+            // Show each tracked phobia with progress bar
             Object.keys(analytics.byPhobia).forEach(function(type) {
                 var data = analytics.byPhobia[type];
                 var name = phobiaNames[type] || type;
                 var trendIcon = data.trend === 'improving' ? '↓' : (data.trend === 'increasing' ? '↑' : '→');
+                var trendLabel = data.trend === 'improving' ? 'Improving' : (data.trend === 'increasing' ? 'Rising' : 'Stable');
+                // Progress shows improvement: 100 - latestScore (higher bar = better)
+                var progressWidth = 100 - data.latestScore;
 
                 html += `
-                    <div class="oasis-session-stat">
-                        <span>${name}</span>
-                        <span>${data.sessions}x ${trendIcon}</span>
+                    <div class="oasis-phobia-item">
+                        <div class="oasis-phobia-header">
+                            <span class="oasis-phobia-name">${name}</span>
+                            <span class="oasis-phobia-trend ${data.trend}">${trendIcon} ${trendLabel}</span>
+                        </div>
+                        <div class="oasis-progress-track">
+                            <div class="oasis-progress-fill ${data.trend}" style="width: ${progressWidth}%"></div>
+                        </div>
+                        <div class="oasis-phobia-meta">
+                            <span>${data.sessions} session${data.sessions !== 1 ? 's' : ''}</span>
+                            <span>${Math.abs(data.improvement)}% change</span>
+                        </div>
                     </div>
                 `;
             });
-
-            html += '</div>';
         }
 
         html += `
