@@ -430,6 +430,12 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
             animationFrameId = null;
         }
 
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('airplane', answers.slice(), score);
+        }
+
         // Hide diagnostic screen
         diagnosticScreen.style.opacity = '0';
 
@@ -481,6 +487,15 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
         },
 
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('airplane')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                airplane.init(mainContent);
+                airplane.start();
+                return;
+            }
+
             // Add event listeners
             var options = container.querySelectorAll('.diagnostic-option');
             options.forEach(function(opt) {
@@ -765,6 +780,11 @@ var injectionDiagnostic = injectionDiagnostic || function() {
 
     function onContinueClick() {
         if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('injection', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
@@ -803,6 +823,14 @@ var injectionDiagnostic = injectionDiagnostic || function() {
             initParticles();
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('injection')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                injection.init(mainContent);
+                injection.start();
+                return;
+            }
             container.querySelectorAll('.inj-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });
@@ -1018,6 +1046,11 @@ var thunderDiagnostic = thunderDiagnostic || function() {
 
     function onContinueClick() {
         if (lightningTimeout) { clearTimeout(lightningTimeout); lightningTimeout = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('thunder', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
@@ -1058,6 +1091,14 @@ var thunderDiagnostic = thunderDiagnostic || function() {
             flashEl = container.querySelector('.thunder-diag-flash');
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('thunder')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                thunderClass.init(mainContent);
+                thunderClass.start();
+                return;
+            }
             container.querySelectorAll('.thunder-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });
@@ -1284,6 +1325,11 @@ var darknessDiagnostic = darknessDiagnostic || function() {
 
     function onContinueClick() {
         if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('darkness', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
@@ -1323,6 +1369,14 @@ var darknessDiagnostic = darknessDiagnostic || function() {
             initParticles();
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('darkness')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                Darkness.init(mainContent);
+                Darkness.start();
+                return;
+            }
             container.querySelectorAll('.dark-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });
@@ -1585,6 +1639,11 @@ var heightsDiagnostic = heightsDiagnostic || function() {
 
     function onContinueClick() {
         if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        // Record diagnostic results
+        if (typeof OasisAccount !== 'undefined' && answers.length > 0) {
+            var score = Math.round((answers.reduce(function(a, b) { return a + b; }, 0) / (answers.length * 3)) * 100);
+            OasisAccount.recordDiagnostic('heights', answers.slice(), score);
+        }
         diagnosticScreen.style.opacity = '0';
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
@@ -1624,6 +1683,14 @@ var heightsDiagnostic = heightsDiagnostic || function() {
             initAnimation();
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('heights')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                Ocean.init(mainContent);
+                Ocean.start();
+                return;
+            }
             container.querySelectorAll('.heights-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });
