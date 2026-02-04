@@ -487,8 +487,8 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
         },
 
         start: function() {
-            // Skip diagnostic if user has already completed one for this phobia
-            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('airplane')) {
+            // Skip diagnostic if user is not logged in or has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && (!OasisAccount.isLoggedIn() || OasisAccount.hasDiagnostic('airplane'))) {
                 diagnosticScreen.style.display = 'none';
                 mainContent.classList.add('visible');
                 airplane.init(mainContent);
@@ -823,8 +823,8 @@ var injectionDiagnostic = injectionDiagnostic || function() {
             initParticles();
         },
         start: function() {
-            // Skip diagnostic if user has already completed one for this phobia
-            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('injection')) {
+            // Skip diagnostic if user is not logged in or has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && (!OasisAccount.isLoggedIn() || OasisAccount.hasDiagnostic('injection'))) {
                 diagnosticScreen.style.display = 'none';
                 mainContent.classList.add('visible');
                 injection.init(mainContent);
@@ -1091,8 +1091,8 @@ var thunderDiagnostic = thunderDiagnostic || function() {
             flashEl = container.querySelector('.thunder-diag-flash');
         },
         start: function() {
-            // Skip diagnostic if user has already completed one for this phobia
-            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('thunder')) {
+            // Skip diagnostic if user is not logged in or has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && (!OasisAccount.isLoggedIn() || OasisAccount.hasDiagnostic('thunder'))) {
                 diagnosticScreen.style.display = 'none';
                 mainContent.classList.add('visible');
                 thunderClass.init(mainContent);
@@ -1369,8 +1369,8 @@ var darknessDiagnostic = darknessDiagnostic || function() {
             initParticles();
         },
         start: function() {
-            // Skip diagnostic if user has already completed one for this phobia
-            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('darkness')) {
+            // Skip diagnostic if user is not logged in or has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && (!OasisAccount.isLoggedIn() || OasisAccount.hasDiagnostic('darkness'))) {
                 diagnosticScreen.style.display = 'none';
                 mainContent.classList.add('visible');
                 Darkness.init(mainContent);
@@ -1683,8 +1683,8 @@ var heightsDiagnostic = heightsDiagnostic || function() {
             initAnimation();
         },
         start: function() {
-            // Skip diagnostic if user has already completed one for this phobia
-            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('heights')) {
+            // Skip diagnostic if user is not logged in or has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && (!OasisAccount.isLoggedIn() || OasisAccount.hasDiagnostic('heights'))) {
                 diagnosticScreen.style.display = 'none';
                 mainContent.classList.add('visible');
                 Ocean.init(mainContent);

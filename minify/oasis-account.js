@@ -1749,8 +1749,8 @@ if (document.readyState === 'loading') {
                 closeBtn.addEventListener('click', function(e) {
                     var experience = getExperienceFromHash();
 
-                    // Show checkup if we're in an experience and haven't shown it yet
-                    if (experience && !checkupShown && typeof OasisAccount !== 'undefined') {
+                    // Show checkup if we're in an experience, haven't shown it yet, and user is logged in
+                    if (experience && !checkupShown && typeof OasisAccount !== 'undefined' && OasisAccount.isLoggedIn()) {
                         e.stopPropagation();
                         e.preventDefault();
                         checkupShown = true;
