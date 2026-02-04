@@ -128,7 +128,7 @@
         const hint = document.getElementById('hint');
         const status = document.getElementById('status');
 
-        setTimeout(() => hint.classList.add('hidden'), 4000);
+        setTimeout(() => hint.classList.add('hidden'), 5000);
 
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x0a0f14);
@@ -168,25 +168,34 @@
         fillLight.position.set(-3, 4, 2);
         scene.add(fillLight);
 
-        // Materials
+        // Materials - stored globally for animation access
         const skinMaterial = new THREE.MeshStandardMaterial({
             color: 0xe0b090,
             roughness: 0.7,
             metalness: 0.0,
+            transparent: true,
+            opacity: 1.0,
         });
 
         const veinMaterial = new THREE.MeshStandardMaterial({
-            color: 0x5588aa,
-            roughness: 0.8,
+            color: 0x3366aa,
+            roughness: 0.6,
             transparent: true,
-            opacity: 0.6,
+            opacity: 0.5,
+            emissive: 0x112244,
+            emissiveIntensity: 0.2,
         });
 
-        // Create first-person arm (extending from camera toward scene)
+        // Store arm parts for animation
+        let armSkinMeshes = [];
+        let armVeinMeshes = [];
+        let injectionSiteMesh = null;
+
+        // Create first-person arm
         function createArm() {
             const armGroup = new THREE.Group();
 
-            // Upper arm/forearm coming from bottom-right of screen
+            // Forearm
             const forearmLength = 6;
             const forearmPoints = [];
             for (let i = 0; i <= 16; i++) {
@@ -200,167 +209,184 @@
             forearm.castShadow = true;
             forearm.receiveShadow = true;
             armGroup.add(forearm);
+            armSkinMeshes.push(forearm);
 
-            // Veins on inner arm
+            // Main vein (prominent)
             const veinCurve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(0.3, 1, 0.2),
-                new THREE.Vector3(0.35, 2, 0.15),
-                new THREE.Vector3(0.32, 3, 0.18),
-                new THREE.Vector3(0.28, 4, 0.12),
-                new THREE.Vector3(0.25, 5, 0.15),
+                new THREE.Vector3(0.35, 0.5, 0.15),
+                new THREE.Vector3(0.4, 1.5, 0.1),
+                new THREE.Vector3(0.38, 2.5, 0.12),
+                new THREE.Vector3(0.35, 3.5, 0.08),
+                new THREE.Vector3(0.32, 4.5, 0.1),
+                new THREE.Vector3(0.28, 5.5, 0.12),
             ]);
-            const veinGeo = new THREE.TubeGeometry(veinCurve, 20, 0.06, 8, false);
+            const veinGeo = new THREE.TubeGeometry(veinCurve, 32, 0.07, 12, false);
             const vein = new THREE.Mesh(veinGeo, veinMaterial);
             armGroup.add(vein);
+            armVeinMeshes.push(vein);
 
             // Second vein
             const veinCurve2 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-0.2, 1.5, 0.25),
-                new THREE.Vector3(-0.15, 2.5, 0.2),
-                new THREE.Vector3(-0.18, 3.5, 0.22),
-                new THREE.Vector3(-0.12, 4.5, 0.18),
+                new THREE.Vector3(-0.15, 1.0, 0.2),
+                new THREE.Vector3(-0.1, 2.0, 0.15),
+                new THREE.Vector3(-0.12, 3.0, 0.18),
+                new THREE.Vector3(-0.08, 4.0, 0.12),
+                new THREE.Vector3(-0.1, 5.0, 0.15),
             ]);
-            const veinGeo2 = new THREE.TubeGeometry(veinCurve2, 16, 0.045, 8, false);
-            const vein2 = new THREE.Mesh(veinGeo2, veinMaterial);
+            const veinGeo2 = new THREE.TubeGeometry(veinCurve2, 24, 0.05, 10, false);
+            const vein2 = new THREE.Mesh(veinGeo2, veinMaterial.clone());
             armGroup.add(vein2);
+            armVeinMeshes.push(vein2);
 
-            // Injection site marker (subtle bump where injection happens)
-            const injectionSiteGeo = new THREE.SphereGeometry(0.08, 16, 16);
+            // Branching vein
+            const veinCurve3 = new THREE.CatmullRomCurve3([
+                new THREE.Vector3(0.38, 2.5, 0.12),
+                new THREE.Vector3(0.25, 2.8, 0.2),
+                new THREE.Vector3(0.1, 3.2, 0.22),
+            ]);
+            const veinGeo3 = new THREE.TubeGeometry(veinCurve3, 16, 0.035, 8, false);
+            const vein3 = new THREE.Mesh(veinGeo3, veinMaterial.clone());
+            armGroup.add(vein3);
+            armVeinMeshes.push(vein3);
+
+            // Injection site (where needle goes)
+            const injectionSiteGeo = new THREE.SphereGeometry(0.04, 16, 16);
             const injectionSiteMat = new THREE.MeshStandardMaterial({
-                color: 0xd4a088,
+                color: 0xcc9980,
                 roughness: 0.8,
+                transparent: true,
+                opacity: 0.8,
             });
-            const injectionSite = new THREE.Mesh(injectionSiteGeo, injectionSiteMat);
-            injectionSite.position.set(0.32, 3.2, 0.35);
-            injectionSite.scale.set(1, 0.5, 1);
-            injectionSite.name = 'injectionSite';
-            armGroup.add(injectionSite);
+            injectionSiteMesh = new THREE.Mesh(injectionSiteGeo, injectionSiteMat);
+            injectionSiteMesh.position.set(0.38, 3.0, 0.45);
+            injectionSiteMesh.name = 'injectionSite';
+            armGroup.add(injectionSiteMesh);
 
             return armGroup;
         }
 
         // Syringe data
         const syringeData = [
-            { gauge: '18G', color: 0x4caf50, needleRadius: 0.012, needleLength: 0.6, description: 'Large - Blood donation', volume: 10 },
-            { gauge: '21G', color: 0x4caf50, needleRadius: 0.009, needleLength: 0.5, description: 'Standard - Blood draws', volume: 5 },
-            { gauge: '23G', color: 0x2196f3, needleRadius: 0.007, needleLength: 0.4, description: 'Medium - Vaccines', volume: 3 },
-            { gauge: '25G', color: 0xff9800, needleRadius: 0.005, needleLength: 0.35, description: 'Small - Subcutaneous', volume: 1 },
-            { gauge: '27G', color: 0x9e9e9e, needleRadius: 0.004, needleLength: 0.3, description: 'Fine - Insulin', volume: 0.5 },
+            { gauge: '18G', color: 0x4caf50, needleRadius: 0.012, needleLength: 0.5, description: 'Large - Blood donation', volume: 10 },
+            { gauge: '21G', color: 0x4caf50, needleRadius: 0.009, needleLength: 0.45, description: 'Standard - Blood draws', volume: 5 },
+            { gauge: '23G', color: 0x2196f3, needleRadius: 0.007, needleLength: 0.35, description: 'Medium - Vaccines', volume: 3 },
+            { gauge: '25G', color: 0xff9800, needleRadius: 0.005, needleLength: 0.3, description: 'Small - Subcutaneous', volume: 1 },
+            { gauge: '27G', color: 0x9e9e9e, needleRadius: 0.004, needleLength: 0.25, description: 'Fine - Insulin', volume: 0.5 },
         ];
 
         function createSyringe(data) {
             const group = new THREE.Group();
             group.userData = { gauge: data.gauge, description: data.description, type: 'syringe', data: data };
 
-            const scale = 0.4 + data.volume * 0.08;
-            const barrelLength = 1.2 * scale;
-            const barrelRadius = 0.12 * scale;
+            const scale = 0.35 + data.volume * 0.06;
+            const barrelLength = 1.0 * scale;
+            const barrelRadius = 0.1 * scale;
 
-            // Barrel (glass/plastic)
+            // Barrel
             const barrelGeo = new THREE.CylinderGeometry(barrelRadius, barrelRadius, barrelLength, 24);
             const barrelMat = new THREE.MeshPhysicalMaterial({
                 color: 0xffffff,
                 transparent: true,
-                opacity: 0.35,
+                opacity: 0.4,
                 roughness: 0.05,
                 metalness: 0.0,
-                transmission: 0.6,
+                transmission: 0.5,
             });
             const barrel = new THREE.Mesh(barrelGeo, barrelMat);
             group.add(barrel);
 
-            // Graduation marks on barrel
-            const markMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+            // Graduation marks
+            const markMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
             for (let i = 1; i <= 8; i++) {
                 const y = -barrelLength / 2 + (i / 9) * barrelLength;
                 const isMain = i % 2 === 0;
-                const markGeo = new THREE.BoxGeometry(isMain ? 0.03 : 0.02, 0.002, barrelRadius * 2);
+                const markGeo = new THREE.BoxGeometry(isMain ? 0.025 : 0.015, 0.0015, barrelRadius * 1.8);
                 const mark = new THREE.Mesh(markGeo, markMat);
-                mark.position.set(barrelRadius * 0.8, y, 0);
+                mark.position.set(barrelRadius * 0.85, y, 0);
                 group.add(mark);
             }
 
-            // Liquid (animated)
+            // Liquid
             const liquidHeight = barrelLength * 0.7;
             const liquidGeo = new THREE.CylinderGeometry(barrelRadius * 0.85, barrelRadius * 0.85, liquidHeight, 24);
             const liquidMat = new THREE.MeshPhysicalMaterial({
-                color: 0x90caf9,
+                color: 0x80c0f0,
                 transparent: true,
-                opacity: 0.7,
+                opacity: 0.75,
                 roughness: 0.1,
             });
             const liquid = new THREE.Mesh(liquidGeo, liquidMat);
-            liquid.position.y = -barrelLength / 2 + liquidHeight / 2 + 0.02;
+            liquid.position.y = -barrelLength / 2 + liquidHeight / 2 + 0.01;
             liquid.name = 'liquid';
             liquid.userData.maxHeight = liquidHeight;
-            liquid.scale.y = 0; // Start empty
+            liquid.scale.y = 0;
             group.add(liquid);
 
             // Plunger rod
-            const plungerRodGeo = new THREE.CylinderGeometry(0.015, 0.015, barrelLength * 0.8, 12);
+            const plungerRodGeo = new THREE.CylinderGeometry(0.012, 0.012, barrelLength * 0.7, 12);
             const plungerMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.3 });
             const plungerRod = new THREE.Mesh(plungerRodGeo, plungerMat);
-            plungerRod.position.y = barrelLength / 2 + barrelLength * 0.35;
+            plungerRod.position.y = barrelLength / 2 + barrelLength * 0.3;
             plungerRod.name = 'plungerRod';
             group.add(plungerRod);
 
-            // Plunger thumb pad
-            const thumbPadGeo = new THREE.CylinderGeometry(0.08, 0.07, 0.03, 24);
+            // Thumb pad
+            const thumbPadGeo = new THREE.CylinderGeometry(0.06, 0.055, 0.025, 24);
             const thumbPad = new THREE.Mesh(thumbPadGeo, plungerMat);
-            thumbPad.position.y = barrelLength / 2 + barrelLength * 0.75;
+            thumbPad.position.y = barrelLength / 2 + barrelLength * 0.65;
             thumbPad.name = 'thumbPad';
             group.add(thumbPad);
 
-            // Rubber stopper (inside barrel)
-            const stopperGeo = new THREE.CylinderGeometry(barrelRadius * 0.82, barrelRadius * 0.82, 0.05, 24);
+            // Rubber stopper
+            const stopperGeo = new THREE.CylinderGeometry(barrelRadius * 0.82, barrelRadius * 0.82, 0.04, 24);
             const stopperMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
             const stopper = new THREE.Mesh(stopperGeo, stopperMat);
-            stopper.position.y = barrelLength / 2 - 0.05;
+            stopper.position.y = barrelLength / 2 - 0.04;
             stopper.name = 'stopper';
             group.add(stopper);
 
             // Finger flanges
-            const flangeGeo = new THREE.BoxGeometry(0.15, 0.015, 0.02);
+            const flangeGeo = new THREE.BoxGeometry(0.12, 0.012, 0.015);
             const flangeMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.4 });
             const flangeL = new THREE.Mesh(flangeGeo, flangeMat);
-            flangeL.position.set(barrelRadius + 0.07, barrelLength / 2 - 0.02, 0);
+            flangeL.position.set(barrelRadius + 0.05, barrelLength / 2 - 0.015, 0);
             group.add(flangeL);
             const flangeR = flangeL.clone();
-            flangeR.position.x = -barrelRadius - 0.07;
+            flangeR.position.x = -barrelRadius - 0.05;
             group.add(flangeR);
 
-            // Needle hub (color-coded)
-            const hubGeo = new THREE.CylinderGeometry(0.03, barrelRadius * 0.5, 0.1, 16);
+            // Needle hub
+            const hubGeo = new THREE.CylinderGeometry(0.025, barrelRadius * 0.5, 0.08, 16);
             const hubMat = new THREE.MeshStandardMaterial({ color: data.color, roughness: 0.4 });
             const hub = new THREE.Mesh(hubGeo, hubMat);
-            hub.position.y = -barrelLength / 2 - 0.05;
+            hub.position.y = -barrelLength / 2 - 0.04;
             group.add(hub);
 
             // Needle
-            const needleGeo = new THREE.CylinderGeometry(data.needleRadius * 0.5, data.needleRadius, data.needleLength, 12);
+            const needleGeo = new THREE.CylinderGeometry(data.needleRadius * 0.4, data.needleRadius, data.needleLength, 12);
             const needleMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.15, metalness: 0.9 });
             const needle = new THREE.Mesh(needleGeo, needleMat);
-            needle.position.y = -barrelLength / 2 - 0.1 - data.needleLength / 2;
+            needle.position.y = -barrelLength / 2 - 0.08 - data.needleLength / 2;
             group.add(needle);
 
             // Needle tip
-            const tipGeo = new THREE.ConeGeometry(data.needleRadius * 0.6, 0.03, 12);
+            const tipGeo = new THREE.ConeGeometry(data.needleRadius * 0.5, 0.025, 12);
             const tip = new THREE.Mesh(tipGeo, needleMat);
-            tip.position.y = -barrelLength / 2 - 0.1 - data.needleLength - 0.01;
+            tip.position.y = -barrelLength / 2 - 0.08 - data.needleLength - 0.01;
             tip.rotation.x = Math.PI;
             group.add(tip);
 
-            // Store references for animation
             group.userData.barrelLength = barrelLength;
+            group.userData.needleFullLength = 0.08 + data.needleLength + 0.01;
 
             return group;
         }
 
         // Create arm
         const arm = createArm();
-        arm.rotation.x = -Math.PI / 2 + 0.3;
-        arm.rotation.z = 0.2;
-        arm.position.set(1.5, -1.5, -2);
+        arm.rotation.x = -Math.PI / 2 + 0.4;
+        arm.rotation.z = 0.15;
+        arm.position.set(1.2, -1.8, -1.5);
         scene.add(arm);
 
         // Create syringes
@@ -368,15 +394,18 @@
         const syringeStartPositions = [];
         syringeData.forEach((data, i) => {
             const syringe = createSyringe(data);
-            const x = (i - 2) * 0.8;
-            const z = -3 - Math.abs(i - 2) * 0.3;
-            const y = 1.5 + Math.sin(i * 0.5) * 0.1;
+            const x = (i - 2) * 0.7;
+            const z = -2.5 - Math.abs(i - 2) * 0.25;
+            const y = 1.8 + Math.sin(i * 0.5) * 0.08;
             syringe.position.set(x, y, z);
-            syringe.rotation.x = 0.2;
-            syringe.rotation.z = (i - 2) * -0.05;
+            syringe.rotation.x = 0.15;
+            syringe.rotation.z = (i - 2) * -0.04;
             scene.add(syringe);
             syringes.push(syringe);
-            syringeStartPositions.push({ x, y, z, rx: 0.2, rz: (i - 2) * -0.05 });
+            syringeStartPositions.push({
+                pos: new THREE.Vector3(x, y, z),
+                rot: new THREE.Euler(0.15, 0, (i - 2) * -0.04)
+            });
         });
 
         // Medical table
@@ -384,7 +413,7 @@
         const tableMat = new THREE.MeshStandardMaterial({ color: 0x1a2530, roughness: 0.8 });
         const table = new THREE.Mesh(tableGeo, tableMat);
         table.rotation.x = -Math.PI / 2;
-        table.position.y = -2;
+        table.position.y = -2.5;
         table.receiveShadow = true;
         scene.add(table);
 
@@ -435,78 +464,111 @@
             const plungerRod = syringe.getObjectByName('plungerRod');
             const thumbPad = syringe.getObjectByName('thumbPad');
             const barrelLength = syringe.userData.barrelLength;
+            const needleFullLength = syringe.userData.needleFullLength;
 
-            // Get injection site position
-            const injectionSite = arm.getObjectByName('injectionSite');
+            // Get injection site world position
             const siteWorldPos = new THREE.Vector3();
-            injectionSite.getWorldPosition(siteWorldPos);
+            injectionSiteMesh.getWorldPosition(siteWorldPos);
 
-            // Calculate target position (needle tip at injection site)
-            const needleLength = syringe.userData.data.needleLength;
-            const targetPos = siteWorldPos.clone();
-            targetPos.y += barrelLength / 2 + 0.1 + needleLength + 0.15;
+            // Target: position syringe so needle tip is just above injection site
+            const targetPos = new THREE.Vector3(
+                siteWorldPos.x,
+                siteWorldPos.y + barrelLength / 2 + needleFullLength + 0.05,
+                siteWorldPos.z
+            );
 
-            // Store original position
             const startPos = syringe.position.clone();
             const startRot = syringe.rotation.clone();
+            const syringeIndex = syringes.indexOf(syringe);
+            const originalData = syringeStartPositions[syringeIndex];
 
-            // Animation phases
+            // MUCH SLOWER animation phases (in milliseconds)
             let phase = 0;
             let phaseTime = 0;
-            const phaseDurations = [1000, 800, 600, 1000, 800, 500]; // ms per phase
+            const phaseDurations = [
+                3000,  // Phase 0: Fill syringe
+                2500,  // Phase 1: Move to arm
+                2000,  // Phase 2: Insert needle (skin fades)
+                4000,  // Phase 3: Inject medication
+                2000,  // Phase 4: Withdraw needle (skin returns)
+                2000   // Phase 5: Return to position
+            ];
 
             status.textContent = 'Drawing medication...';
             status.classList.add('visible');
 
-            function animateInjection() {
+            let lastTime = performance.now();
+
+            function animateInjection(currentTime) {
                 if (!isAnimating) return;
 
-                const deltaTime = 16;
+                const deltaTime = currentTime - lastTime;
+                lastTime = currentTime;
+
                 phaseTime += deltaTime;
                 const progress = Math.min(phaseTime / phaseDurations[phase], 1);
                 const eased = easeInOutCubic(progress);
 
                 switch (phase) {
-                    case 0: // Fill syringe
+                    case 0: // Fill syringe with liquid
                         liquid.scale.y = eased;
-                        liquid.position.y = -barrelLength / 2 + (liquid.userData.maxHeight * eased) / 2 + 0.02;
-                        stopper.position.y = barrelLength / 2 - 0.05 - eased * (barrelLength * 0.6);
-                        plungerRod.position.y = barrelLength / 2 + barrelLength * 0.35 - eased * (barrelLength * 0.6);
-                        thumbPad.position.y = barrelLength / 2 + barrelLength * 0.75 - eased * (barrelLength * 0.6);
+                        liquid.position.y = -barrelLength / 2 + (liquid.userData.maxHeight * eased) / 2 + 0.01;
+                        stopper.position.y = barrelLength / 2 - 0.04 - eased * (barrelLength * 0.55);
+                        plungerRod.position.y = barrelLength / 2 + barrelLength * 0.3 - eased * (barrelLength * 0.55);
+                        thumbPad.position.y = barrelLength / 2 + barrelLength * 0.65 - eased * (barrelLength * 0.55);
                         break;
 
-                    case 1: // Move to arm
-                        status.textContent = 'Positioning...';
+                    case 1: // Move syringe to arm
+                        status.textContent = 'Positioning needle...';
                         syringe.position.lerpVectors(startPos, targetPos, eased);
-                        syringe.rotation.x = startRot.x + (Math.PI / 2 - startRot.x) * eased;
+                        // Rotate to point straight down at arm
+                        syringe.rotation.x = startRot.x + (Math.PI / 2 + 0.1 - startRot.x) * eased;
                         syringe.rotation.z = startRot.z * (1 - eased);
+                        syringe.rotation.y = startRot.y * (1 - eased);
                         break;
 
-                    case 2: // Insert needle
+                    case 2: // Insert needle - skin becomes transparent, veins show
                         status.textContent = 'Inserting needle...';
-                        const insertDepth = eased * 0.12;
+                        // Move needle into skin
+                        const insertDepth = eased * 0.25;
                         syringe.position.y = targetPos.y - insertDepth;
+
+                        // Fade out skin, show veins
+                        skinMaterial.opacity = 1.0 - eased * 0.7;
+                        armVeinMeshes.forEach(v => {
+                            v.material.opacity = 0.5 + eased * 0.5;
+                            v.material.emissiveIntensity = 0.2 + eased * 0.4;
+                        });
                         break;
 
-                    case 3: // Inject (plunger down)
-                        status.textContent = 'Injecting...';
+                    case 3: // Inject medication (plunger goes down)
+                        status.textContent = 'Injecting medication...';
                         liquid.scale.y = 1 - eased;
-                        liquid.position.y = -barrelLength / 2 + (liquid.userData.maxHeight * (1 - eased)) / 2 + 0.02;
-                        stopper.position.y = barrelLength / 2 - 0.05 - barrelLength * 0.6 + eased * (barrelLength * 0.6);
-                        plungerRod.position.y = barrelLength / 2 + barrelLength * 0.35 - barrelLength * 0.6 + eased * (barrelLength * 0.6);
-                        thumbPad.position.y = barrelLength / 2 + barrelLength * 0.75 - barrelLength * 0.6 + eased * (barrelLength * 0.6);
+                        if (liquid.scale.y > 0.01) {
+                            liquid.position.y = -barrelLength / 2 + (liquid.userData.maxHeight * (1 - eased)) / 2 + 0.01;
+                        }
+                        stopper.position.y = barrelLength / 2 - 0.04 - barrelLength * 0.55 + eased * (barrelLength * 0.55);
+                        plungerRod.position.y = barrelLength / 2 + barrelLength * 0.3 - barrelLength * 0.55 + eased * (barrelLength * 0.55);
+                        thumbPad.position.y = barrelLength / 2 + barrelLength * 0.65 - barrelLength * 0.55 + eased * (barrelLength * 0.55);
                         break;
 
-                    case 4: // Withdraw needle
-                        status.textContent = 'Withdrawing...';
-                        syringe.position.y = targetPos.y - 0.12 + eased * 0.12;
+                    case 4: // Withdraw needle - skin returns
+                        status.textContent = 'Withdrawing needle...';
+                        syringe.position.y = targetPos.y - 0.25 + eased * 0.25;
+
+                        // Restore skin, fade veins
+                        skinMaterial.opacity = 0.3 + eased * 0.7;
+                        armVeinMeshes.forEach(v => {
+                            v.material.opacity = 1.0 - eased * 0.5;
+                            v.material.emissiveIntensity = 0.6 - eased * 0.4;
+                        });
                         break;
 
                     case 5: // Return to original position
                         status.textContent = 'Complete!';
-                        syringe.position.lerpVectors(targetPos, startPos, eased);
-                        syringe.rotation.x = Math.PI / 2 + (startRot.x - Math.PI / 2) * eased;
-                        syringe.rotation.z = startRot.z * eased;
+                        syringe.position.lerpVectors(targetPos, originalData.pos, eased);
+                        syringe.rotation.x = Math.PI / 2 + 0.1 + (originalData.rot.x - Math.PI / 2 - 0.1) * eased;
+                        syringe.rotation.z = originalData.rot.z * eased;
                         break;
                 }
 
@@ -517,9 +579,11 @@
                     if (phase >= phaseDurations.length) {
                         isAnimating = false;
                         activeSyringe = null;
+                        // Reset liquid to empty
+                        liquid.scale.y = 0;
                         setTimeout(() => {
                             status.classList.remove('visible');
-                        }, 800);
+                        }, 1000);
                         return;
                     }
                 }
@@ -527,14 +591,14 @@
                 requestAnimationFrame(animateInjection);
             }
 
-            animateInjection();
+            requestAnimationFrame(animateInjection);
         }
 
         function easeInOutCubic(t) {
             return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
         }
 
-        // Animation loop
+        // Main animation loop
         function animate() {
             requestAnimationFrame(animate);
 
@@ -576,7 +640,7 @@
                 const time = Date.now() * 0.001;
                 syringes.forEach((syringe, i) => {
                     const base = syringeStartPositions[i];
-                    syringe.position.y = base.y + Math.sin(time + i * 0.8) * 0.03;
+                    syringe.position.y = base.pos.y + Math.sin(time + i * 0.8) * 0.02;
                 });
             }
 
