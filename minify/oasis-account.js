@@ -223,37 +223,42 @@ var OasisAccount = (function() {
         var style = document.createElement('style');
         style.id = 'oasis-account-styles';
         style.textContent = `
-            /* Account Button in Header */
+            /* Note Icon Button */
             .oasis-account-btn {
                 position: fixed;
                 top: 20px;
                 right: 20px;
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                background: rgba(255,255,255,0.1);
-                border: 1px solid rgba(255,255,255,0.2);
+                width: 32px;
+                height: 40px;
+                background: rgba(255,255,255,0.15);
+                border: 1px solid rgba(255,255,255,0.25);
+                border-radius: 2px;
                 cursor: pointer;
                 display: flex;
+                flex-direction: column;
                 align-items: center;
                 justify-content: center;
+                gap: 3px;
+                padding: 6px 4px;
                 transition: all 0.3s ease;
                 z-index: 9999;
                 backdrop-filter: blur(10px);
             }
             .oasis-account-btn:hover {
-                background: rgba(255,255,255,0.2);
+                background: rgba(255,255,255,0.25);
                 transform: scale(1.05);
             }
-            .oasis-account-btn svg {
-                width: 18px;
-                height: 18px;
-                fill: #fff;
-                opacity: 0.8;
+            .oasis-account-btn .note-line {
+                width: 16px;
+                height: 1px;
+                background: rgba(255,255,255,0.7);
             }
-            .oasis-account-btn.logged-in {
-                background: rgba(76, 175, 80, 0.3);
-                border-color: rgba(76, 175, 80, 0.5);
+            .oasis-account-btn.checked-in {
+                background: rgba(76, 175, 80, 0.25);
+                border-color: rgba(76, 175, 80, 0.4);
+            }
+            .oasis-account-btn.checked-in .note-line {
+                background: rgba(255,255,255,0.85);
             }
 
             /* Panel Overlay */
@@ -263,8 +268,7 @@ var OasisAccount = (function() {
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0,0,0,0.6);
-                backdrop-filter: blur(8px);
+                background: rgba(0,0,0,0.4);
                 z-index: 10000;
                 opacity: 0;
                 visibility: hidden;
@@ -275,144 +279,167 @@ var OasisAccount = (function() {
                 visibility: visible;
             }
 
-            /* Login Panel - Doctor's Note Style */
-            .oasis-login-panel {
+            /* Note Panel - Pops from bottom */
+            .oasis-note-panel {
                 position: fixed;
-                top: 50%;
+                bottom: -100%;
                 left: 50%;
-                transform: translate(-50%, -50%) scale(0.95);
-                background: #faf9f7;
-                width: 340px;
-                padding: 40px;
-                border-radius: 2px;
-                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                transform: translateX(-50%);
+                width: 90%;
+                max-width: 400px;
+                max-height: 80vh;
+                background: rgba(255, 253, 240, 0.92);
+                border-radius: 4px 4px 0 0;
+                box-shadow: 0 -10px 60px rgba(0,0,0,0.25);
                 z-index: 10001;
-                opacity: 0;
-                visibility: hidden;
-                transition: all 0.3s ease;
+                transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 font-family: 'Crimson Text', Georgia, serif;
+                overflow: hidden;
             }
-            .oasis-login-panel.active {
-                opacity: 1;
-                visibility: visible;
-                transform: translate(-50%, -50%) scale(1);
-            }
-            .oasis-login-panel h2 {
-                font-size: 24px;
-                font-weight: 400;
-                color: #2c2c2c;
-                margin: 0 0 8px 0;
-                letter-spacing: 1px;
-            }
-            .oasis-login-panel .subtitle {
-                font-size: 12px;
-                color: #888;
-                margin-bottom: 30px;
-                font-family: 'Roboto', sans-serif;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-            }
-            .oasis-login-panel input {
-                width: 100%;
-                padding: 12px 0;
-                border: none;
-                border-bottom: 1px solid #ddd;
-                background: transparent;
-                font-size: 16px;
-                font-family: 'Crimson Text', Georgia, serif;
-                color: #333;
-                margin-bottom: 20px;
-                outline: none;
-                transition: border-color 0.3s;
-            }
-            .oasis-login-panel input:focus {
-                border-bottom-color: #333;
-            }
-            .oasis-login-panel input::placeholder {
-                color: #aaa;
-            }
-            .oasis-login-panel button {
-                width: 100%;
-                padding: 14px;
-                background: #2c2c2c;
-                color: #fff;
-                border: none;
-                font-size: 13px;
-                font-family: 'Roboto', sans-serif;
-                text-transform: uppercase;
-                letter-spacing: 2px;
-                cursor: pointer;
-                transition: background 0.3s;
-                margin-top: 10px;
-            }
-            .oasis-login-panel button:hover {
-                background: #444;
-            }
-            .oasis-login-panel .close-btn {
-                position: absolute;
-                top: 15px;
-                right: 15px;
-                width: 24px;
-                height: 24px;
-                background: none;
-                border: none;
-                cursor: pointer;
-                padding: 0;
-                opacity: 0.4;
-                transition: opacity 0.3s;
-            }
-            .oasis-login-panel .close-btn:hover {
-                opacity: 1;
+            .oasis-note-panel.active {
+                bottom: 10%;
             }
 
-            /* Dashboard Panel - Doctor's Note Style */
-            .oasis-dashboard {
-                position: fixed;
+            /* Lined paper effect */
+            .oasis-note-paper {
+                position: relative;
+                padding: 30px 35px;
+                background-image: repeating-linear-gradient(
+                    transparent,
+                    transparent 27px,
+                    rgba(200, 180, 160, 0.3) 27px,
+                    rgba(200, 180, 160, 0.3) 28px
+                );
+                background-position: 0 20px;
+                min-height: 300px;
+            }
+
+            /* Red margin line */
+            .oasis-note-paper::before {
+                content: '';
+                position: absolute;
+                left: 28px;
                 top: 0;
-                right: -420px;
-                width: 400px;
-                height: 100%;
-                background: #faf9f7;
-                z-index: 10001;
-                transition: right 0.4s ease;
-                overflow-y: auto;
-                font-family: 'Crimson Text', Georgia, serif;
+                bottom: 0;
+                width: 1px;
+                background: rgba(200, 100, 100, 0.3);
             }
-            .oasis-dashboard.active {
-                right: 0;
-            }
-            .oasis-dashboard-header {
-                padding: 40px 30px 20px;
-                border-bottom: 1px solid #eee;
-            }
-            .oasis-dashboard-header h2 {
+
+            .oasis-note-panel h2 {
                 font-size: 22px;
                 font-weight: 400;
                 color: #2c2c2c;
-                margin: 0;
-                letter-spacing: 1px;
+                margin: 0 0 5px 0;
+                letter-spacing: 0.5px;
+                line-height: 28px;
             }
-            .oasis-dashboard-header .patient-id {
+            .oasis-note-panel .note-subtitle {
                 font-size: 11px;
                 color: #888;
                 font-family: 'Roboto', sans-serif;
                 text-transform: uppercase;
                 letter-spacing: 2px;
-                margin-top: 5px;
+                margin-bottom: 25px;
+                line-height: 28px;
             }
-            .oasis-dashboard-close {
+
+            /* Note content styling */
+            .oasis-note-field {
+                margin-bottom: 20px;
+                line-height: 28px;
+            }
+            .oasis-note-label {
+                font-size: 11px;
+                color: #999;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                font-family: 'Roboto', sans-serif;
+            }
+            .oasis-note-value {
+                font-size: 18px;
+                color: #2c2c2c;
+            }
+
+            .oasis-note-input {
+                width: 100%;
+                padding: 8px 0;
+                border: none;
+                border-bottom: 1px dashed rgba(200, 180, 160, 0.5);
+                background: transparent;
+                font-size: 18px;
+                font-family: 'Crimson Text', Georgia, serif;
+                color: #2c2c2c;
+                outline: none;
+                line-height: 28px;
+            }
+            .oasis-note-input::placeholder {
+                color: #bbb;
+                font-style: italic;
+            }
+
+            .oasis-note-btn {
+                display: block;
+                width: 100%;
+                padding: 12px;
+                margin-top: 15px;
+                background: #2c2c2c;
+                color: #fff;
+                border: none;
+                font-size: 11px;
+                font-family: 'Roboto', sans-serif;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                cursor: pointer;
+                transition: background 0.3s;
+                line-height: 28px;
+            }
+            .oasis-note-btn:hover {
+                background: #444;
+            }
+            .oasis-note-btn.secondary {
+                background: transparent;
+                color: #888;
+                border: 1px solid #ddd;
+            }
+            .oasis-note-btn.secondary:hover {
+                background: #f5f5f5;
+                color: #333;
+            }
+
+            /* Session info */
+            .oasis-session-info {
+                border-top: 1px dashed rgba(200, 180, 160, 0.5);
+                padding-top: 20px;
+                margin-top: 20px;
+            }
+            .oasis-session-stat {
+                display: flex;
+                justify-content: space-between;
+                line-height: 28px;
+                font-size: 15px;
+            }
+            .oasis-session-stat span:first-child {
+                color: #888;
+            }
+            .oasis-session-stat span:last-child {
+                color: #2c2c2c;
+            }
+
+            /* Close X */
+            .oasis-note-close {
                 position: absolute;
-                top: 20px;
-                right: 20px;
+                top: 12px;
+                right: 15px;
                 background: none;
                 border: none;
-                font-size: 24px;
+                font-size: 20px;
                 cursor: pointer;
-                color: #999;
+                color: #bbb;
                 padding: 5px;
+                line-height: 1;
             }
-            .oasis-dashboard-close:hover {
-                color: #333;
+            .oasis-note-close:hover {
+                color: #666;
             }
 
             /* Dashboard Content */
@@ -686,11 +713,11 @@ var OasisAccount = (function() {
      * Create account UI elements
      */
     function createAccountUI() {
-        // Account button
+        // Note icon button (scroll with lines)
         var btn = document.createElement('div');
         btn.className = 'oasis-account-btn';
         btn.id = 'oasis-account-btn';
-        btn.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>';
+        btn.innerHTML = '<div class="note-line"></div><div class="note-line"></div><div class="note-line"></div><div class="note-line"></div><div class="note-line"></div>';
         btn.onclick = togglePanel;
         document.body.appendChild(btn);
 
@@ -701,26 +728,11 @@ var OasisAccount = (function() {
         overlay.onclick = closePanels;
         document.body.appendChild(overlay);
 
-        // Login panel
-        var loginPanel = document.createElement('div');
-        loginPanel.className = 'oasis-login-panel';
-        loginPanel.id = 'oasis-login-panel';
-        loginPanel.innerHTML = `
-            <button class="close-btn" onclick="OasisAccount.closePanels()">
-                <svg viewBox="0 0 24 24" width="24" height="24"><path fill="#333" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
-            </button>
-            <h2>Patient Record</h2>
-            <div class="subtitle">Oasis Therapy</div>
-            <input type="text" id="oasis-name-input" placeholder="Your name">
-            <button onclick="OasisAccount.submitLogin()">Begin Session</button>
-        `;
-        document.body.appendChild(loginPanel);
-
-        // Dashboard panel
-        var dashboard = document.createElement('div');
-        dashboard.className = 'oasis-dashboard';
-        dashboard.id = 'oasis-dashboard';
-        document.body.appendChild(dashboard);
+        // Note panel (unified for register/check-in/dashboard)
+        var notePanel = document.createElement('div');
+        notePanel.className = 'oasis-note-panel';
+        notePanel.id = 'oasis-note-panel';
+        document.body.appendChild(notePanel);
 
         // Checkup panel
         var checkup = document.createElement('div');
@@ -833,41 +845,172 @@ var OasisAccount = (function() {
         var btn = document.getElementById('oasis-account-btn');
         if (btn) {
             if (isLoggedIn) {
-                btn.classList.add('logged-in');
-                btn.title = currentUser.name;
+                btn.classList.add('checked-in');
+                btn.title = currentUser.name + ' (Checked In)';
             } else {
-                btn.classList.remove('logged-in');
-                btn.title = 'Sign in';
+                btn.classList.remove('checked-in');
+                btn.title = 'Register / Check-in';
             }
         }
     }
 
     /**
-     * Toggle panel (login or dashboard)
+     * Toggle panel - shows register, check-in, or session view
      */
     function togglePanel() {
-        if (isLoggedIn) {
-            openDashboard();
-        } else {
-            openLogin();
+        var panel = document.getElementById('oasis-note-panel');
+        var overlay = document.getElementById('oasis-overlay');
+
+        if (panel.classList.contains('active')) {
+            closePanels();
+            return;
         }
+
+        // Render appropriate content
+        if (isLoggedIn) {
+            renderSessionView();
+        } else if (currentUser) {
+            // User exists but not checked in
+            renderCheckInView();
+        } else {
+            // New user
+            renderRegisterView();
+        }
+
+        overlay.classList.add('active');
+        panel.classList.add('active');
     }
 
     /**
-     * Open login panel
+     * Render register view (new user)
+     */
+    function renderRegisterView() {
+        var panel = document.getElementById('oasis-note-panel');
+        panel.innerHTML = `
+            <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
+            <div class="oasis-note-paper">
+                <h2>Register</h2>
+                <div class="note-subtitle">New Patient File</div>
+
+                <div class="oasis-note-field">
+                    <div class="oasis-note-label">Name</div>
+                    <input type="text" class="oasis-note-input" id="oasis-name-input" placeholder="Enter your name...">
+                </div>
+
+                <button class="oasis-note-btn" onclick="OasisAccount.submitRegister()">Create File</button>
+                <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToCheckIn()">Already Registered</button>
+            </div>
+        `;
+    }
+
+    /**
+     * Render check-in view (returning user not logged in)
+     */
+    function renderCheckInView() {
+        var panel = document.getElementById('oasis-note-panel');
+        panel.innerHTML = `
+            <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
+            <div class="oasis-note-paper">
+                <h2>Check-in</h2>
+                <div class="note-subtitle">Welcome Back</div>
+
+                <div class="oasis-note-field">
+                    <div class="oasis-note-label">Patient</div>
+                    <div class="oasis-note-value">${currentUser.name}</div>
+                </div>
+
+                <div class="oasis-session-info">
+                    <div class="oasis-session-stat">
+                        <span>Sessions</span>
+                        <span>${currentUser.history ? currentUser.history.length : 0}</span>
+                    </div>
+                </div>
+
+                <button class="oasis-note-btn" onclick="OasisAccount.checkIn()">Check In</button>
+                <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToRegister()">New Patient</button>
+            </div>
+        `;
+    }
+
+    /**
+     * Render session view (logged in user)
+     */
+    function renderSessionView() {
+        var panel = document.getElementById('oasis-note-panel');
+        var analytics = getAnalytics();
+
+        var html = `
+            <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
+            <div class="oasis-note-paper">
+                <h2>${currentUser.name}</h2>
+                <div class="note-subtitle">Patient ID: ${currentUser.id}</div>
+        `;
+
+        if (!analytics) {
+            html += `
+                <div class="oasis-note-field" style="margin-top: 30px;">
+                    <div class="oasis-note-value" style="font-size: 15px; color: #888; font-style: italic;">
+                        No sessions recorded yet.<br>
+                        Complete an experience to begin.
+                    </div>
+                </div>
+            `;
+        } else {
+            // Session stats
+            html += `
+                <div class="oasis-session-info">
+                    <div class="oasis-session-stat">
+                        <span>Total Sessions</span>
+                        <span>${analytics.totalSessions}</span>
+                    </div>
+            `;
+
+            // Phobia names
+            var phobiaNames = {
+                airplane: 'Flying',
+                injection: 'Needles',
+                thunder: 'Thunder',
+                darkness: 'Darkness',
+                heights: 'Heights'
+            };
+
+            // Show each tracked phobia
+            Object.keys(analytics.byPhobia).forEach(function(type) {
+                var data = analytics.byPhobia[type];
+                var name = phobiaNames[type] || type;
+                var trendIcon = data.trend === 'improving' ? '↓' : (data.trend === 'increasing' ? '↑' : '→');
+
+                html += `
+                    <div class="oasis-session-stat">
+                        <span>${name}</span>
+                        <span>${data.sessions}x ${trendIcon}</span>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+        }
+
+        html += `
+                <button class="oasis-note-btn secondary" onclick="OasisAccount.checkOut()" style="margin-top: 30px;">Check Out</button>
+            </div>
+        `;
+
+        panel.innerHTML = html;
+    }
+
+    /**
+     * Open login panel (legacy support)
      */
     function openLogin() {
-        document.getElementById('oasis-overlay').classList.add('active');
-        document.getElementById('oasis-login-panel').classList.add('active');
+        togglePanel();
     }
 
     /**
-     * Open dashboard
+     * Open dashboard (legacy support)
      */
     function openDashboard() {
-        renderDashboard();
-        document.getElementById('oasis-overlay').classList.add('active');
-        document.getElementById('oasis-dashboard').classList.add('active');
+        togglePanel();
     }
 
     /**
@@ -875,17 +1018,63 @@ var OasisAccount = (function() {
      */
     function closePanels() {
         document.getElementById('oasis-overlay').classList.remove('active');
-        document.getElementById('oasis-login-panel').classList.remove('active');
-        document.getElementById('oasis-dashboard').classList.remove('active');
+        document.getElementById('oasis-note-panel').classList.remove('active');
     }
 
     /**
-     * Submit login form
+     * Switch to register view
      */
-    function submitLogin() {
+    function switchToRegister() {
+        currentUser = null;
+        isLoggedIn = false;
+        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+        renderRegisterView();
+    }
+
+    /**
+     * Switch to check-in view
+     */
+    function switchToCheckIn() {
+        // If they say "already registered" but no user, just show register
+        if (!currentUser) {
+            renderRegisterView();
+            return;
+        }
+        renderCheckInView();
+    }
+
+    /**
+     * Submit registration
+     */
+    function submitRegister() {
         var nameInput = document.getElementById('oasis-name-input');
         var name = nameInput ? nameInput.value.trim() : '';
-        login(name || 'Patient');
+        register(name || 'Patient');
+    }
+
+    /**
+     * Check in (login)
+     */
+    function checkIn() {
+        isLoggedIn = true;
+        updateHeaderUI();
+        closePanels();
+    }
+
+    /**
+     * Check out (logout)
+     */
+    function checkOut() {
+        isLoggedIn = false;
+        updateHeaderUI();
+        closePanels();
+    }
+
+    /**
+     * Submit login form (legacy)
+     */
+    function submitLogin() {
+        submitRegister();
     }
 
     /**
@@ -1011,6 +1200,11 @@ var OasisAccount = (function() {
         openDashboard: openDashboard,
         closePanels: closePanels,
         submitLogin: submitLogin,
+        submitRegister: submitRegister,
+        checkIn: checkIn,
+        checkOut: checkOut,
+        switchToRegister: switchToRegister,
+        switchToCheckIn: switchToCheckIn,
         showCheckup: showCheckup,
         submitCheckup: submitCheckup,
         closeCheckup: closeCheckup
