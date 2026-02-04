@@ -306,54 +306,51 @@
                 group.add(mark);
             }
 
-            // Liquid
-            const liquidHeight = barrelLength * 0.7;
-            const liquidGeo = new THREE.CylinderGeometry(barrelRadius * 0.85, barrelRadius * 0.85, liquidHeight, 24);
+            // Liquid - starts FULL (visible)
+            const liquidHeight = barrelLength * 0.75;
+            const liquidGeo = new THREE.CylinderGeometry(barrelRadius * 0.82, barrelRadius * 0.82, liquidHeight, 24);
             const liquidMat = new THREE.MeshPhysicalMaterial({
-                color: 0x80c0f0,
+                color: 0x40a0e0,
                 transparent: true,
-                opacity: 0.75,
-                roughness: 0.1,
+                opacity: 0.85,
+                roughness: 0.05,
             });
             const liquid = new THREE.Mesh(liquidGeo, liquidMat);
-            liquid.position.y = -barrelLength / 2 + liquidHeight / 2 + 0.01;
+            liquid.position.y = -barrelLength / 2 + liquidHeight / 2 + 0.02;
             liquid.name = 'liquid';
             liquid.userData.maxHeight = liquidHeight;
-            liquid.scale.y = 0;
+            liquid.userData.barrelLength = barrelLength;
+            liquid.scale.y = 1; // START FULL
             group.add(liquid);
 
-            // Plunger rod
-            const plungerRodGeo = new THREE.CylinderGeometry(0.012, 0.012, barrelLength * 0.7, 12);
+            // Plunger rod - starts in DOWN position (syringe full)
+            const plungerRodGeo = new THREE.CylinderGeometry(0.012, 0.012, barrelLength * 0.8, 12);
             const plungerMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5, metalness: 0.3 });
             const plungerRod = new THREE.Mesh(plungerRodGeo, plungerMat);
-            plungerRod.position.y = barrelLength / 2 + barrelLength * 0.3;
+            plungerRod.position.y = barrelLength / 2 + barrelLength * 0.05; // DOWN position
             plungerRod.name = 'plungerRod';
+            plungerRod.userData.downY = barrelLength / 2 + barrelLength * 0.05;
+            plungerRod.userData.upY = barrelLength / 2 + barrelLength * 0.55;
             group.add(plungerRod);
 
-            // Thumb pad
+            // Thumb pad - starts DOWN
             const thumbPadGeo = new THREE.CylinderGeometry(0.06, 0.055, 0.025, 24);
             const thumbPad = new THREE.Mesh(thumbPadGeo, plungerMat);
-            thumbPad.position.y = barrelLength / 2 + barrelLength * 0.65;
+            thumbPad.position.y = barrelLength / 2 + barrelLength * 0.45; // DOWN position
             thumbPad.name = 'thumbPad';
+            thumbPad.userData.downY = barrelLength / 2 + barrelLength * 0.45;
+            thumbPad.userData.upY = barrelLength / 2 + barrelLength * 0.95;
             group.add(thumbPad);
 
-            // Rubber stopper
-            const stopperGeo = new THREE.CylinderGeometry(barrelRadius * 0.82, barrelRadius * 0.82, 0.04, 24);
+            // Rubber stopper - starts DOWN (at bottom of barrel, liquid above it)
+            const stopperGeo = new THREE.CylinderGeometry(barrelRadius * 0.8, barrelRadius * 0.8, 0.04, 24);
             const stopperMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 });
             const stopper = new THREE.Mesh(stopperGeo, stopperMat);
-            stopper.position.y = barrelLength / 2 - 0.04;
+            stopper.position.y = -barrelLength / 2 + 0.04; // DOWN position (bottom)
             stopper.name = 'stopper';
+            stopper.userData.downY = -barrelLength / 2 + 0.04;
+            stopper.userData.upY = barrelLength / 2 - 0.04;
             group.add(stopper);
-
-            // Finger flanges
-            const flangeGeo = new THREE.BoxGeometry(0.12, 0.012, 0.015);
-            const flangeMat = new THREE.MeshStandardMaterial({ color: 0xdddddd, roughness: 0.4 });
-            const flangeL = new THREE.Mesh(flangeGeo, flangeMat);
-            flangeL.position.set(barrelRadius + 0.05, barrelLength / 2 - 0.015, 0);
-            group.add(flangeL);
-            const flangeR = flangeL.clone();
-            flangeR.position.x = -barrelRadius - 0.05;
-            group.add(flangeR);
 
             // Needle hub
             const hubGeo = new THREE.CylinderGeometry(0.025, barrelRadius * 0.5, 0.08, 16);
@@ -482,22 +479,30 @@
             const syringeIndex = syringes.indexOf(syringe);
             const originalData = syringeStartPositions[syringeIndex];
 
-            // MUCH SLOWER animation phases (in milliseconds)
+            // Animation phases (in milliseconds) - NO fill phase, syringe starts full
             let phase = 0;
             let phaseTime = 0;
             const phaseDurations = [
-                3000,  // Phase 0: Fill syringe
-                2500,  // Phase 1: Move to arm
-                2000,  // Phase 2: Insert needle (skin fades)
-                4000,  // Phase 3: Inject medication
-                2000,  // Phase 4: Withdraw needle (skin returns)
-                2000   // Phase 5: Return to position
+                2500,  // Phase 0: Move to arm
+                2000,  // Phase 1: Insert needle (skin fades)
+                4000,  // Phase 2: Inject medication (plunger UP, liquid OUT)
+                2000,  // Phase 3: Withdraw needle (skin returns)
+                2000   // Phase 4: Return to position
             ];
 
-            status.textContent = 'Drawing medication...';
+            status.textContent = 'Positioning needle...';
             status.classList.add('visible');
 
             let lastTime = performance.now();
+
+            // Get stored positions from userData
+            const stopperDownY = stopper.userData.downY;
+            const stopperUpY = stopper.userData.upY;
+            const plungerDownY = plungerRod.userData.downY;
+            const plungerUpY = plungerRod.userData.upY;
+            const thumbDownY = thumbPad.userData.downY;
+            const thumbUpY = thumbPad.userData.upY;
+            const liquidMaxH = liquid.userData.maxHeight;
 
             function animateInjection(currentTime) {
                 if (!isAnimating) return;
@@ -510,26 +515,16 @@
                 const eased = easeInOutCubic(progress);
 
                 switch (phase) {
-                    case 0: // Fill syringe with liquid
-                        liquid.scale.y = eased;
-                        liquid.position.y = -barrelLength / 2 + (liquid.userData.maxHeight * eased) / 2 + 0.01;
-                        stopper.position.y = barrelLength / 2 - 0.04 - eased * (barrelLength * 0.55);
-                        plungerRod.position.y = barrelLength / 2 + barrelLength * 0.3 - eased * (barrelLength * 0.55);
-                        thumbPad.position.y = barrelLength / 2 + barrelLength * 0.65 - eased * (barrelLength * 0.55);
-                        break;
-
-                    case 1: // Move syringe to arm
+                    case 0: // Move syringe to arm
                         status.textContent = 'Positioning needle...';
                         syringe.position.lerpVectors(startPos, targetPos, eased);
-                        // Rotate to point straight down at arm
                         syringe.rotation.x = startRot.x + (Math.PI / 2 + 0.1 - startRot.x) * eased;
                         syringe.rotation.z = startRot.z * (1 - eased);
                         syringe.rotation.y = startRot.y * (1 - eased);
                         break;
 
-                    case 2: // Insert needle - skin becomes transparent, veins show
+                    case 1: // Insert needle - skin becomes transparent, veins show
                         status.textContent = 'Inserting needle...';
-                        // Move needle into skin
                         const insertDepth = eased * 0.25;
                         syringe.position.y = targetPos.y - insertDepth;
 
@@ -541,18 +536,26 @@
                         });
                         break;
 
-                    case 3: // Inject medication (plunger goes down)
+                    case 2: // Inject medication - plunger goes UP, liquid goes OUT
                         status.textContent = 'Injecting medication...';
+
+                        // Liquid decreases (scale shrinks from 1 to 0)
                         liquid.scale.y = 1 - eased;
                         if (liquid.scale.y > 0.01) {
-                            liquid.position.y = -barrelLength / 2 + (liquid.userData.maxHeight * (1 - eased)) / 2 + 0.01;
+                            liquid.position.y = -barrelLength / 2 + (liquidMaxH * (1 - eased)) / 2 + 0.02;
                         }
-                        stopper.position.y = barrelLength / 2 - 0.04 - barrelLength * 0.55 + eased * (barrelLength * 0.55);
-                        plungerRod.position.y = barrelLength / 2 + barrelLength * 0.3 - barrelLength * 0.55 + eased * (barrelLength * 0.55);
-                        thumbPad.position.y = barrelLength / 2 + barrelLength * 0.65 - barrelLength * 0.55 + eased * (barrelLength * 0.55);
+
+                        // Stopper moves UP (pushing liquid out)
+                        stopper.position.y = stopperDownY + (stopperUpY - stopperDownY) * eased;
+
+                        // Plunger rod moves UP
+                        plungerRod.position.y = plungerDownY + (plungerUpY - plungerDownY) * eased;
+
+                        // Thumb pad moves UP
+                        thumbPad.position.y = thumbDownY + (thumbUpY - thumbDownY) * eased;
                         break;
 
-                    case 4: // Withdraw needle - skin returns
+                    case 3: // Withdraw needle - skin returns
                         status.textContent = 'Withdrawing needle...';
                         syringe.position.y = targetPos.y - 0.25 + eased * 0.25;
 
@@ -564,7 +567,7 @@
                         });
                         break;
 
-                    case 5: // Return to original position
+                    case 4: // Return to original position
                         status.textContent = 'Complete!';
                         syringe.position.lerpVectors(targetPos, originalData.pos, eased);
                         syringe.rotation.x = Math.PI / 2 + 0.1 + (originalData.rot.x - Math.PI / 2 - 0.1) * eased;
@@ -579,8 +582,6 @@
                     if (phase >= phaseDurations.length) {
                         isAnimating = false;
                         activeSyringe = null;
-                        // Reset liquid to empty
-                        liquid.scale.y = 0;
                         setTimeout(() => {
                             status.classList.remove('visible');
                         }, 1000);
