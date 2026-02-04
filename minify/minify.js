@@ -3470,21 +3470,53 @@ var injection = injection || function() {
         // Clear canvas
         currentCtx.clearRect(0, 0, w, h);
 
+        // Calculate cover dimensions (like object-fit: cover)
+        const imgW = currentSourceImage.naturalWidth || currentSourceImage.width;
+        const imgH = currentSourceImage.naturalHeight || currentSourceImage.height;
+
+        if (!imgW || !imgH) return;
+
+        const imgRatio = imgW / imgH;
+        const canvasRatio = w / h;
+
+        var drawW, drawH, drawX, drawY;
+
+        if (imgRatio > canvasRatio) {
+            // Image is wider - fit height, crop width
+            drawH = h;
+            drawW = h * imgRatio;
+            drawX = (w - drawW) / 2;
+            drawY = 0;
+        } else {
+            // Image is taller - fit width, crop height
+            drawW = w;
+            drawH = w / imgRatio;
+            drawX = 0;
+            drawY = (h - drawH) / 2;
+        }
+
         if (pixelSize <= 1) {
             // Draw normal image when pixelSize is 1 or less
-            currentCtx.drawImage(currentSourceImage, 0, 0, w, h);
+            currentCtx.drawImage(currentSourceImage, drawX, drawY, drawW, drawH);
             return;
         }
 
-        // Draw pixelated effect
+        // Draw pixelated effect using off-screen canvas for cover behavior
         currentCtx.imageSmoothingEnabled = false;
+
+        // Create temp canvas for proper cover scaling
+        var tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = h;
+        var tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(currentSourceImage, drawX, drawY, drawW, drawH);
 
         // Scale down
         const scaledW = w / pixelSize;
         const scaledH = h / pixelSize;
 
-        // Draw small version
-        currentCtx.drawImage(currentSourceImage, 0, 0, scaledW, scaledH);
+        // Draw small version from temp canvas
+        currentCtx.drawImage(tempCanvas, 0, 0, scaledW, scaledH);
 
         // Scale back up
         currentCtx.drawImage(currentCanvas, 0, 0, scaledW, scaledH, 0, 0, w, h);
