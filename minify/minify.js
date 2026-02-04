@@ -3767,13 +3767,19 @@ var injection = injection || function() {
                     border-radius: 50%;
                     overflow: hidden;
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-                    background: #000;
+                    background: #f5f5f5;
                 }
 
                 #mosaic-canvas, #mosaic-canvas-2 {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
                     width: 100%;
                     height: 100%;
                     display: block;
+                    margin: 0;
+                    padding: 0;
+                    border: 0;
                     image-rendering: pixelated;
                     image-rendering: -moz-crisp-edges;
                     image-rendering: crisp-edges;
