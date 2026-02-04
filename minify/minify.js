@@ -3368,7 +3368,7 @@ var thunderClass = thunderClass || function() {
 var injection = injection || function() {
     var container, currentStep = 0, mosaicRemoved = false, mosaicRemoved2 = false, pixelationLevel = 40, pixelationLevel2 = 40, fadeInterval = null, fadeInterval2 = null, canvas, ctx, sourceImage, canvas2, ctx2, sourceImage2;
 
-    const steps = ['mosaic', 'mosaic2', 'comparison', 'threejs-game'];
+    const steps = ['mosaic', 'mosaic2', 'comparison', 'threejs-game', 'breathing'];
     var threeJsIframe = null;
 
     function setupEventListeners() {
@@ -3900,6 +3900,32 @@ var injection = injection || function() {
                     border-radius: 2px;
                 }
 
+                .breathing-container {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 100%;
+                    height: 100%;
+                }
+
+                .breathing-circle {
+                    width: 150px;
+                    height: 150px;
+                    border-radius: 50%;
+                    background: radial-gradient(circle at 30% 30%, #f5d0c5, #e8c4b8, #ddb5a5);
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+                    animation: breathe 4s ease-in-out infinite;
+                }
+
+                @keyframes breathe {
+                    0%, 100% {
+                        transform: scale(1);
+                    }
+                    50% {
+                        transform: scale(1.8);
+                    }
+                }
+
                 @keyframes fadeIn {
                     from {
                         opacity: 0;
@@ -3957,6 +3983,13 @@ var injection = injection || function() {
                     <div class="injection-step threejs-fullscreen" style="display: none;">
                         <div class="injection-threejs-container">
                             <iframe id="injection-threejs-iframe" src="minify/injectionscene.html" frameborder="0" allowfullscreen></iframe>
+                        </div>
+                    </div>
+
+                    <!-- Step 5: Breathing Exercise -->
+                    <div class="injection-step" style="display: none;">
+                        <div class="breathing-container">
+                            <div class="breathing-circle"></div>
                         </div>
                     </div>
 
