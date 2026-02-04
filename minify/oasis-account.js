@@ -12,14 +12,15 @@ var OasisAccount = (function() {
     var STORAGE_KEY = 'oasis_user';
     var HISTORY_KEY = 'oasis_history';
 
-    // Firebase configuration - REPLACE WITH YOUR OWN CONFIG
+    // Firebase configuration
     var firebaseConfig = {
-        apiKey: "YOUR_API_KEY",
-        authDomain: "YOUR_PROJECT.firebaseapp.com",
-        projectId: "YOUR_PROJECT_ID",
-        storageBucket: "YOUR_PROJECT.appspot.com",
-        messagingSenderId: "YOUR_SENDER_ID",
-        appId: "YOUR_APP_ID"
+        apiKey: "AIzaSyAfpUuDNDUFjJ2oHxVjT9m9LFf9PW9BUq8",
+        authDomain: "oasis-intproj.firebaseapp.com",
+        projectId: "oasis-intproj",
+        storageBucket: "oasis-intproj.firebasestorage.app",
+        messagingSenderId: "166383175931",
+        appId: "1:166383175931:web:311dde29c3eb26fc9f485e",
+        measurementId: "G-CTC231CG7R"
     };
 
     // Firebase instances
