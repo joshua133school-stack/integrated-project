@@ -111,7 +111,10 @@ var Developing = Developing || function() {
 
 var airplaneDiagnostic = airplaneDiagnostic || function() {
     var container;
-    var diagnosticScreen, mainContent, posterWrapper, questionsPanel;
+    var diagnosticScreen, mainContent, questionsPanel;
+    var animationFrameId = null;
+    var clouds = [];
+    var planeEl = null;
     var questions = [
         { q: "Do you feel anxious when thinking about flying?", options: ["Never", "Sometimes", "Often", "Always"] },
         { q: "Have you avoided flying due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
@@ -121,7 +124,6 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
         { q: "Do thoughts of plane crashes intrude on your daily life?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
     ];
     var answers = [];
-    var posterImg = "data/poster/airplane.webp";
     var bgColor = "#2691c9";
 
     function addStyles() {
@@ -132,130 +134,134 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                 .diagnostic-container {\
                     width: 100%;\
                     height: 100%;\
-                    background: ' + bgColor + ';\
+                    background: linear-gradient(180deg, ' + bgColor + ' 0%, #1a7ab0 50%, #0d5a8a 100%);\
                     position: relative;\
                     overflow: hidden;\
                 }\
-                .diagnostic-poster-wrapper {\
+                .diagnostic-bg-layer {\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
+                    width: 100%;\
+                    height: 100%;\
+                    pointer-events: none;\
+                    overflow: hidden;\
+                }\
+                .diagnostic-cloud {\
+                    position: absolute;\
+                    opacity: 0.7;\
+                    pointer-events: none;\
+                }\
+                .diagnostic-plane {\
+                    position: absolute;\
+                    width: 80px;\
+                    pointer-events: none;\
+                    transform: scaleX(-1) rotate(-40deg);\
+                }\
+                .diagnostic-questions-panel {\
                     position: absolute;\
                     top: 50%;\
                     left: 50%;\
                     transform: translate(-50%, -50%);\
-                    width: 70%;\
-                    height: 80%;\
-                    display: flex;\
-                    align-items: center;\
-                    justify-content: center;\
-                    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);\
-                }\
-                .diagnostic-poster-wrapper.moved {\
-                    top: 50%;\
-                    left: 22%;\
-                    width: 35%;\
-                    height: 70%;\
-                }\
-                .diagnostic-poster-wrapper img {\
-                    max-width: 100%;\
-                    max-height: 100%;\
-                    object-fit: contain;\
-                    border: 3px solid rgba(255,255,255,0.3);\
-                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);\
-                }\
-                .diagnostic-questions-panel {\
-                    position: absolute;\
-                    top: 0;\
-                    right: 0;\
-                    width: 55%;\
-                    height: 100%;\
+                    width: 600px;\
+                    max-width: 90%;\
+                    max-height: 85%;\
                     display: flex;\
                     flex-direction: column;\
-                    justify-content: center;\
-                    padding: 40px 60px;\
+                    padding: 40px 50px;\
                     box-sizing: border-box;\
                     overflow-y: auto;\
+                    background: rgba(255,255,255,0.12);\
+                    backdrop-filter: blur(10px);\
+                    border-radius: 20px;\
+                    border: 1px solid rgba(255,255,255,0.2);\
                     opacity: 0;\
-                    transform: translateX(30px);\
-                    transition: opacity 0.5s ease 0.4s, transform 0.5s ease 0.4s;\
-                    pointer-events: none;\
+                    transition: opacity 0.6s ease, transform 0.6s ease;\
                 }\
                 .diagnostic-questions-panel.visible {\
                     opacity: 1;\
-                    transform: translateX(0);\
-                    pointer-events: auto;\
+                }\
+                .diagnostic-title {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 28px;\
+                    color: #fff;\
+                    text-align: center;\
+                    margin-bottom: 30px;\
+                    font-weight: 400;\
                 }\
                 .diagnostic-question {\
-                    margin-bottom: 25px;\
+                    margin-bottom: 22px;\
                     opacity: 0;\
-                    transform: translateX(20px);\
+                    transform: translateY(15px);\
                     transition: opacity 0.4s ease, transform 0.4s ease;\
                 }\
                 .diagnostic-question.visible {\
                     opacity: 1;\
-                    transform: translateX(0);\
+                    transform: translateY(0);\
                 }\
                 .diagnostic-question-text {\
                     font-family: "Crimson Text", Georgia, serif;\
-                    font-size: 18px;\
+                    font-size: 16px;\
                     color: #fff;\
-                    margin-bottom: 12px;\
+                    margin-bottom: 10px;\
                     line-height: 1.4;\
                 }\
                 .diagnostic-options {\
                     display: flex;\
                     flex-wrap: wrap;\
-                    gap: 10px;\
+                    gap: 8px;\
                 }\
                 .diagnostic-option {\
                     display: flex;\
                     align-items: center;\
-                    gap: 8px;\
+                    gap: 6px;\
                     cursor: pointer;\
-                    padding: 8px 16px;\
-                    border-radius: 20px;\
+                    padding: 6px 14px;\
+                    border-radius: 18px;\
                     background: rgba(255,255,255,0.15);\
                     transition: all 0.2s ease;\
                 }\
                 .diagnostic-option:hover {\
-                    background: rgba(255,255,255,0.25);\
+                    background: rgba(255,255,255,0.28);\
                 }\
                 .diagnostic-option.selected {\
-                    background: rgba(255,255,255,0.9);\
+                    background: rgba(255,255,255,0.95);\
                 }\
                 .diagnostic-option.selected .diagnostic-option-text {\
-                    color: ' + bgColor + ';\
+                    color: #1a7ab0;\
                 }\
                 .diagnostic-option.selected .diagnostic-circle {\
-                    background: ' + bgColor + ';\
-                    border-color: ' + bgColor + ';\
+                    background: #1a7ab0;\
+                    border-color: #1a7ab0;\
                 }\
                 .diagnostic-circle {\
-                    width: 18px;\
-                    height: 18px;\
+                    width: 16px;\
+                    height: 16px;\
                     border-radius: 50%;\
-                    border: 2px solid rgba(255,255,255,0.7);\
+                    border: 2px solid rgba(255,255,255,0.6);\
                     background: transparent;\
                     transition: all 0.2s ease;\
                 }\
                 .diagnostic-option-text {\
                     font-family: "Crimson Text", Georgia, serif;\
-                    font-size: 15px;\
-                    color: rgba(255,255,255,0.9);\
+                    font-size: 14px;\
+                    color: rgba(255,255,255,0.95);\
                     transition: color 0.2s ease;\
                 }\
                 .diagnostic-continue {\
-                    margin-top: 30px;\
-                    padding: 15px 40px;\
+                    margin-top: 25px;\
+                    padding: 14px 40px;\
                     font-family: "Crimson Text", Georgia, serif;\
-                    font-size: 18px;\
+                    font-size: 17px;\
                     background: #fff;\
-                    color: ' + bgColor + ';\
+                    color: #1a7ab0;\
                     border: none;\
-                    border-radius: 30px;\
+                    border-radius: 25px;\
                     cursor: pointer;\
                     opacity: 0;\
                     transform: translateY(10px);\
                     transition: all 0.3s ease;\
-                    align-self: flex-start;\
+                    align-self: center;\
                 }\
                 .diagnostic-continue.visible {\
                     opacity: 1;\
@@ -263,7 +269,7 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                 }\
                 .diagnostic-continue:hover {\
                     transform: translateY(-2px);\
-                    box-shadow: 0 5px 20px rgba(0,0,0,0.2);\
+                    box-shadow: 0 8px 25px rgba(0,0,0,0.2);\
                 }\
                 .diagnostic-main-content {\
                     position: absolute;\
@@ -285,10 +291,10 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
     }
 
     function buildQuestionsHTML() {
-        var html = '';
+        var html = '<div class="diagnostic-title">Fear of Flying Assessment</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="diagnostic-question" data-index="' + i + '">';
-            html += '<div class="diagnostic-question-text">' + questions[i].q + '</div>';
+            html += '<div class="diagnostic-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
             html += '<div class="diagnostic-options">';
             for (var j = 0; j < questions[i].options.length; j++) {
                 html += '<div class="diagnostic-option" data-question="' + i + '" data-value="' + j + '">';
@@ -300,6 +306,72 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
             html += '</div>';
         }
         return html;
+    }
+
+    function createClouds() {
+        var bgLayer = container.querySelector('.diagnostic-bg-layer');
+        var cloudPositions = [
+            { x: 10, y: 15, size: 120, speed: 0.15, opacity: 0.5 },
+            { x: 60, y: 8, size: 100, speed: 0.12, opacity: 0.6 },
+            { x: 30, y: 70, size: 90, speed: 0.18, opacity: 0.4 },
+            { x: 80, y: 55, size: 110, speed: 0.1, opacity: 0.5 },
+            { x: -10, y: 40, size: 130, speed: 0.14, opacity: 0.45 },
+            { x: 50, y: 85, size: 80, speed: 0.2, opacity: 0.35 }
+        ];
+
+        clouds = [];
+        cloudPositions.forEach(function(pos) {
+            var cloud = document.createElement('img');
+            cloud.src = 'data/images/smallcloud.webp';
+            cloud.className = 'diagnostic-cloud';
+            cloud.style.left = pos.x + '%';
+            cloud.style.top = pos.y + '%';
+            cloud.style.width = pos.size + 'px';
+            cloud.style.opacity = pos.opacity;
+            bgLayer.appendChild(cloud);
+            clouds.push({ el: cloud, x: pos.x, speed: pos.speed });
+        });
+    }
+
+    function createPlane() {
+        var bgLayer = container.querySelector('.diagnostic-bg-layer');
+        planeEl = document.createElement('img');
+        planeEl.src = 'data/images/smallplane.webp';
+        planeEl.className = 'diagnostic-plane';
+        planeEl.style.left = '-100px';
+        planeEl.style.top = '25%';
+        bgLayer.appendChild(planeEl);
+    }
+
+    var planeX = -100;
+    var planeY = 25;
+    var planeDirection = 1;
+
+    function animateBackground() {
+        // Animate clouds - move slowly to the left
+        clouds.forEach(function(cloud) {
+            cloud.x -= cloud.speed;
+            if (cloud.x < -20) {
+                cloud.x = 110;
+            }
+            cloud.el.style.left = cloud.x + '%';
+        });
+
+        // Animate plane - fly across screen
+        planeX += 0.4 * planeDirection;
+        planeY += Math.sin(planeX * 0.02) * 0.1; // Gentle bobbing
+
+        if (planeX > window.innerWidth + 100) {
+            planeX = -100;
+            planeY = 20 + Math.random() * 30;
+        }
+
+        if (planeEl) {
+            planeEl.style.left = planeX + 'px';
+            planeEl.style.top = planeY + '%';
+        }
+
+        animationFrameId = requestAnimationFrame(animateBackground);
     }
 
     function onOptionClick(e) {
@@ -337,6 +409,12 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
     }
 
     function onContinueClick() {
+        // Stop background animation
+        if (animationFrameId) {
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = null;
+        }
+
         // Hide diagnostic screen
         diagnosticScreen.style.opacity = '0';
 
@@ -354,7 +432,7 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
         questionEls.forEach(function(el, index) {
             setTimeout(function() {
                 el.classList.add('visible');
-            }, 100 + index * 150);
+            }, 200 + index * 120);
         });
     }
 
@@ -363,12 +441,12 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
             container = parentElement;
             addStyles();
             answers = [];
+            planeX = -100;
+            planeY = 25;
 
             container.innerHTML = '\
                 <div class="diagnostic-container" id="diagnostic-screen">\
-                    <div class="diagnostic-poster-wrapper" id="poster-wrapper">\
-                        <img src="' + posterImg + '" alt="Airplane">\
-                    </div>\
+                    <div class="diagnostic-bg-layer"></div>\
                     <div class="diagnostic-questions-panel" id="questions-panel">\
                         ' + buildQuestionsHTML() + '\
                         <button class="diagnostic-continue" id="diagnostic-continue">Continue to Experience</button>\
@@ -379,8 +457,11 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
 
             diagnosticScreen = container.querySelector('#diagnostic-screen');
             mainContent = container.querySelector('#diagnostic-main-content');
-            posterWrapper = container.querySelector('#poster-wrapper');
             questionsPanel = container.querySelector('#questions-panel');
+
+            // Create background elements
+            createClouds();
+            createPlane();
         },
 
         start: function() {
@@ -395,39 +476,45 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                 continueBtn.addEventListener('click', onContinueClick);
             }
 
-            // Start animation sequence:
-            // 1. Wait a moment, then move poster to left
-            // 2. Show questions panel
-            // 3. Show questions sequentially
-            setTimeout(function() {
-                // Move poster to left side
-                posterWrapper.classList.add('moved');
+            // Start background animation
+            animateBackground();
 
-                // After poster moves, show questions panel
-                setTimeout(function() {
-                    questionsPanel.classList.add('visible');
-                    showQuestionsSequentially();
-                }, 400);
-            }, 500);
+            // Show questions panel with animation
+            setTimeout(function() {
+                questionsPanel.classList.add('visible');
+                showQuestionsSequentially();
+            }, 300);
         },
 
         dispose: function() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
             if (airplane && airplane.dispose) {
                 airplane.dispose();
             }
             if (container) container.innerHTML = '';
             diagnosticScreen = null;
             mainContent = null;
-            posterWrapper = null;
             questionsPanel = null;
+            clouds = [];
+            planeEl = null;
             answers = [];
         },
 
         pause: function() {
+            if (animationFrameId) {
+                cancelAnimationFrame(animationFrameId);
+                animationFrameId = null;
+            }
             if (airplane && airplane.pause) airplane.pause();
         },
 
         resume: function() {
+            if (!animationFrameId && diagnosticScreen && diagnosticScreen.style.display !== 'none') {
+                animateBackground();
+            }
             if (airplane && airplane.resume) airplane.resume();
         }
     };
