@@ -122,7 +122,9 @@
         mainLight.position.set(2, 8, 4);
         mainLight.castShadow = true;
         scene.add(mainLight);
-        scene.add(new THREE.DirectionalLight(0x88aacc, 0.4)).position.set(-3, 4, 2);
+        const fillLight = new THREE.DirectionalLight(0x88aacc, 0.4);
+        fillLight.position.set(-3, 4, 2);
+        scene.add(fillLight);
 
         // Materials
         const skinMaterial = new THREE.MeshStandardMaterial({
