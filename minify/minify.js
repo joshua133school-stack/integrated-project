@@ -171,10 +171,6 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                     padding: 40px 50px;\
                     box-sizing: border-box;\
                     overflow-y: auto;\
-                    background: rgba(255,255,255,0.12);\
-                    backdrop-filter: blur(10px);\
-                    border-radius: 20px;\
-                    border: 1px solid rgba(255,255,255,0.2);\
                     opacity: 0;\
                     transition: opacity 0.6s ease, transform 0.6s ease;\
                 }\
