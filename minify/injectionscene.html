@@ -261,7 +261,7 @@
                 group.add(mark);
             }
 
-            // Liquid - starts EMPTY
+            // Liquid - starts EMPTY (plunger pushed in)
             const liquidHeight = barrelLength * 0.8;
             const liquidGeo = new THREE.CylinderGeometry(barrelRadius * 0.78, barrelRadius * 0.78, liquidHeight, 24);
             const liquidMat = new THREE.MeshPhysicalMaterial({
@@ -278,33 +278,33 @@
             liquid.position.y = -barrelLength / 2 + 0.02;
             group.add(liquid);
 
-            // Rubber stopper (black rubber part) - starts at TOP (empty syringe)
-            const stopperGeo = new THREE.CylinderGeometry(barrelRadius * 0.75, barrelRadius * 0.75, 0.06, 24);
+            // Rubber stopper (black rubber part on plunger) - starts at BOTTOM (empty, plunger pushed in)
+            const stopperGeo = new THREE.CylinderGeometry(barrelRadius * 0.75, barrelRadius * 0.75, 0.08, 24);
             const stopperMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.95 });
             const stopper = new THREE.Mesh(stopperGeo, stopperMat);
             stopper.name = 'stopper';
-            stopper.userData.topY = barrelLength / 2 - 0.05;  // Empty position (top)
-            stopper.userData.bottomY = -barrelLength / 2 + 0.05;  // Full/injected position (bottom)
-            stopper.position.y = stopper.userData.topY; // START at top (empty)
+            stopper.userData.bottomY = -barrelLength / 2 + 0.06;  // Empty/injected position (pushed in)
+            stopper.userData.topY = barrelLength / 2 - 0.06;      // Full position (pulled out)
+            stopper.position.y = stopper.userData.bottomY; // START at bottom (empty, pushed in)
             group.add(stopper);
 
-            // Plunger rod
-            const plungerRodGeo = new THREE.CylinderGeometry(0.015, 0.015, barrelLength * 0.9, 12);
+            // Plunger rod - attached to stopper, moves with it
+            const plungerRodGeo = new THREE.CylinderGeometry(0.018, 0.018, barrelLength * 0.9, 12);
             const plungerMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.4, metalness: 0.3 });
             const plungerRod = new THREE.Mesh(plungerRodGeo, plungerMat);
             plungerRod.name = 'plungerRod';
-            plungerRod.userData.topY = barrelLength / 2 + barrelLength * 0.4;  // Empty (rod up)
-            plungerRod.userData.bottomY = barrelLength / 2 + barrelLength * 0.02; // Full/pushed (rod down)
-            plungerRod.position.y = plungerRod.userData.topY; // START up (empty)
+            plungerRod.userData.bottomY = barrelLength * 0.05;    // Empty (pushed in)
+            plungerRod.userData.topY = barrelLength * 0.95;       // Full (pulled out)
+            plungerRod.position.y = plungerRod.userData.bottomY; // START pushed in
             group.add(plungerRod);
 
-            // Thumb pad (top of plunger)
-            const thumbPadGeo = new THREE.CylinderGeometry(0.07, 0.065, 0.03, 24);
+            // Thumb pad (top of plunger) - moves with rod
+            const thumbPadGeo = new THREE.CylinderGeometry(0.07, 0.065, 0.04, 24);
             const thumbPad = new THREE.Mesh(thumbPadGeo, plungerMat);
             thumbPad.name = 'thumbPad';
-            thumbPad.userData.topY = barrelLength / 2 + barrelLength * 0.85;  // Empty
-            thumbPad.userData.bottomY = barrelLength / 2 + barrelLength * 0.47; // Full/pushed
-            thumbPad.position.y = thumbPad.userData.topY; // START up
+            thumbPad.userData.bottomY = barrelLength * 0.5;       // Empty (pushed in)
+            thumbPad.userData.topY = barrelLength * 1.4;          // Full (pulled out)
+            thumbPad.position.y = thumbPad.userData.bottomY; // START pushed in
             group.add(thumbPad);
 
             // Needle hub (colored plastic)
@@ -439,10 +439,10 @@
             let phase = 0;
             let phaseTime = 0;
             const phaseDurations = [
-                3000,  // 0: Draw medication (plunger DOWN, liquid fills)
+                3000,  // 0: Draw medication - PULL plunger OUT (up), liquid fills
                 2500,  // 1: Move to arm
                 2500,  // 2: Insert needle (skin 50%, veins bright)
-                4000,  // 3: Inject (plunger UP, liquid empties)
+                4000,  // 3: Inject - PUSH plunger IN (down), liquid empties
                 2000,  // 4: Withdraw needle (skin returns)
                 2000   // 5: Return to position
             ];
@@ -463,14 +463,14 @@
                 const eased = easeInOutCubic(progress);
 
                 switch (phase) {
-                    case 0: // DRAW MEDICATION - plunger goes DOWN, liquid fills UP
-                        // Stopper moves from top to bottom
-                        stopper.position.y = stopperTop - (stopperTop - stopperBottom) * eased;
-                        // Plunger rod moves down
-                        plungerRod.position.y = plungerTop - (plungerTop - plungerBottom) * eased;
-                        // Thumb pad moves down
-                        thumbPad.position.y = thumbTop - (thumbTop - thumbBottom) * eased;
-                        // Liquid fills from bottom
+                    case 0: // DRAW MEDICATION - PULL plunger OUT (up), liquid fills
+                        // Stopper moves from bottom to top (pulling out)
+                        stopper.position.y = stopperBottom + (stopperTop - stopperBottom) * eased;
+                        // Plunger rod moves up (pulling out)
+                        plungerRod.position.y = plungerBottom + (plungerTop - plungerBottom) * eased;
+                        // Thumb pad moves up (pulling out)
+                        thumbPad.position.y = thumbBottom + (thumbTop - thumbBottom) * eased;
+                        // Liquid fills from bottom as stopper rises
                         liquid.scale.y = Math.max(0.001, eased);
                         liquid.position.y = -barrelLength / 2 + (liquidMaxH * eased) / 2 + 0.02;
                         break;
@@ -498,15 +498,15 @@
                         });
                         break;
 
-                    case 3: // INJECT - plunger goes UP, liquid empties
+                    case 3: // INJECT - PUSH plunger IN (down), liquid empties
                         status.textContent = 'Injecting medication...';
-                        // Stopper moves from bottom back to top
-                        stopper.position.y = stopperBottom + (stopperTop - stopperBottom) * eased;
-                        // Plunger rod moves up
-                        plungerRod.position.y = plungerBottom + (plungerTop - plungerBottom) * eased;
-                        // Thumb pad moves up
-                        thumbPad.position.y = thumbBottom + (thumbTop - thumbBottom) * eased;
-                        // Liquid empties
+                        // Stopper moves from top back to bottom (pushing in)
+                        stopper.position.y = stopperTop - (stopperTop - stopperBottom) * eased;
+                        // Plunger rod moves down (pushing in)
+                        plungerRod.position.y = plungerTop - (plungerTop - plungerBottom) * eased;
+                        // Thumb pad moves down (pushing in)
+                        thumbPad.position.y = thumbTop - (thumbTop - thumbBottom) * eased;
+                        // Liquid empties as stopper pushes it out
                         liquid.scale.y = Math.max(0.001, 1 - eased);
                         if (liquid.scale.y > 0.01) {
                             liquid.position.y = -barrelLength / 2 + (liquidMaxH * (1 - eased)) / 2 + 0.02;
