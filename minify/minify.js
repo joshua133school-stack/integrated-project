@@ -3421,23 +3421,29 @@ var injection = injection || function() {
         btn.style.display = 'none';
         armPrompt.style.opacity = '0';
 
-        // Injection animation (~2 seconds for the injection)
+        // Phase 1: Needle goes into arm (syringe moves down, plunger stays)
         setTimeout(function() {
-            syringe.classList.add('injecting');
-        }, 500);
+            syringe.classList.add('inserting');
+        }, 300);
 
-        // After 2 seconds of injection, start withdrawing
+        // Phase 2: Plunger pushes down (after needle is in)
         setTimeout(function() {
-            syringe.classList.remove('injecting');
-            syringe.classList.add('done');
-        }, 2500);
+            syringe.classList.remove('inserting');
+            syringe.classList.add('pushing');
+        }, 1500);
 
-        // Reset after withdrawal
+        // Phase 3: Withdraw (syringe moves up, plunger stays pushed)
         setTimeout(function() {
-            syringe.classList.remove('done');
+            syringe.classList.remove('pushing');
+            syringe.classList.add('withdrawing');
+        }, 3500);
+
+        // Reset for next demo
+        setTimeout(function() {
+            syringe.classList.remove('withdrawing');
             btn.style.display = 'block';
             armPrompt.style.opacity = '1';
-        }, 4000);
+        }, 5000);
     }
 
     function initCanvas() {
@@ -4124,25 +4130,45 @@ var injection = injection || function() {
                     border-top: 12px solid #d0d0d0;
                 }
 
-                /* Animation states */
-                .demo-syringe.injecting {
+                /* Animation states - 3 phases */
+
+                /* Phase 1: Needle goes in (syringe moves down, plunger stays) */
+                .demo-syringe.inserting {
                     transform: translateY(90px);
                 }
 
-                .demo-syringe.injecting .syringe-plunger-rod {
+                /* Phase 2: Plunger pushes (syringe stays down, plunger moves) */
+                .demo-syringe.pushing {
+                    transform: translateY(90px);
+                }
+
+                .demo-syringe.pushing .syringe-plunger-rod {
                     height: 130px;
                 }
 
-                .demo-syringe.injecting .syringe-stopper {
+                .demo-syringe.pushing .syringe-stopper {
                     top: 76px;
                 }
 
-                .demo-syringe.injecting .syringe-liquid {
+                .demo-syringe.pushing .syringe-liquid {
                     height: 0px;
                 }
 
-                .demo-syringe.done {
+                /* Phase 3: Withdraw (syringe moves up, plunger stays pushed) */
+                .demo-syringe.withdrawing {
                     transform: translateY(0);
+                }
+
+                .demo-syringe.withdrawing .syringe-plunger-rod {
+                    height: 130px;
+                }
+
+                .demo-syringe.withdrawing .syringe-stopper {
+                    top: 76px;
+                }
+
+                .demo-syringe.withdrawing .syringe-liquid {
+                    height: 0px;
                 }
 
                 #start-demo-btn {
