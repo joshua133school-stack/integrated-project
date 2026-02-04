@@ -298,15 +298,23 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
     function buildQuestionsHTML() {
         var trans = getTranslations();
         var questions = trans.questions;
-        var html = '<div class="diagnostic-title">' + trans.title + '</div>';
+        var optionKeys = [
+            ['never', 'sometimes', 'often', 'always'],
+            ['never', 'onceOrTwice', 'severalTimes', 'alwaysAvoid'],
+            ['noSymptoms', 'mild', 'moderate', 'severe'],
+            ['noFear', 'mild', 'moderate', 'severe'],
+            ['notAtAll', 'aLittle', 'quiteBit', 'extremely'],
+            ['never', 'rarely', 'sometimes', 'frequently']
+        ];
+        var html = '<div class="diagnostic-title" data-i18n="diagnostic.airplane.title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="diagnostic-question" data-index="' + i + '">';
-            html += '<div class="diagnostic-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="diagnostic-question-text">' + (i + 1) + '. <span data-i18n="diagnostic.airplane.q' + (i + 1) + '">' + questions[i].q + '</span></div>';
             html += '<div class="diagnostic-options">';
             for (var j = 0; j < questions[i].options.length; j++) {
                 html += '<div class="diagnostic-option" data-question="' + i + '" data-value="' + j + '">';
                 html += '<div class="diagnostic-circle"></div>';
-                html += '<span class="diagnostic-option-text">' + questions[i].options[j] + '</span>';
+                html += '<span class="diagnostic-option-text" data-i18n="diagnostic.airplane.options.' + optionKeys[i][j] + '">' + questions[i].options[j] + '</span>';
                 html += '</div>';
             }
             html += '</div>';
@@ -457,7 +465,7 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                     <div class="diagnostic-bg-layer"></div>\
                     <div class="diagnostic-questions-panel" id="questions-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="diagnostic-continue" id="diagnostic-continue">' + trans.continueBtn + '</button>\
+                        <button class="diagnostic-continue" id="diagnostic-continue" data-i18n="diagnostic.continueToExperience">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="diagnostic-main-content" id="diagnostic-main-content"></div>\
@@ -676,15 +684,23 @@ var injectionDiagnostic = injectionDiagnostic || function() {
     function buildQuestionsHTML() {
         var trans = getTranslations();
         var questions = trans.questions;
-        var html = '<div class="inj-diag-title">' + trans.title + '</div>';
+        var optionKeys = [
+            ['never', 'sometimes', 'often', 'always'],
+            ['never', 'onceOrTwice', 'severalTimes', 'alwaysAvoid'],
+            ['noSymptoms', 'mild', 'moderate', 'severe'],
+            ['noFear', 'mild', 'moderate', 'severe'],
+            ['notAtAll', 'aLittle', 'quiteBit', 'extremely'],
+            ['never', 'rarely', 'sometimes', 'frequently']
+        ];
+        var html = '<div class="inj-diag-title" data-i18n="diagnostic.injection.title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="inj-diag-question" data-index="' + i + '">';
-            html += '<div class="inj-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="inj-diag-question-text">' + (i + 1) + '. <span data-i18n="diagnostic.injection.q' + (i + 1) + '">' + questions[i].q + '</span></div>';
             html += '<div class="inj-diag-options">';
             for (var j = 0; j < questions[i].options.length; j++) {
                 html += '<div class="inj-diag-option" data-question="' + i + '" data-value="' + j + '">';
                 html += '<div class="inj-diag-circle"></div>';
-                html += '<span class="inj-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '<span class="inj-diag-option-text" data-i18n="diagnostic.airplane.options.' + optionKeys[i][j] + '">' + questions[i].options[j] + '</span>';
                 html += '</div>';
             }
             html += '</div></div>';
@@ -776,7 +792,7 @@ var injectionDiagnostic = injectionDiagnostic || function() {
                     <canvas class="inj-diag-canvas"></canvas>\
                     <div class="inj-diag-panel" id="inj-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="inj-diag-continue">' + trans.continueBtn + '</button>\
+                        <button class="inj-diag-continue" data-i18n="diagnostic.continueToExperience">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="inj-diag-main" id="inj-diag-main"></div>\
@@ -938,15 +954,25 @@ var thunderDiagnostic = thunderDiagnostic || function() {
     function buildQuestionsHTML() {
         var trans = getTranslations();
         var questions = trans.questions;
-        var html = '<div class="thunder-diag-title">' + trans.title + '</div>';
+        var optionKeys = [
+            ['never', 'sometimes', 'often', 'always'],
+            ['never', 'onceOrTwice', 'severalTimes', 'always'],
+            ['noSymptoms', 'mild', 'moderate', 'severe'],
+            ['noFear', 'mild', 'moderate', 'severe'],
+            ['notAtAll', 'occasionally', 'often', 'constantly'],
+            ['never', 'rarely', 'sometimes', 'frequently']
+        ];
+        var optionNs = ['airplane', 'airplane', 'airplane', 'airplane', 'thunder', 'airplane'];
+        var html = '<div class="thunder-diag-title" data-i18n="diagnostic.thunder.title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="thunder-diag-question" data-index="' + i + '">';
-            html += '<div class="thunder-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="thunder-diag-question-text">' + (i + 1) + '. <span data-i18n="diagnostic.thunder.q' + (i + 1) + '">' + questions[i].q + '</span></div>';
             html += '<div class="thunder-diag-options">';
             for (var j = 0; j < questions[i].options.length; j++) {
+                var ns = (i === 4 && (j === 1 || j === 3)) ? 'thunder' : 'airplane';
                 html += '<div class="thunder-diag-option" data-question="' + i + '" data-value="' + j + '">';
                 html += '<div class="thunder-diag-circle"></div>';
-                html += '<span class="thunder-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '<span class="thunder-diag-option-text" data-i18n="diagnostic.' + ns + '.options.' + optionKeys[i][j] + '">' + questions[i].options[j] + '</span>';
                 html += '</div>';
             }
             html += '</div></div>';
@@ -1021,7 +1047,7 @@ var thunderDiagnostic = thunderDiagnostic || function() {
                     <div class="thunder-diag-flash"></div>\
                     <div class="thunder-diag-panel" id="thunder-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="thunder-diag-continue">' + trans.continueBtn + '</button>\
+                        <button class="thunder-diag-continue" data-i18n="diagnostic.continueToExperience">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="thunder-diag-main" id="thunder-diag-main"></div>\
@@ -1169,15 +1195,26 @@ var darknessDiagnostic = darknessDiagnostic || function() {
     function buildQuestionsHTML() {
         var trans = getTranslations();
         var questions = trans.questions;
-        var html = '<div class="dark-diag-title">' + trans.title + '</div>';
+        var optionKeys = [
+            ['never', 'sometimes', 'often', 'always'],
+            ['never', 'onceOrTwice', 'severalTimes', 'alwaysAvoid'],
+            ['never', 'sometimes', 'usually', 'always'],
+            ['noFear', 'mild', 'moderate', 'severe'],
+            ['notAtAll', 'occasionally', 'often', 'constantly'],
+            ['never', 'rarely', 'sometimes', 'always']
+        ];
+        var html = '<div class="dark-diag-title" data-i18n="diagnostic.darkness.title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="dark-diag-question" data-index="' + i + '">';
-            html += '<div class="dark-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="dark-diag-question-text">' + (i + 1) + '. <span data-i18n="diagnostic.darkness.q' + (i + 1) + '">' + questions[i].q + '</span></div>';
             html += '<div class="dark-diag-options">';
             for (var j = 0; j < questions[i].options.length; j++) {
+                var ns = 'airplane';
+                if (i === 2 && j === 2) ns = 'darkness';
+                if (i === 4 && (j === 1 || j === 3)) ns = 'thunder';
                 html += '<div class="dark-diag-option" data-question="' + i + '" data-value="' + j + '">';
                 html += '<div class="dark-diag-circle"></div>';
-                html += '<span class="dark-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '<span class="dark-diag-option-text" data-i18n="diagnostic.' + ns + '.options.' + optionKeys[i][j] + '">' + questions[i].options[j] + '</span>';
                 html += '</div>';
             }
             html += '</div></div>';
@@ -1275,7 +1312,7 @@ var darknessDiagnostic = darknessDiagnostic || function() {
                     <div class="dark-diag-vignette"></div>\
                     <div class="dark-diag-panel" id="dark-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="dark-diag-continue">' + trans.continueBtn + '</button>\
+                        <button class="dark-diag-continue" data-i18n="diagnostic.continueToExperience">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="dark-diag-main" id="dark-diag-main"></div>\
@@ -1424,15 +1461,25 @@ var heightsDiagnostic = heightsDiagnostic || function() {
     function buildQuestionsHTML() {
         var trans = getTranslations();
         var questions = trans.questions;
-        var html = '<div class="heights-diag-title">' + trans.title + '</div>';
+        var optionKeys = [
+            ['never', 'sometimes', 'often', 'always'],
+            ['never', 'onceOrTwice', 'severalTimes', 'alwaysAvoid'],
+            ['noSymptoms', 'mild', 'moderate', 'severe'],
+            ['noFear', 'mild', 'moderate', 'severe'],
+            ['notAtAll', 'occasionally', 'often', 'constantly'],
+            ['never', 'rarely', 'sometimes', 'always']
+        ];
+        var html = '<div class="heights-diag-title" data-i18n="diagnostic.heights.title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="heights-diag-question" data-index="' + i + '">';
-            html += '<div class="heights-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="heights-diag-question-text">' + (i + 1) + '. <span data-i18n="diagnostic.heights.q' + (i + 1) + '">' + questions[i].q + '</span></div>';
             html += '<div class="heights-diag-options">';
             for (var j = 0; j < questions[i].options.length; j++) {
+                var ns = 'airplane';
+                if (i === 4 && (j === 1 || j === 3)) ns = 'thunder';
                 html += '<div class="heights-diag-option" data-question="' + i + '" data-value="' + j + '">';
                 html += '<div class="heights-diag-circle"></div>';
-                html += '<span class="heights-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '<span class="heights-diag-option-text" data-i18n="diagnostic.' + ns + '.options.' + optionKeys[i][j] + '">' + questions[i].options[j] + '</span>';
                 html += '</div>';
             }
             html += '</div></div>';
@@ -1566,7 +1613,7 @@ var heightsDiagnostic = heightsDiagnostic || function() {
                     <div class="heights-diag-ground"></div>\
                     <div class="heights-diag-panel" id="heights-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="heights-diag-continue">' + trans.continueBtn + '</button>\
+                        <button class="heights-diag-continue" data-i18n="diagnostic.continueToExperience">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="heights-diag-main" id="heights-diag-main"></div>\
