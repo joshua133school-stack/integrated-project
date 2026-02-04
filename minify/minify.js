@@ -109,6 +109,303 @@ var Developing = Developing || function() {
     };
 }();
 
+var airplaneDiagnostic = airplaneDiagnostic || function() {
+    var container;
+    var diagnosticScreen, mainContent;
+    var questions = [
+        { q: "Do you feel anxious when thinking about flying?", options: ["Never", "Sometimes", "Often", "Always"] },
+        { q: "Have you avoided flying due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
+        { q: "Do you experience physical symptoms (sweating, racing heart) related to flying?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
+        { q: "How would you rate your fear of flying?", options: ["No fear", "Mild", "Moderate", "Severe"] },
+        { q: "Does turbulence cause you significant distress?", options: ["Not at all", "A little", "Quite a bit", "Extremely"] },
+        { q: "Do thoughts of plane crashes intrude on your daily life?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
+    ];
+    var answers = [];
+    var posterImg = "data/poster/plane.webp";
+    var bgColor = "#2691c9";
+
+    function addStyles() {
+        if (!document.getElementById('airplane-diagnostic-styles')) {
+            var style = document.createElement('style');
+            style.id = 'airplane-diagnostic-styles';
+            style.innerHTML = '\
+                .diagnostic-container {\
+                    width: 100%;\
+                    height: 100%;\
+                    display: flex;\
+                    flex-direction: row;\
+                    background: ' + bgColor + ';\
+                    position: relative;\
+                    overflow: hidden;\
+                    opacity: 0;\
+                    transition: opacity 0.5s ease;\
+                }\
+                .diagnostic-container.visible {\
+                    opacity: 1;\
+                }\
+                .diagnostic-poster {\
+                    width: 45%;\
+                    height: 100%;\
+                    display: flex;\
+                    align-items: center;\
+                    justify-content: center;\
+                    padding: 40px;\
+                    box-sizing: border-box;\
+                }\
+                .diagnostic-poster img {\
+                    max-width: 100%;\
+                    max-height: 80%;\
+                    object-fit: contain;\
+                    border: 3px solid rgba(255,255,255,0.3);\
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);\
+                }\
+                .diagnostic-questions {\
+                    width: 55%;\
+                    height: 100%;\
+                    display: flex;\
+                    flex-direction: column;\
+                    justify-content: center;\
+                    padding: 40px 60px;\
+                    box-sizing: border-box;\
+                    overflow-y: auto;\
+                }\
+                .diagnostic-question {\
+                    margin-bottom: 25px;\
+                    opacity: 0;\
+                    transform: translateX(20px);\
+                    transition: opacity 0.4s ease, transform 0.4s ease;\
+                }\
+                .diagnostic-question.visible {\
+                    opacity: 1;\
+                    transform: translateX(0);\
+                }\
+                .diagnostic-question-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 18px;\
+                    color: #fff;\
+                    margin-bottom: 12px;\
+                    line-height: 1.4;\
+                }\
+                .diagnostic-options {\
+                    display: flex;\
+                    flex-wrap: wrap;\
+                    gap: 10px;\
+                }\
+                .diagnostic-option {\
+                    display: flex;\
+                    align-items: center;\
+                    gap: 8px;\
+                    cursor: pointer;\
+                    padding: 8px 16px;\
+                    border-radius: 20px;\
+                    background: rgba(255,255,255,0.15);\
+                    transition: all 0.2s ease;\
+                }\
+                .diagnostic-option:hover {\
+                    background: rgba(255,255,255,0.25);\
+                }\
+                .diagnostic-option.selected {\
+                    background: rgba(255,255,255,0.9);\
+                }\
+                .diagnostic-option.selected .diagnostic-option-text {\
+                    color: ' + bgColor + ';\
+                }\
+                .diagnostic-option.selected .diagnostic-circle {\
+                    background: ' + bgColor + ';\
+                    border-color: ' + bgColor + ';\
+                }\
+                .diagnostic-circle {\
+                    width: 18px;\
+                    height: 18px;\
+                    border-radius: 50%;\
+                    border: 2px solid rgba(255,255,255,0.7);\
+                    background: transparent;\
+                    transition: all 0.2s ease;\
+                }\
+                .diagnostic-option-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 15px;\
+                    color: rgba(255,255,255,0.9);\
+                    transition: color 0.2s ease;\
+                }\
+                .diagnostic-continue {\
+                    margin-top: 30px;\
+                    padding: 15px 40px;\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 18px;\
+                    background: #fff;\
+                    color: ' + bgColor + ';\
+                    border: none;\
+                    border-radius: 30px;\
+                    cursor: pointer;\
+                    opacity: 0;\
+                    transform: translateY(10px);\
+                    transition: all 0.3s ease;\
+                    align-self: flex-start;\
+                }\
+                .diagnostic-continue.visible {\
+                    opacity: 1;\
+                    transform: translateY(0);\
+                }\
+                .diagnostic-continue:hover {\
+                    transform: translateY(-2px);\
+                    box-shadow: 0 5px 20px rgba(0,0,0,0.2);\
+                }\
+                .diagnostic-main-content {\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
+                    width: 100%;\
+                    height: 100%;\
+                    opacity: 0;\
+                    pointer-events: none;\
+                    transition: opacity 0.5s ease;\
+                }\
+                .diagnostic-main-content.visible {\
+                    opacity: 1;\
+                    pointer-events: auto;\
+                }\
+            ';
+            document.head.appendChild(style);
+        }
+    }
+
+    function buildQuestionsHTML() {
+        var html = '';
+        for (var i = 0; i < questions.length; i++) {
+            html += '<div class="diagnostic-question" data-index="' + i + '">';
+            html += '<div class="diagnostic-question-text">' + questions[i].q + '</div>';
+            html += '<div class="diagnostic-options">';
+            for (var j = 0; j < questions[i].options.length; j++) {
+                html += '<div class="diagnostic-option" data-question="' + i + '" data-value="' + j + '">';
+                html += '<div class="diagnostic-circle"></div>';
+                html += '<span class="diagnostic-option-text">' + questions[i].options[j] + '</span>';
+                html += '</div>';
+            }
+            html += '</div>';
+            html += '</div>';
+        }
+        return html;
+    }
+
+    function onOptionClick(e) {
+        var option = e.target.closest('.diagnostic-option');
+        if (!option) return;
+
+        var questionIndex = parseInt(option.getAttribute('data-question'));
+        var value = parseInt(option.getAttribute('data-value'));
+
+        // Deselect other options in same question
+        var siblings = option.parentElement.querySelectorAll('.diagnostic-option');
+        siblings.forEach(function(sib) { sib.classList.remove('selected'); });
+
+        // Select this option
+        option.classList.add('selected');
+        answers[questionIndex] = value;
+
+        // Check if all questions answered
+        checkAllAnswered();
+    }
+
+    function checkAllAnswered() {
+        var allAnswered = true;
+        for (var i = 0; i < questions.length; i++) {
+            if (answers[i] === undefined) {
+                allAnswered = false;
+                break;
+            }
+        }
+
+        var continueBtn = container.querySelector('.diagnostic-continue');
+        if (allAnswered && continueBtn) {
+            continueBtn.classList.add('visible');
+        }
+    }
+
+    function onContinueClick() {
+        // Hide diagnostic screen
+        diagnosticScreen.style.opacity = '0';
+
+        // Show main content after transition
+        setTimeout(function() {
+            diagnosticScreen.style.display = 'none';
+            mainContent.classList.add('visible');
+            airplane.init(mainContent);
+            airplane.start();
+        }, 500);
+    }
+
+    function showQuestionsSequentially() {
+        var questionEls = container.querySelectorAll('.diagnostic-question');
+        questionEls.forEach(function(el, index) {
+            setTimeout(function() {
+                el.classList.add('visible');
+            }, 100 + index * 150);
+        });
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            addStyles();
+            answers = [];
+
+            container.innerHTML = '\
+                <div class="diagnostic-container" id="diagnostic-screen">\
+                    <div class="diagnostic-poster">\
+                        <img src="' + posterImg + '" alt="Airplane">\
+                    </div>\
+                    <div class="diagnostic-questions">\
+                        ' + buildQuestionsHTML() + '\
+                        <button class="diagnostic-continue" id="diagnostic-continue">Continue to Experience</button>\
+                    </div>\
+                </div>\
+                <div class="diagnostic-main-content" id="diagnostic-main-content"></div>\
+            ';
+
+            diagnosticScreen = container.querySelector('#diagnostic-screen');
+            mainContent = container.querySelector('#diagnostic-main-content');
+        },
+
+        start: function() {
+            // Add event listeners
+            var options = container.querySelectorAll('.diagnostic-option');
+            options.forEach(function(opt) {
+                opt.addEventListener('click', onOptionClick);
+            });
+
+            var continueBtn = container.querySelector('#diagnostic-continue');
+            if (continueBtn) {
+                continueBtn.addEventListener('click', onContinueClick);
+            }
+
+            // Fade in and show questions
+            setTimeout(function() {
+                diagnosticScreen.classList.add('visible');
+                showQuestionsSequentially();
+            }, 100);
+        },
+
+        dispose: function() {
+            if (airplane && airplane.dispose) {
+                airplane.dispose();
+            }
+            if (container) container.innerHTML = '';
+            diagnosticScreen = null;
+            mainContent = null;
+            answers = [];
+        },
+
+        pause: function() {
+            if (airplane && airplane.pause) airplane.pause();
+        },
+
+        resume: function() {
+            if (airplane && airplane.resume) airplane.resume();
+        }
+    };
+}();
+
 var FireflyTown = FireflyTown || function() {
     var container;
     var scene, camera, renderer, playerMesh;
@@ -5159,7 +5456,7 @@ ea=B=!1;Q=!0;ha={lines:12,length:3,width:3,radius:6,color:"#fff",speed:1,trail:6
 Y.appendChild(CMDetect.circleMask);N=document.getElementById("triangulation-guide");da=[];H=[];var b;for(b=0;7>b;b++){a=$("#triangulation-bt-"+(b+1));var c=a[0].getElementsByTagName("p")[0];da[b]=a;H[b]=c}U=0;v();StageController.addResize("Triangulation",k)},start:function(){d(0)},dispose:function(){StageController.removeResize("Triangulation");TweenLite.killTweensOf(O);r();B=!0;null!=N&&TweenLite.killTweensOf(N);N=null;null!=T&&TweenLite.killTweensOf(T);J=Y=S=G=D=E=A=L=K=T=null;da=[]},pause:function(){B=
 !0;TweenLite.killTweensOf(O);r();null!=T&&T.pause()},resume:function(){B=!1;null==T?n():T.resume()},resize:k}}(),ConfigModel=ConfigModel||function(){function d(a,b,c,d){var e=ConfigModel.configArr[b].poster.browser,f=ConfigModel.configArr[b].poster.preload;CircleAniamtion.ready();-1!=e.indexOf(CMDetect.browserName)||CMDetect.isDevice?(e=ConfigModel.configArr[b].poster.classfn,m(f)):(e=BrowserError,CircleAniamtion.loaded());Contents.init(a,b,c,d,e)}function m(a){var b=[],c,d=a.length;if(0!=d){for(c=
 0;c<d;c++)b[c]='<img src="'+a[c]+'">';a=b.join("");q.innerHTML=a;var f=$(q).imagesLoaded();f.always(function(){q.innerHTML="";f=null;CircleAniamtion.loaded()})}else CircleAniamtion.loaded()}var g={configArr:null,screensaverArr:null,total:0,screensaverTotal:0,isWhite:0,imgArr:null,screensaverID:null,sectionID:null},k,q,c=[{item:{id:"sheeps",mac:"data/screensaver/fffsheeps_mac_1.0.zip",win:"data/screensaver/fffsheeps_win_1.0.zip"}},{item:{id:"scream",mac:"data/screensaver/fffscream_mac_1.0.zip",win:"data/screensaver/fffscream_win_1.0.zip"}},
-{item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"plane",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+{item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"plane",classfn:airplaneDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"injection",classfn:injection,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
 title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp","data/images/4.webp","data/images/5.webp","data/images/6.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:Darkness,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
