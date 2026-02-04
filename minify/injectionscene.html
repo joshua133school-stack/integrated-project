@@ -59,24 +59,6 @@
             pointer-events: none;
         }
         #hint.hidden { opacity: 0; }
-        #status {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: #fff;
-            padding: 20px 40px;
-            border-radius: 12px;
-            font-size: 18px;
-            text-align: center;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(100, 200, 255, 0.3);
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none;
-        }
-        #status.visible { opacity: 1; }
         #timer {
             position: absolute;
             top: 20px;
@@ -99,7 +81,6 @@
         <div class="description">Standard medical needle</div>
         <div class="click-hint">Click to inject</div>
     </div>
-    <div id="status">Injecting...</div>
     <div id="timer">0.0s</div>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
@@ -107,7 +88,6 @@
         const container = document.getElementById('container');
         const needleInfo = document.getElementById('needle-info');
         const hint = document.getElementById('hint');
-        const status = document.getElementById('status');
         const timer = document.getElementById('timer');
 
         setTimeout(() => hint.classList.add('hidden'), 5000);
@@ -510,9 +490,6 @@
                 2000   // 5: Return to position
             ];
 
-            status.textContent = 'Drawing medication...';
-            status.classList.add('visible');
-
             let lastTime = performance.now();
 
             function animateInjection(currentTime) {
@@ -543,14 +520,12 @@
                         break;
 
                     case 1: // MOVE TO ARM
-                        status.textContent = 'Positioning needle...';
                         syringe.position.lerpVectors(startPos, targetPos, eased);
                         syringe.rotation.x = startRot.x + (targetRotX - startRot.x) * eased;
                         syringe.rotation.z = startRot.z * (1 - eased);
                         break;
 
                     case 2: // INSERT NEEDLE - skin to 50%, veins VERY visible
-                        status.textContent = 'Inserting needle...';
                         const insertDepth = eased * 0.5; // Insert deeper
                         // Move towards injection site (along needle direction)
                         const insertDir = new THREE.Vector3(
@@ -576,7 +551,6 @@
                         break;
 
                     case 3: // INJECT - PUSH plunger IN (down), liquid empties
-                        status.textContent = 'Injecting medication...';
                         // Stopper moves from top back to bottom (pushing in)
                         stopper.position.y = stopperTop - (stopperTop - stopperBottom) * eased;
                         // Plunger rod moves down (pushing in)
@@ -591,7 +565,6 @@
                         break;
 
                     case 4: // WITHDRAW NEEDLE - skin returns
-                        status.textContent = 'Withdrawing needle...';
                         // Move back from injection site
                         const withdrawDir = new THREE.Vector3(
                             siteWorldPos.x - targetPos.x,
@@ -617,7 +590,6 @@
                         break;
 
                     case 5: // RETURN TO POSITION
-                        status.textContent = 'Complete!';
                         syringe.position.lerpVectors(targetPos, originalData.pos, eased);
                         syringe.rotation.x = targetRotX + (originalData.rot.x - targetRotX) * eased;
                         syringe.rotation.z = originalData.rot.z * eased;
@@ -629,10 +601,7 @@
                     phaseTime = 0;
                     if (phase >= phaseDurations.length) {
                         isAnimating = false;
-                        setTimeout(() => {
-                            status.classList.remove('visible');
-                            timer.classList.remove('visible');
-                        }, 1000);
+                        setTimeout(() => timer.classList.remove('visible'), 1000);
                         return;
                     }
                 }
