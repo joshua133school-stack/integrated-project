@@ -98,7 +98,13 @@ var OasisAccount = (function() {
      * Load user from Firestore
      */
     function loadUserFromFirestore(uid) {
-        if (!useFirebase || !firebaseDb) return;
+        if (!useFirebase || !firebaseDb) {
+            if (pendingLogin) {
+                pendingLogin = false;
+                showLoading(false);
+            }
+            return;
+        }
 
         firebaseDb.collection('users').doc(uid).get()
             .then(function(doc) {
@@ -114,6 +120,34 @@ var OasisAccount = (function() {
                         showLoading(false);
                         closePanels();
                     }
+                } else {
+                    // User authenticated but no Firestore document - create one
+                    var authUser = firebaseAuth.currentUser;
+                    currentUser = {
+                        id: uid.substring(0, 8),
+                        uid: uid,
+                        name: authUser && authUser.displayName ? authUser.displayName : 'Patient',
+                        email: authUser ? authUser.email : '',
+                        created: new Date().toISOString(),
+                        history: []
+                    };
+
+                    // Save the new user document
+                    return firebaseDb.collection('users').doc(uid).set({
+                        id: currentUser.id,
+                        name: currentUser.name,
+                        email: currentUser.email,
+                        created: currentUser.created,
+                        history: []
+                    }).then(function() {
+                        isLoggedIn = true;
+                        updateHeaderUI();
+                        if (pendingLogin) {
+                            pendingLogin = false;
+                            showLoading(false);
+                            closePanels();
+                        }
+                    });
                 }
             })
             .catch(function(error) {
