@@ -121,7 +121,7 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
         { q: "Do thoughts of plane crashes intrude on your daily life?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
     ];
     var answers = [];
-    var posterImg = "data/poster/plane.webp";
+    var posterImg = "data/poster/airplane.webp";
     var bgColor = "#2691c9";
 
     function addStyles() {
