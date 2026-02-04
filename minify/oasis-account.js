@@ -2,6 +2,8 @@
  * Oasis Account System
  * User authentication, diagnostic tracking, and personal dashboard
  * Design: Doctor's note aesthetic - minimal, clean, professional
+ *
+ * Supports both Firebase (global) and localStorage (local) storage
  */
 
 var OasisAccount = (function() {
@@ -10,22 +12,73 @@ var OasisAccount = (function() {
     var STORAGE_KEY = 'oasis_user';
     var HISTORY_KEY = 'oasis_history';
 
+    // Firebase configuration - REPLACE WITH YOUR OWN CONFIG
+    var firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        projectId: "YOUR_PROJECT_ID",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_SENDER_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    // Firebase instances
+    var firebaseApp = null;
+    var firebaseAuth = null;
+    var firebaseDb = null;
+    var useFirebase = false;
+
     // Current user state
     var currentUser = null;
     var isLoggedIn = false;
 
     /**
+     * Initialize Firebase if available
+     */
+    function initFirebase() {
+        try {
+            if (typeof firebase !== 'undefined' && firebaseConfig.apiKey !== "YOUR_API_KEY") {
+                firebaseApp = firebase.initializeApp(firebaseConfig);
+                firebaseAuth = firebase.auth();
+                firebaseDb = firebase.firestore();
+                useFirebase = true;
+                console.log('Firebase initialized - using global storage');
+
+                // Listen for auth state changes
+                firebaseAuth.onAuthStateChanged(function(user) {
+                    if (user) {
+                        loadUserFromFirestore(user.uid);
+                    } else {
+                        currentUser = null;
+                        isLoggedIn = false;
+                        updateHeaderUI();
+                    }
+                });
+            } else {
+                console.log('Firebase not configured - using local storage');
+                useFirebase = false;
+            }
+        } catch (e) {
+            console.warn('Firebase init failed:', e);
+            useFirebase = false;
+        }
+    }
+
+    /**
      * Initialize account system
      */
     function init() {
-        loadUser();
+        initFirebase();
+        if (!useFirebase) {
+            loadUser();
+        }
         injectStyles();
         createAccountUI();
         updateHeaderUI();
     }
 
     /**
-     * Load user from localStorage
+     * Load user from localStorage (fallback)
      */
     function loadUser() {
         try {
@@ -40,33 +93,103 @@ var OasisAccount = (function() {
     }
 
     /**
-     * Save user to localStorage
+     * Load user from Firestore
+     */
+    function loadUserFromFirestore(uid) {
+        if (!useFirebase || !firebaseDb) return;
+
+        firebaseDb.collection('users').doc(uid).get()
+            .then(function(doc) {
+                if (doc.exists) {
+                    currentUser = doc.data();
+                    currentUser.uid = uid;
+                    isLoggedIn = true;
+                    updateHeaderUI();
+                }
+            })
+            .catch(function(error) {
+                console.warn('Error loading user from Firestore:', error);
+            });
+    }
+
+    /**
+     * Save user to storage (Firebase or localStorage)
      */
     function saveUser() {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
-        } catch (e) {
-            console.warn('Failed to save user data');
+        if (useFirebase && firebaseDb && currentUser && currentUser.uid) {
+            // Save to Firestore
+            var userData = Object.assign({}, currentUser);
+            delete userData.uid; // Don't store uid in the document
+
+            firebaseDb.collection('users').doc(currentUser.uid).set(userData, { merge: true })
+                .catch(function(error) {
+                    console.warn('Error saving to Firestore:', error);
+                });
+        } else {
+            // Fallback to localStorage
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(currentUser));
+            } catch (e) {
+                console.warn('Failed to save user data');
+            }
         }
     }
 
     /**
-     * Simple hash function for password (not cryptographically secure, but fine for local storage)
+     * Register new user (Firebase or local)
      */
-    function hashPassword(password) {
-        var hash = 0;
-        for (var i = 0; i < password.length; i++) {
-            var char = password.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
+    function register(name, email, password) {
+        if (useFirebase && firebaseAuth) {
+            return registerWithFirebase(name, email, password);
+        } else {
+            return registerLocal(name, password);
         }
-        return hash.toString(36);
     }
 
     /**
-     * Register new user
+     * Register with Firebase Auth
      */
-    function register(name, password) {
+    function registerWithFirebase(name, email, password) {
+        showLoading(true);
+
+        firebaseAuth.createUserWithEmailAndPassword(email, password)
+            .then(function(userCredential) {
+                var user = userCredential.user;
+
+                // Create user document in Firestore
+                currentUser = {
+                    id: user.uid.substring(0, 8),
+                    uid: user.uid,
+                    name: name || 'Patient',
+                    email: email,
+                    created: new Date().toISOString(),
+                    history: []
+                };
+
+                return firebaseDb.collection('users').doc(user.uid).set({
+                    id: currentUser.id,
+                    name: currentUser.name,
+                    email: currentUser.email,
+                    created: currentUser.created,
+                    history: []
+                });
+            })
+            .then(function() {
+                isLoggedIn = true;
+                showLoading(false);
+                updateHeaderUI();
+                closePanels();
+            })
+            .catch(function(error) {
+                showLoading(false);
+                showError('oasis-register-error', getFirebaseErrorMessage(error));
+            });
+    }
+
+    /**
+     * Register locally (fallback)
+     */
+    function registerLocal(name, password) {
         currentUser = {
             id: Date.now().toString(36),
             name: name || 'Patient',
@@ -82,11 +205,42 @@ var OasisAccount = (function() {
     }
 
     /**
-     * Validate password
+     * Simple hash function for password (local storage only)
+     */
+    function hashPassword(password) {
+        var hash = 0;
+        for (var i = 0; i < password.length; i++) {
+            var char = password.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash;
+        }
+        return hash.toString(36);
+    }
+
+    /**
+     * Validate password (local storage only)
      */
     function validatePassword(password) {
         if (!currentUser || !currentUser.passwordHash) return true;
         return hashPassword(password) === currentUser.passwordHash;
+    }
+
+    /**
+     * Login with Firebase
+     */
+    function loginWithFirebase(email, password) {
+        showLoading(true);
+
+        firebaseAuth.signInWithEmailAndPassword(email, password)
+            .then(function(userCredential) {
+                // Auth state listener will handle loading user data
+                showLoading(false);
+                closePanels();
+            })
+            .catch(function(error) {
+                showLoading(false);
+                showError('oasis-checkin-error', getFirebaseErrorMessage(error));
+            });
     }
 
     /**
@@ -106,9 +260,64 @@ var OasisAccount = (function() {
      * Logout
      */
     function logout() {
+        if (useFirebase && firebaseAuth) {
+            firebaseAuth.signOut();
+        }
         isLoggedIn = false;
+        currentUser = null;
         updateHeaderUI();
         closePanels();
+    }
+
+    /**
+     * Get Firebase error message
+     */
+    function getFirebaseErrorMessage(error) {
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                return 'This email is already registered';
+            case 'auth/invalid-email':
+                return 'Please enter a valid email address';
+            case 'auth/weak-password':
+                return 'Password must be at least 6 characters';
+            case 'auth/user-not-found':
+                return 'No account found with this email';
+            case 'auth/wrong-password':
+                return 'Incorrect password';
+            case 'auth/too-many-requests':
+                return 'Too many attempts. Please try again later';
+            default:
+                return error.message || 'An error occurred';
+        }
+    }
+
+    /**
+     * Show/hide loading state
+     */
+    function showLoading(show) {
+        var btns = document.querySelectorAll('.oasis-note-btn');
+        btns.forEach(function(btn) {
+            btn.disabled = show;
+            btn.style.opacity = show ? '0.6' : '1';
+        });
+    }
+
+    /**
+     * Show error message
+     */
+    function showError(elementId, message) {
+        var el = document.getElementById(elementId);
+        if (el) {
+            el.textContent = message;
+            el.style.display = 'block';
+        }
+    }
+
+    /**
+     * Check if using Firebase
+     */
+    function isUsingFirebase() {
+        return useFirebase;
     }
 
     /**
@@ -983,16 +1192,25 @@ var OasisAccount = (function() {
      */
     function renderRegisterView() {
         var panel = document.getElementById('oasis-note-panel');
+        var storageType = useFirebase ? 'Global Account' : 'Local Storage';
+
         panel.innerHTML = `
             <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
             <div class="oasis-note-paper">
                 <h2>Register</h2>
-                <div class="note-subtitle">New Patient File</div>
+                <div class="note-subtitle">New Patient File · ${storageType}</div>
 
                 <div class="oasis-note-field">
                     <div class="oasis-note-label">Name</div>
                     <input type="text" class="oasis-note-input" id="oasis-name-input" placeholder="Enter your name...">
                 </div>
+
+                ${useFirebase ? `
+                <div class="oasis-note-field">
+                    <div class="oasis-note-label">Email</div>
+                    <input type="email" class="oasis-note-input" id="oasis-email-input" placeholder="Enter your email...">
+                </div>
+                ` : ''}
 
                 <div class="oasis-note-field">
                     <div class="oasis-note-label">Password</div>
@@ -1183,24 +1401,52 @@ var OasisAccount = (function() {
      */
     function renderCheckInSearchView() {
         var panel = document.getElementById('oasis-note-panel');
-        panel.innerHTML = `
-            <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
-            <div class="oasis-note-paper">
-                <h2>Check-in</h2>
-                <div class="note-subtitle">Find Your File</div>
 
-                <div class="oasis-note-field" style="margin-top: 20px;">
-                    <div class="oasis-note-value" style="font-size: 14px; color: #888; font-style: italic;">
-                        No account found on this device.<br>
-                        Your data is stored locally in this browser.
+        if (useFirebase) {
+            // Firebase mode: allow login with email
+            panel.innerHTML = `
+                <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
+                <div class="oasis-note-paper">
+                    <h2>Check-in</h2>
+                    <div class="note-subtitle">Sign In · Global Account</div>
+
+                    <div class="oasis-note-field">
+                        <div class="oasis-note-label">Email</div>
+                        <input type="email" class="oasis-note-input" id="oasis-checkin-email" placeholder="Enter your email...">
                     </div>
+
+                    <div class="oasis-note-field">
+                        <div class="oasis-note-label">Password</div>
+                        <input type="password" class="oasis-note-input" id="oasis-checkin-password" placeholder="Enter password...">
+                    </div>
+
+                    <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
+
+                    <button class="oasis-note-btn" onclick="OasisAccount.checkInWithEmail()">Check In</button>
+                    <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToRegister()">New Patient</button>
                 </div>
+            `;
+        } else {
+            // Local mode: no way to find account
+            panel.innerHTML = `
+                <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
+                <div class="oasis-note-paper">
+                    <h2>Check-in</h2>
+                    <div class="note-subtitle">Find Your File</div>
 
-                <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
+                    <div class="oasis-note-field" style="margin-top: 20px;">
+                        <div class="oasis-note-value" style="font-size: 14px; color: #888; font-style: italic;">
+                            No account found on this device.<br>
+                            Your data is stored locally in this browser.
+                        </div>
+                    </div>
 
-                <button class="oasis-note-btn" onclick="OasisAccount.switchToRegister()">Register New Account</button>
-            </div>
-        `;
+                    <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
+
+                    <button class="oasis-note-btn" onclick="OasisAccount.switchToRegister()">Register New Account</button>
+                </div>
+            `;
+        }
     }
 
     /**
@@ -1208,29 +1454,61 @@ var OasisAccount = (function() {
      */
     function submitRegister() {
         var nameInput = document.getElementById('oasis-name-input');
+        var emailInput = document.getElementById('oasis-email-input');
         var passwordInput = document.getElementById('oasis-password-input');
         var errorEl = document.getElementById('oasis-register-error');
 
         var name = nameInput ? nameInput.value.trim() : '';
+        var email = emailInput ? emailInput.value.trim() : '';
         var password = passwordInput ? passwordInput.value : '';
 
+        // Hide previous error
+        if (errorEl) errorEl.style.display = 'none';
+
         if (!name) {
-            if (errorEl) {
-                errorEl.textContent = 'Please enter your name';
-                errorEl.style.display = 'block';
-            }
+            showError('oasis-register-error', 'Please enter your name');
+            return;
+        }
+
+        if (useFirebase && !email) {
+            showError('oasis-register-error', 'Please enter your email');
             return;
         }
 
         if (!password) {
-            if (errorEl) {
-                errorEl.textContent = 'Please create a password';
-                errorEl.style.display = 'block';
-            }
+            showError('oasis-register-error', 'Please create a password');
             return;
         }
 
-        register(name, password);
+        if (password.length < 6) {
+            showError('oasis-register-error', 'Password must be at least 6 characters');
+            return;
+        }
+
+        register(name, email, password);
+    }
+
+    /**
+     * Check in with email (Firebase mode)
+     */
+    function checkInWithEmail() {
+        var emailInput = document.getElementById('oasis-checkin-email');
+        var passwordInput = document.getElementById('oasis-checkin-password');
+
+        var email = emailInput ? emailInput.value.trim() : '';
+        var password = passwordInput ? passwordInput.value : '';
+
+        if (!email) {
+            showError('oasis-checkin-error', 'Please enter your email');
+            return;
+        }
+
+        if (!password) {
+            showError('oasis-checkin-error', 'Please enter your password');
+            return;
+        }
+
+        loginWithFirebase(email, password);
     }
 
     /**
@@ -1387,6 +1665,7 @@ var OasisAccount = (function() {
         login: login,
         logout: logout,
         isLoggedIn: function() { return isLoggedIn; },
+        isUsingFirebase: isUsingFirebase,
         getUser: function() { return currentUser; },
         recordDiagnostic: recordDiagnostic,
         recordCheckup: recordCheckup,
@@ -1399,6 +1678,7 @@ var OasisAccount = (function() {
         submitLogin: submitLogin,
         submitRegister: submitRegister,
         checkIn: checkIn,
+        checkInWithEmail: checkInWithEmail,
         checkOut: checkOut,
         switchToRegister: switchToRegister,
         switchToCheckIn: switchToCheckIn,
