@@ -32,6 +32,7 @@ var OasisAccount = (function() {
     // Current user state
     var currentUser = null;
     var isLoggedIn = false;
+    var pendingLogin = false;
 
     /**
      * Initialize Firebase if available
@@ -106,10 +107,22 @@ var OasisAccount = (function() {
                     currentUser.uid = uid;
                     isLoggedIn = true;
                     updateHeaderUI();
+
+                    // If this was an active login, close the panel
+                    if (pendingLogin) {
+                        pendingLogin = false;
+                        showLoading(false);
+                        closePanels();
+                    }
                 }
             })
             .catch(function(error) {
                 console.warn('Error loading user from Firestore:', error);
+                if (pendingLogin) {
+                    pendingLogin = false;
+                    showLoading(false);
+                    showError('oasis-checkin-error', 'Error loading account data');
+                }
             });
     }
 
@@ -231,15 +244,15 @@ var OasisAccount = (function() {
      */
     function loginWithFirebase(email, password) {
         showLoading(true);
+        pendingLogin = true;
 
         firebaseAuth.signInWithEmailAndPassword(email, password)
             .then(function(userCredential) {
-                // Auth state listener will handle loading user data
-                showLoading(false);
-                closePanels();
+                // Auth state listener will handle loading user data and closing panel
             })
             .catch(function(error) {
                 showLoading(false);
+                pendingLogin = false;
                 showError('oasis-checkin-error', getFirebaseErrorMessage(error));
             });
     }
@@ -284,6 +297,7 @@ var OasisAccount = (function() {
             case 'auth/user-not-found':
                 return 'No account found with this email';
             case 'auth/wrong-password':
+            case 'auth/invalid-credential':
                 return 'Incorrect password';
             case 'auth/too-many-requests':
                 return 'Too many attempts. Please try again later';
