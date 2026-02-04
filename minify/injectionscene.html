@@ -77,6 +77,18 @@
             pointer-events: none;
         }
         #status.visible { opacity: 1; }
+        #timer {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #fff;
+            font-size: 24px;
+            font-family: monospace;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        #timer.visible { opacity: 1; }
     </style>
 </head>
 <body>
@@ -88,6 +100,7 @@
         <div class="click-hint">Click to inject</div>
     </div>
     <div id="status">Injecting...</div>
+    <div id="timer">0.0s</div>
 
     <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
     <script>
@@ -95,6 +108,7 @@
         const needleInfo = document.getElementById('needle-info');
         const hint = document.getElementById('hint');
         const status = document.getElementById('status');
+        const timer = document.getElementById('timer');
 
         setTimeout(() => hint.classList.add('hidden'), 5000);
 
@@ -169,43 +183,43 @@
             armGroup.add(forearm);
             armSkinMeshes.push(forearm);
 
-            // Main vein - positioned ON the skin surface (higher Z), with renderOrder
+            // Main vein - just under skin surface, with renderOrder
             const veinCurve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(0.35, 0.5, 0.42),
-                new THREE.Vector3(0.40, 1.5, 0.38),
-                new THREE.Vector3(0.38, 2.5, 0.40),
-                new THREE.Vector3(0.36, 3.5, 0.38),
-                new THREE.Vector3(0.34, 4.5, 0.40),
+                new THREE.Vector3(0.32, 0.5, 0.28),
+                new THREE.Vector3(0.36, 1.5, 0.25),
+                new THREE.Vector3(0.34, 2.5, 0.27),
+                new THREE.Vector3(0.32, 3.5, 0.25),
+                new THREE.Vector3(0.30, 4.5, 0.27),
             ]);
             const vein1Mat = veinMaterial.clone();
-            const veinGeo = new THREE.TubeGeometry(veinCurve, 32, 0.06, 12, false);
+            const veinGeo = new THREE.TubeGeometry(veinCurve, 32, 0.05, 12, false);
             const vein = new THREE.Mesh(veinGeo, vein1Mat);
             vein.renderOrder = 1; // Render after skin
             armGroup.add(vein);
             armVeinMeshes.push(vein);
 
-            // Second vein - on surface
+            // Second vein - just under surface
             const veinCurve2 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-0.15, 1.0, 0.48),
-                new THREE.Vector3(-0.10, 2.0, 0.45),
-                new THREE.Vector3(-0.12, 3.0, 0.46),
-                new THREE.Vector3(-0.08, 4.0, 0.42),
+                new THREE.Vector3(-0.12, 1.0, 0.35),
+                new THREE.Vector3(-0.08, 2.0, 0.32),
+                new THREE.Vector3(-0.10, 3.0, 0.33),
+                new THREE.Vector3(-0.06, 4.0, 0.30),
             ]);
             const vein2Mat = veinMaterial.clone();
-            const veinGeo2 = new THREE.TubeGeometry(veinCurve2, 24, 0.045, 10, false);
+            const veinGeo2 = new THREE.TubeGeometry(veinCurve2, 24, 0.04, 10, false);
             const vein2 = new THREE.Mesh(veinGeo2, vein2Mat);
             vein2.renderOrder = 1;
             armGroup.add(vein2);
             armVeinMeshes.push(vein2);
 
-            // Branching vein near injection site - on surface
+            // Branching vein near injection site - just under surface
             const veinCurve3 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(0.38, 2.5, 0.40),
-                new THREE.Vector3(0.28, 2.9, 0.48),
-                new THREE.Vector3(0.12, 3.3, 0.52),
+                new THREE.Vector3(0.34, 2.5, 0.27),
+                new THREE.Vector3(0.24, 2.9, 0.32),
+                new THREE.Vector3(0.10, 3.3, 0.35),
             ]);
             const vein3Mat = veinMaterial.clone();
-            const veinGeo3 = new THREE.TubeGeometry(veinCurve3, 16, 0.035, 8, false);
+            const veinGeo3 = new THREE.TubeGeometry(veinCurve3, 16, 0.03, 8, false);
             const vein3 = new THREE.Mesh(veinGeo3, vein3Mat);
             vein3.renderOrder = 1;
             armGroup.add(vein3);
@@ -429,6 +443,11 @@
             needleInfo.classList.remove('visible');
             hint.classList.add('hidden');
 
+            // Start timer
+            const injectionStartTime = performance.now();
+            timer.textContent = '0.0s';
+            timer.classList.add('visible');
+
             const liquid = syringe.getObjectByName('liquid');
             const stopper = syringe.getObjectByName('stopper');
             const plungerRod = syringe.getObjectByName('plungerRod');
@@ -502,6 +521,10 @@
                 const deltaTime = currentTime - lastTime;
                 lastTime = currentTime;
                 phaseTime += deltaTime;
+
+                // Update timer
+                const elapsed = (currentTime - injectionStartTime) / 1000;
+                timer.textContent = elapsed.toFixed(1) + 's';
 
                 const progress = Math.min(phaseTime / phaseDurations[phase], 1);
                 const eased = easeInOutCubic(progress);
@@ -606,7 +629,10 @@
                     phaseTime = 0;
                     if (phase >= phaseDurations.length) {
                         isAnimating = false;
-                        setTimeout(() => status.classList.remove('visible'), 1000);
+                        setTimeout(() => {
+                            status.classList.remove('visible');
+                            timer.classList.remove('visible');
+                        }, 1000);
                         return;
                     }
                 }
