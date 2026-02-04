@@ -326,11 +326,11 @@
             const wingGeo = new THREE.BoxGeometry(wingWidth, wingHeight, wingDepth);
 
             const leftWing = new THREE.Mesh(wingGeo, wingMat);
-            leftWing.position.set(-barrelRadius - wingWidth/2 + 0.01, -barrelLength/2 + 0.03, 0);
+            leftWing.position.set(-barrelRadius - wingWidth/2 + 0.01, barrelLength/2 - 0.03, 0);
             group.add(leftWing);
 
             const rightWing = new THREE.Mesh(wingGeo, wingMat);
-            rightWing.position.set(barrelRadius + wingWidth/2 - 0.01, -barrelLength/2 + 0.03, 0);
+            rightWing.position.set(barrelRadius + wingWidth/2 - 0.01, barrelLength/2 - 0.03, 0);
             group.add(rightWing);
 
             // Needle hub (colored plastic)
@@ -441,17 +441,29 @@
             injectionSiteMesh.getWorldPosition(siteWorldPos);
 
             // Calculate needle tip offset from syringe center
-            // Needle tip is at: -barrelLength/2 - needleFullLength (relative to syringe center)
-            // When syringe is rotated 90 degrees (pointing down), this becomes Y offset
-            // So syringe center needs to be at: siteWorldPos.y + barrelLength/2 + needleFullLength
             const needleTipOffset = barrelLength / 2 + needleFullLength;
 
-            // Target position: position syringe so needle TIP is at injection site
+            // The arm is tilted, so we need to approach at an angle
+            // Position syringe above and slightly back from the injection site
+            // Then angle the syringe to point at the injection site
+            const approachHeight = 0.8; // How high above to position
+            const approachBack = 0.3;   // How far back (in Z) to position
+
+            // Target position: above and back from injection site
             const targetPos = new THREE.Vector3(
                 siteWorldPos.x,
-                siteWorldPos.y + needleTipOffset + 0.05, // Needle tip just above site
-                siteWorldPos.z
+                siteWorldPos.y + approachHeight,
+                siteWorldPos.z + approachBack
             );
+
+            // Calculate angle to point needle at injection site
+            // Syringe local -Y axis is needle direction
+            const dx = siteWorldPos.x - targetPos.x;
+            const dy = siteWorldPos.y - targetPos.y;
+            const dz = siteWorldPos.z - targetPos.z;
+            const distXZ = Math.sqrt(dx * dx + dz * dz);
+            const targetRotX = Math.PI / 2 + Math.atan2(dz, -dy); // Angle in XY plane
+            const targetRotZ = 0;
 
             const startPos = syringe.position.clone();
             const startRot = syringe.rotation.clone();
@@ -510,14 +522,22 @@
                     case 1: // MOVE TO ARM
                         status.textContent = 'Positioning needle...';
                         syringe.position.lerpVectors(startPos, targetPos, eased);
-                        syringe.rotation.x = startRot.x + (Math.PI / 2 - startRot.x) * eased;
+                        syringe.rotation.x = startRot.x + (targetRotX - startRot.x) * eased;
                         syringe.rotation.z = startRot.z * (1 - eased);
                         break;
 
                     case 2: // INSERT NEEDLE - skin to 50%, veins VERY visible
                         status.textContent = 'Inserting needle...';
-                        const insertDepth = eased * 0.4; // Insert deeper
-                        syringe.position.y = targetPos.y - insertDepth;
+                        const insertDepth = eased * 0.5; // Insert deeper
+                        // Move towards injection site (along needle direction)
+                        const insertDir = new THREE.Vector3(
+                            siteWorldPos.x - targetPos.x,
+                            siteWorldPos.y - targetPos.y,
+                            siteWorldPos.z - targetPos.z
+                        ).normalize();
+                        syringe.position.x = targetPos.x + insertDir.x * insertDepth;
+                        syringe.position.y = targetPos.y + insertDir.y * insertDepth;
+                        syringe.position.z = targetPos.z + insertDir.z * insertDepth;
 
                         // Skin fades to 50% and disable depthWrite so veins show through
                         skinMaterial.opacity = 1.0 - eased * 0.5;
@@ -549,7 +569,16 @@
 
                     case 4: // WITHDRAW NEEDLE - skin returns
                         status.textContent = 'Withdrawing needle...';
-                        syringe.position.y = targetPos.y - 0.4 + eased * 0.4;
+                        // Move back from injection site
+                        const withdrawDir = new THREE.Vector3(
+                            siteWorldPos.x - targetPos.x,
+                            siteWorldPos.y - targetPos.y,
+                            siteWorldPos.z - targetPos.z
+                        ).normalize();
+                        const withdrawDepth = 0.5 * (1 - eased); // 0.5 -> 0
+                        syringe.position.x = targetPos.x + withdrawDir.x * withdrawDepth;
+                        syringe.position.y = targetPos.y + withdrawDir.y * withdrawDepth;
+                        syringe.position.z = targetPos.z + withdrawDir.z * withdrawDepth;
 
                         // Skin returns to full opacity and re-enable depthWrite
                         skinMaterial.opacity = 0.5 + eased * 0.5;
@@ -567,7 +596,7 @@
                     case 5: // RETURN TO POSITION
                         status.textContent = 'Complete!';
                         syringe.position.lerpVectors(targetPos, originalData.pos, eased);
-                        syringe.rotation.x = Math.PI / 2 + (originalData.rot.x - Math.PI / 2) * eased;
+                        syringe.rotation.x = targetRotX + (originalData.rot.x - targetRotX) * eased;
                         syringe.rotation.z = originalData.rot.z * eased;
                         break;
                 }
