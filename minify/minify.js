@@ -111,7 +111,7 @@ var Developing = Developing || function() {
 
 var airplaneDiagnostic = airplaneDiagnostic || function() {
     var container;
-    var diagnosticScreen, mainContent;
+    var diagnosticScreen, mainContent, posterWrapper, questionsPanel;
     var questions = [
         { q: "Do you feel anxious when thinking about flying?", options: ["Never", "Sometimes", "Often", "Always"] },
         { q: "Have you avoided flying due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
@@ -132,34 +132,39 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                 .diagnostic-container {\
                     width: 100%;\
                     height: 100%;\
-                    display: flex;\
-                    flex-direction: row;\
                     background: ' + bgColor + ';\
                     position: relative;\
                     overflow: hidden;\
-                    opacity: 0;\
-                    transition: opacity 0.5s ease;\
                 }\
-                .diagnostic-container.visible {\
-                    opacity: 1;\
-                }\
-                .diagnostic-poster {\
-                    width: 45%;\
-                    height: 100%;\
+                .diagnostic-poster-wrapper {\
+                    position: absolute;\
+                    top: 50%;\
+                    left: 50%;\
+                    transform: translate(-50%, -50%);\
+                    width: 70%;\
+                    height: 80%;\
                     display: flex;\
                     align-items: center;\
                     justify-content: center;\
-                    padding: 40px;\
-                    box-sizing: border-box;\
+                    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);\
                 }\
-                .diagnostic-poster img {\
+                .diagnostic-poster-wrapper.moved {\
+                    top: 50%;\
+                    left: 22%;\
+                    width: 35%;\
+                    height: 70%;\
+                }\
+                .diagnostic-poster-wrapper img {\
                     max-width: 100%;\
-                    max-height: 80%;\
+                    max-height: 100%;\
                     object-fit: contain;\
                     border: 3px solid rgba(255,255,255,0.3);\
                     box-shadow: 0 20px 60px rgba(0,0,0,0.3);\
                 }\
-                .diagnostic-questions {\
+                .diagnostic-questions-panel {\
+                    position: absolute;\
+                    top: 0;\
+                    right: 0;\
                     width: 55%;\
                     height: 100%;\
                     display: flex;\
@@ -168,6 +173,15 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                     padding: 40px 60px;\
                     box-sizing: border-box;\
                     overflow-y: auto;\
+                    opacity: 0;\
+                    transform: translateX(30px);\
+                    transition: opacity 0.5s ease 0.4s, transform 0.5s ease 0.4s;\
+                    pointer-events: none;\
+                }\
+                .diagnostic-questions-panel.visible {\
+                    opacity: 1;\
+                    transform: translateX(0);\
+                    pointer-events: auto;\
                 }\
                 .diagnostic-question {\
                     margin-bottom: 25px;\
@@ -352,10 +366,10 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
 
             container.innerHTML = '\
                 <div class="diagnostic-container" id="diagnostic-screen">\
-                    <div class="diagnostic-poster">\
+                    <div class="diagnostic-poster-wrapper" id="poster-wrapper">\
                         <img src="' + posterImg + '" alt="Airplane">\
                     </div>\
-                    <div class="diagnostic-questions">\
+                    <div class="diagnostic-questions-panel" id="questions-panel">\
                         ' + buildQuestionsHTML() + '\
                         <button class="diagnostic-continue" id="diagnostic-continue">Continue to Experience</button>\
                     </div>\
@@ -365,6 +379,8 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
 
             diagnosticScreen = container.querySelector('#diagnostic-screen');
             mainContent = container.querySelector('#diagnostic-main-content');
+            posterWrapper = container.querySelector('#poster-wrapper');
+            questionsPanel = container.querySelector('#questions-panel');
         },
 
         start: function() {
@@ -379,11 +395,20 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
                 continueBtn.addEventListener('click', onContinueClick);
             }
 
-            // Fade in and show questions
+            // Start animation sequence:
+            // 1. Wait a moment, then move poster to left
+            // 2. Show questions panel
+            // 3. Show questions sequentially
             setTimeout(function() {
-                diagnosticScreen.classList.add('visible');
-                showQuestionsSequentially();
-            }, 100);
+                // Move poster to left side
+                posterWrapper.classList.add('moved');
+
+                // After poster moves, show questions panel
+                setTimeout(function() {
+                    questionsPanel.classList.add('visible');
+                    showQuestionsSequentially();
+                }, 400);
+            }, 500);
         },
 
         dispose: function() {
@@ -393,6 +418,8 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
             if (container) container.innerHTML = '';
             diagnosticScreen = null;
             mainContent = null;
+            posterWrapper = null;
+            questionsPanel = null;
             answers = [];
         },
 
