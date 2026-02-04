@@ -4137,17 +4137,17 @@ var injection = injection || function() {
                     transform: translateY(90px);
                 }
 
-                /* Phase 2: Plunger pushes (syringe stays down, plunger moves DOWN) */
+                /* Phase 2: Plunger pushes (whole plunger assembly moves DOWN together) */
                 .demo-syringe.pushing {
                     transform: translateY(90px);
                 }
 
                 .demo-syringe.pushing .syringe-thumb-pad {
-                    transform: translateY(70px);
+                    transform: translateY(74px);
                 }
 
                 .demo-syringe.pushing .syringe-plunger-rod {
-                    height: 0px;
+                    transform: translateY(74px);
                 }
 
                 .demo-syringe.pushing .syringe-stopper {
@@ -4164,11 +4164,11 @@ var injection = injection || function() {
                 }
 
                 .demo-syringe.withdrawing .syringe-thumb-pad {
-                    transform: translateY(70px);
+                    transform: translateY(74px);
                 }
 
                 .demo-syringe.withdrawing .syringe-plunger-rod {
-                    height: 0px;
+                    transform: translateY(74px);
                 }
 
                 .demo-syringe.withdrawing .syringe-stopper {
