@@ -1100,31 +1100,32 @@ var OasisAccount = (function() {
     }
 
     // Checkup questions for each phobia type
+    // All questions oriented: 0 = Not at all (better) → 100 = Very much (worse)
     var checkupQuestions = {
         airplane: [
             'How anxious do you feel about flying right now?',
-            'How confident are you about taking a flight soon?',
-            'How relaxed did this experience make you feel?'
+            'How much does the thought of a flight still worry you?',
+            'How much discomfort do you still feel about air travel?'
         ],
         injection: [
             'How anxious do you feel about needles right now?',
-            'How confident are you about receiving an injection?',
-            'How helpful was this experience?'
+            'How much does the thought of an injection still worry you?',
+            'How much discomfort do you still feel about medical procedures?'
         ],
         thunder: [
             'How anxious do you feel about thunderstorms?',
-            'How calm would you feel during a storm now?',
-            'How much did this experience help you?'
+            'How much would a storm still disturb you?',
+            'How much unease do you still feel about severe weather?'
         ],
         darkness: [
-            'How comfortable do you feel in darkness now?',
-            'How confident are you being alone in the dark?',
-            'How relaxing was this experience?'
+            'How anxious do you feel about darkness now?',
+            'How much does being in the dark still worry you?',
+            'How much discomfort do you feel in dark spaces?'
         ],
         heights: [
             'How anxious do you feel about heights right now?',
-            'How confident are you at elevated places?',
-            'How calming was this experience?'
+            'How much does being up high still worry you?',
+            'How much discomfort do you feel at elevated places?'
         ]
     };
 
