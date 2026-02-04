@@ -4017,7 +4017,7 @@ var injection = injection || function() {
                     background: linear-gradient(to right, #777, #aaa, #777);
                     position: relative;
                     z-index: 1;
-                    transition: height 1s ease-in-out;
+                    transition: transform 1s ease-in-out;
                 }
 
                 /* Barrel container */
