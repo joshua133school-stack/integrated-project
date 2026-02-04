@@ -487,6 +487,15 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
         },
 
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('airplane')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                airplane.init(mainContent);
+                airplane.start();
+                return;
+            }
+
             // Add event listeners
             var options = container.querySelectorAll('.diagnostic-option');
             options.forEach(function(opt) {
@@ -814,6 +823,14 @@ var injectionDiagnostic = injectionDiagnostic || function() {
             initParticles();
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('injection')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                injection.init(mainContent);
+                injection.start();
+                return;
+            }
             container.querySelectorAll('.inj-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });
@@ -1074,6 +1091,14 @@ var thunderDiagnostic = thunderDiagnostic || function() {
             flashEl = container.querySelector('.thunder-diag-flash');
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('thunder')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                thunderClass.init(mainContent);
+                thunderClass.start();
+                return;
+            }
             container.querySelectorAll('.thunder-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });
@@ -1344,6 +1369,14 @@ var darknessDiagnostic = darknessDiagnostic || function() {
             initParticles();
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('darkness')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                Darkness.init(mainContent);
+                Darkness.start();
+                return;
+            }
             container.querySelectorAll('.dark-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });
@@ -1650,6 +1683,14 @@ var heightsDiagnostic = heightsDiagnostic || function() {
             initAnimation();
         },
         start: function() {
+            // Skip diagnostic if user has already completed one for this phobia
+            if (typeof OasisAccount !== 'undefined' && OasisAccount.hasDiagnostic('heights')) {
+                diagnosticScreen.style.display = 'none';
+                mainContent.classList.add('visible');
+                Ocean.init(mainContent);
+                Ocean.start();
+                return;
+            }
             container.querySelectorAll('.heights-diag-option').forEach(function(opt) {
                 opt.addEventListener('click', onOptionClick);
             });

@@ -137,6 +137,42 @@ var OasisAccount = (function() {
     }
 
     /**
+     * Check if user has completed diagnostic for a phobia type
+     */
+    function hasDiagnostic(type) {
+        var history = getHistory(type);
+        return history.length > 0;
+    }
+
+    /**
+     * Record checkup result (end of experience)
+     */
+    function recordCheckup(type, answers, score) {
+        if (!currentUser) {
+            register();
+        }
+
+        var entry = {
+            id: Date.now().toString(36),
+            type: type,
+            isCheckup: true,
+            date: new Date().toISOString(),
+            answers: answers || [],
+            score: score || 0,
+            severity: getSeverity(score)
+        };
+
+        if (!currentUser.history) {
+            currentUser.history = [];
+        }
+
+        currentUser.history.push(entry);
+        saveUser();
+
+        return entry;
+    }
+
+    /**
      * Get analytics summary
      */
     function getAnalytics() {
@@ -519,6 +555,129 @@ var OasisAccount = (function() {
                 background: #f5f5f5;
                 color: #333;
             }
+
+            /* Checkup Panel */
+            .oasis-checkup {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(250, 249, 247, 0.98);
+                z-index: 10002;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                visibility: hidden;
+                transition: all 0.4s ease;
+                font-family: 'Crimson Text', Georgia, serif;
+            }
+            .oasis-checkup.active {
+                opacity: 1;
+                visibility: visible;
+            }
+            .oasis-checkup-content {
+                width: 100%;
+                max-width: 500px;
+                padding: 40px;
+            }
+            .oasis-checkup h2 {
+                font-size: 24px;
+                font-weight: 400;
+                color: #2c2c2c;
+                margin: 0 0 8px 0;
+                letter-spacing: 1px;
+            }
+            .oasis-checkup .subtitle {
+                font-size: 11px;
+                color: #888;
+                font-family: 'Roboto', sans-serif;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                margin-bottom: 40px;
+            }
+            .oasis-checkup-question {
+                margin-bottom: 35px;
+            }
+            .oasis-checkup-label {
+                font-size: 16px;
+                color: #2c2c2c;
+                margin-bottom: 15px;
+                display: block;
+            }
+            .oasis-checkup-slider-wrap {
+                position: relative;
+            }
+            .oasis-checkup-slider {
+                width: 100%;
+                height: 4px;
+                -webkit-appearance: none;
+                appearance: none;
+                background: #e0e0e0;
+                outline: none;
+                border-radius: 2px;
+                cursor: pointer;
+            }
+            .oasis-checkup-slider::-webkit-slider-thumb {
+                -webkit-appearance: none;
+                appearance: none;
+                width: 20px;
+                height: 20px;
+                background: #2c2c2c;
+                border-radius: 50%;
+                cursor: pointer;
+                transition: transform 0.2s;
+            }
+            .oasis-checkup-slider::-webkit-slider-thumb:hover {
+                transform: scale(1.1);
+            }
+            .oasis-checkup-slider::-moz-range-thumb {
+                width: 20px;
+                height: 20px;
+                background: #2c2c2c;
+                border-radius: 50%;
+                cursor: pointer;
+                border: none;
+            }
+            .oasis-checkup-range {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 8px;
+                font-size: 11px;
+                color: #999;
+                font-family: 'Roboto', sans-serif;
+            }
+            .oasis-checkup-btn {
+                width: 100%;
+                padding: 16px;
+                background: #2c2c2c;
+                color: #fff;
+                border: none;
+                font-size: 13px;
+                font-family: 'Roboto', sans-serif;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                cursor: pointer;
+                margin-top: 20px;
+                transition: background 0.3s;
+            }
+            .oasis-checkup-btn:hover {
+                background: #444;
+            }
+            .oasis-checkup-skip {
+                display: block;
+                text-align: center;
+                margin-top: 20px;
+                color: #999;
+                font-size: 12px;
+                cursor: pointer;
+                font-family: 'Roboto', sans-serif;
+                text-decoration: none;
+            }
+            .oasis-checkup-skip:hover {
+                color: #666;
+            }
         `;
         document.head.appendChild(style);
     }
@@ -562,6 +721,109 @@ var OasisAccount = (function() {
         dashboard.className = 'oasis-dashboard';
         dashboard.id = 'oasis-dashboard';
         document.body.appendChild(dashboard);
+
+        // Checkup panel
+        var checkup = document.createElement('div');
+        checkup.className = 'oasis-checkup';
+        checkup.id = 'oasis-checkup';
+        document.body.appendChild(checkup);
+    }
+
+    // Checkup questions for each phobia type
+    var checkupQuestions = {
+        airplane: [
+            'How anxious do you feel about flying right now?',
+            'How confident are you about taking a flight soon?',
+            'How relaxed did this experience make you feel?'
+        ],
+        injection: [
+            'How anxious do you feel about needles right now?',
+            'How confident are you about receiving an injection?',
+            'How helpful was this experience?'
+        ],
+        thunder: [
+            'How anxious do you feel about thunderstorms?',
+            'How calm would you feel during a storm now?',
+            'How much did this experience help you?'
+        ],
+        darkness: [
+            'How comfortable do you feel in darkness now?',
+            'How confident are you being alone in the dark?',
+            'How relaxing was this experience?'
+        ],
+        heights: [
+            'How anxious do you feel about heights right now?',
+            'How confident are you at elevated places?',
+            'How calming was this experience?'
+        ]
+    };
+
+    var currentCheckupType = null;
+
+    /**
+     * Show checkup test at end of experience
+     */
+    function showCheckup(type, onComplete) {
+        currentCheckupType = type;
+        var questions = checkupQuestions[type] || checkupQuestions.airplane;
+        var checkupEl = document.getElementById('oasis-checkup');
+
+        var html = '<div class="oasis-checkup-content">';
+        html += '<h2>Session Complete</h2>';
+        html += '<div class="subtitle">Quick Check-in</div>';
+
+        questions.forEach(function(q, i) {
+            html += '<div class="oasis-checkup-question">';
+            html += '<label class="oasis-checkup-label">' + q + '</label>';
+            html += '<div class="oasis-checkup-slider-wrap">';
+            html += '<input type="range" class="oasis-checkup-slider" id="checkup-q' + i + '" min="0" max="100" value="50">';
+            html += '<div class="oasis-checkup-range"><span>Not at all</span><span>Very much</span></div>';
+            html += '</div></div>';
+        });
+
+        html += '<button class="oasis-checkup-btn" onclick="OasisAccount.submitCheckup()">Submit</button>';
+        html += '<a class="oasis-checkup-skip" onclick="OasisAccount.closeCheckup()">Skip</a>';
+        html += '</div>';
+
+        checkupEl.innerHTML = html;
+        checkupEl.classList.add('active');
+
+        // Store callback
+        checkupEl._onComplete = onComplete;
+    }
+
+    /**
+     * Submit checkup results
+     */
+    function submitCheckup() {
+        var checkupEl = document.getElementById('oasis-checkup');
+        var sliders = checkupEl.querySelectorAll('.oasis-checkup-slider');
+        var answers = [];
+        var total = 0;
+
+        sliders.forEach(function(slider) {
+            var val = parseInt(slider.value);
+            answers.push(val);
+            total += val;
+        });
+
+        var avgScore = Math.round(total / answers.length);
+        recordCheckup(currentCheckupType, answers, avgScore);
+
+        closeCheckup();
+    }
+
+    /**
+     * Close checkup panel
+     */
+    function closeCheckup() {
+        var checkupEl = document.getElementById('oasis-checkup');
+        checkupEl.classList.remove('active');
+        if (checkupEl._onComplete) {
+            checkupEl._onComplete();
+            checkupEl._onComplete = null;
+        }
+        currentCheckupType = null;
     }
 
     /**
@@ -741,12 +1003,17 @@ var OasisAccount = (function() {
         isLoggedIn: function() { return isLoggedIn; },
         getUser: function() { return currentUser; },
         recordDiagnostic: recordDiagnostic,
+        recordCheckup: recordCheckup,
+        hasDiagnostic: hasDiagnostic,
         getHistory: getHistory,
         getAnalytics: getAnalytics,
         openLogin: openLogin,
         openDashboard: openDashboard,
         closePanels: closePanels,
-        submitLogin: submitLogin
+        submitLogin: submitLogin,
+        showCheckup: showCheckup,
+        submitCheckup: submitCheckup,
+        closeCheckup: closeCheckup
     };
 })();
 
@@ -756,3 +1023,70 @@ if (document.readyState === 'loading') {
 } else {
     OasisAccount.init();
 }
+
+// Setup checkup trigger on close button
+(function() {
+    var checkupShown = false;
+    var experienceTypes = {
+        'airplane': 'airplane',
+        'injection': 'injection',
+        'thunder': 'thunder',
+        'darkness': 'darkness',
+        'heights': 'heights',
+        'ocean': 'heights'
+    };
+
+    function getExperienceFromHash() {
+        var hash = window.location.hash.replace('#!/', '').replace('#!/', '').toLowerCase();
+        for (var key in experienceTypes) {
+            if (hash.indexOf(key) !== -1) {
+                return experienceTypes[key];
+            }
+        }
+        return null;
+    }
+
+    function setupCloseButtonIntercept() {
+        // Wait for close button to exist
+        var checkInterval = setInterval(function() {
+            var closeBtn = document.querySelector('#about-close-bt, .close-pos');
+            if (closeBtn && !closeBtn._checkupSetup) {
+                closeBtn._checkupSetup = true;
+
+                closeBtn.addEventListener('click', function(e) {
+                    var experience = getExperienceFromHash();
+
+                    // Show checkup if we're in an experience and haven't shown it yet
+                    if (experience && !checkupShown && typeof OasisAccount !== 'undefined') {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        checkupShown = true;
+
+                        OasisAccount.showCheckup(experience, function() {
+                            // After checkup, allow normal close behavior
+                            checkupShown = false;
+                            // Trigger the original close action
+                            if (typeof Address !== 'undefined' && Address.goHome) {
+                                Address.goHome();
+                            }
+                        });
+                        return false;
+                    }
+                }, true);
+
+                clearInterval(checkInterval);
+            }
+        }, 500);
+    }
+
+    // Reset checkup flag when navigating to home
+    window.addEventListener('hashchange', function() {
+        var hash = window.location.hash;
+        if (!hash || hash === '#!' || hash === '#!/') {
+            checkupShown = false;
+        }
+    });
+
+    // Setup after a short delay to ensure DOM is ready
+    setTimeout(setupCloseButtonIntercept, 1000);
+})();
