@@ -115,16 +115,25 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
     var animationFrameId = null;
     var clouds = [];
     var planeEl = null;
-    var questions = [
-        { q: "Do you feel anxious when thinking about flying?", options: ["Never", "Sometimes", "Often", "Always"] },
-        { q: "Have you avoided flying due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
-        { q: "Do you experience physical symptoms (sweating, racing heart) related to flying?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
-        { q: "How would you rate your fear of flying?", options: ["No fear", "Mild", "Moderate", "Severe"] },
-        { q: "Does turbulence cause you significant distress?", options: ["Not at all", "A little", "Quite a bit", "Extremely"] },
-        { q: "Do thoughts of plane crashes intrude on your daily life?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
-    ];
     var answers = [];
     var bgColor = "#2691c9";
+
+    function getTranslations() {
+        var t = window.i18n ? window.i18n.t : function(k) { return k; };
+        var o = function(key) { return t('diagnostic.airplane.options.' + key); };
+        return {
+            title: t('diagnostic.airplane.title'),
+            continueBtn: t('diagnostic.continueToExperience'),
+            questions: [
+                { q: t('diagnostic.airplane.q1'), options: [o('never'), o('sometimes'), o('often'), o('always')] },
+                { q: t('diagnostic.airplane.q2'), options: [o('never'), o('onceOrTwice'), o('severalTimes'), o('alwaysAvoid')] },
+                { q: t('diagnostic.airplane.q3'), options: [o('noSymptoms'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.airplane.q4'), options: [o('noFear'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.airplane.q5'), options: [o('notAtAll'), o('aLittle'), o('quiteBit'), o('extremely')] },
+                { q: t('diagnostic.airplane.q6'), options: [o('never'), o('rarely'), o('sometimes'), o('frequently')] }
+            ]
+        };
+    }
 
     function addStyles() {
         if (!document.getElementById('airplane-diagnostic-styles')) {
@@ -287,7 +296,9 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
     }
 
     function buildQuestionsHTML() {
-        var html = '<div class="diagnostic-title">Fear of Flying Assessment</div>';
+        var trans = getTranslations();
+        var questions = trans.questions;
+        var html = '<div class="diagnostic-title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="diagnostic-question" data-index="' + i + '">';
             html += '<div class="diagnostic-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
@@ -391,7 +402,7 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
 
     function checkAllAnswered() {
         var allAnswered = true;
-        for (var i = 0; i < questions.length; i++) {
+        for (var i = 0; i < 6; i++) {
             if (answers[i] === undefined) {
                 allAnswered = false;
                 break;
@@ -439,13 +450,14 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
             answers = [];
             planeX = -100;
             planeY = 25;
+            var trans = getTranslations();
 
             container.innerHTML = '\
                 <div class="diagnostic-container" id="diagnostic-screen">\
                     <div class="diagnostic-bg-layer"></div>\
                     <div class="diagnostic-questions-panel" id="questions-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="diagnostic-continue" id="diagnostic-continue">Continue to Experience</button>\
+                        <button class="diagnostic-continue" id="diagnostic-continue">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="diagnostic-main-content" id="diagnostic-main-content"></div>\
@@ -520,19 +532,28 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
 var injectionDiagnostic = injectionDiagnostic || function() {
     var container;
     var diagnosticScreen, mainContent, questionsPanel;
-    var questions = [
-        { q: "Do you feel anxious when thinking about needles or injections?", options: ["Never", "Sometimes", "Often", "Always"] },
-        { q: "Have you avoided medical procedures due to fear of needles?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
-        { q: "Do you experience physical symptoms (sweating, dizziness) around needles?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
-        { q: "How would you rate your fear of injections?", options: ["No fear", "Mild", "Moderate", "Severe"] },
-        { q: "Do you feel faint or nauseous when seeing needles?", options: ["Not at all", "A little", "Quite a bit", "Extremely"] },
-        { q: "Does anticipating an injection cause you significant distress?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
-    ];
     var answers = [];
     var bgColor = "#1a1a2e";
     var particles = [];
     var animationFrameId = null;
     var canvas, ctx;
+
+    function getTranslations() {
+        var t = window.i18n ? window.i18n.t : function(k) { return k; };
+        var o = function(key) { return t('diagnostic.airplane.options.' + key); };
+        return {
+            title: t('diagnostic.injection.title'),
+            continueBtn: t('diagnostic.continueToExperience'),
+            questions: [
+                { q: t('diagnostic.injection.q1'), options: [o('never'), o('sometimes'), o('often'), o('always')] },
+                { q: t('diagnostic.injection.q2'), options: [o('never'), o('onceOrTwice'), o('severalTimes'), o('alwaysAvoid')] },
+                { q: t('diagnostic.injection.q3'), options: [o('noSymptoms'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.injection.q4'), options: [o('noFear'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.injection.q5'), options: [o('notAtAll'), o('aLittle'), o('quiteBit'), o('extremely')] },
+                { q: t('diagnostic.injection.q6'), options: [o('never'), o('rarely'), o('sometimes'), o('frequently')] }
+            ]
+        };
+    }
 
     function addStyles() {
         if (!document.getElementById('injection-diagnostic-styles')) {
@@ -653,7 +674,9 @@ var injectionDiagnostic = injectionDiagnostic || function() {
     }
 
     function buildQuestionsHTML() {
-        var html = '<div class="inj-diag-title">Fear of Needles Assessment</div>';
+        var trans = getTranslations();
+        var questions = trans.questions;
+        var html = '<div class="inj-diag-title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="inj-diag-question" data-index="' + i + '">';
             html += '<div class="inj-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
@@ -717,7 +740,7 @@ var injectionDiagnostic = injectionDiagnostic || function() {
 
     function checkAllAnswered() {
         var allAnswered = true;
-        for (var i = 0; i < questions.length; i++) {
+        for (var i = 0; i < 6; i++) {
             if (answers[i] === undefined) { allAnswered = false; break; }
         }
         var btn = container.querySelector('.inj-diag-continue');
@@ -747,12 +770,13 @@ var injectionDiagnostic = injectionDiagnostic || function() {
             container = parentElement;
             addStyles();
             answers = [];
+            var trans = getTranslations();
             container.innerHTML = '\
                 <div class="inj-diag-container" id="inj-diag-screen">\
                     <canvas class="inj-diag-canvas"></canvas>\
                     <div class="inj-diag-panel" id="inj-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="inj-diag-continue">Continue to Experience</button>\
+                        <button class="inj-diag-continue">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="inj-diag-main" id="inj-diag-main"></div>\
@@ -796,19 +820,29 @@ var injectionDiagnostic = injectionDiagnostic || function() {
 var thunderDiagnostic = thunderDiagnostic || function() {
     var container;
     var diagnosticScreen, mainContent, questionsPanel;
-    var questions = [
-        { q: "Do you feel anxious during thunderstorms?", options: ["Never", "Sometimes", "Often", "Always"] },
-        { q: "Have you sought shelter or hidden during storms due to fear?", options: ["Never", "Once or twice", "Several times", "Always"] },
-        { q: "Do you experience physical symptoms (trembling, rapid heartbeat) during thunder?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
-        { q: "How would you rate your fear of thunder and lightning?", options: ["No fear", "Mild", "Moderate", "Severe"] },
-        { q: "Do you check weather forecasts obsessively to avoid storms?", options: ["Not at all", "Occasionally", "Often", "Constantly"] },
-        { q: "Does the sound of thunder cause you significant distress?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
-    ];
     var answers = [];
     var bgColor = "#1a1a2e";
     var animationFrameId = null;
     var lightningTimeout = null;
     var flashEl = null;
+
+    function getTranslations() {
+        var t = window.i18n ? window.i18n.t : function(k) { return k; };
+        var o = function(key) { return t('diagnostic.airplane.options.' + key); };
+        var ot = function(key) { return t('diagnostic.thunder.options.' + key); };
+        return {
+            title: t('diagnostic.thunder.title'),
+            continueBtn: t('diagnostic.continueToExperience'),
+            questions: [
+                { q: t('diagnostic.thunder.q1'), options: [o('never'), o('sometimes'), o('often'), o('always')] },
+                { q: t('diagnostic.thunder.q2'), options: [o('never'), o('onceOrTwice'), o('severalTimes'), o('always')] },
+                { q: t('diagnostic.thunder.q3'), options: [o('noSymptoms'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.thunder.q4'), options: [o('noFear'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.thunder.q5'), options: [o('notAtAll'), ot('occasionally'), o('often'), ot('constantly')] },
+                { q: t('diagnostic.thunder.q6'), options: [o('never'), o('rarely'), o('sometimes'), o('frequently')] }
+            ]
+        };
+    }
 
     function addStyles() {
         if (!document.getElementById('thunder-diagnostic-styles')) {
@@ -902,7 +936,9 @@ var thunderDiagnostic = thunderDiagnostic || function() {
     }
 
     function buildQuestionsHTML() {
-        var html = '<div class="thunder-diag-title">Fear of Thunder Assessment</div>';
+        var trans = getTranslations();
+        var questions = trans.questions;
+        var html = '<div class="thunder-diag-title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="thunder-diag-question" data-index="' + i + '">';
             html += '<div class="thunder-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
@@ -947,7 +983,7 @@ var thunderDiagnostic = thunderDiagnostic || function() {
 
     function checkAllAnswered() {
         var allAnswered = true;
-        for (var i = 0; i < questions.length; i++) {
+        for (var i = 0; i < 6; i++) {
             if (answers[i] === undefined) { allAnswered = false; break; }
         }
         var btn = container.querySelector('.thunder-diag-continue');
@@ -977,6 +1013,7 @@ var thunderDiagnostic = thunderDiagnostic || function() {
             container = parentElement;
             addStyles();
             answers = [];
+            var trans = getTranslations();
             container.innerHTML = '\
                 <div class="thunder-diag-container" id="thunder-diag-screen">\
                     <div class="thunder-diag-clouds"></div>\
@@ -984,7 +1021,7 @@ var thunderDiagnostic = thunderDiagnostic || function() {
                     <div class="thunder-diag-flash"></div>\
                     <div class="thunder-diag-panel" id="thunder-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="thunder-diag-continue">Continue to Experience</button>\
+                        <button class="thunder-diag-continue">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="thunder-diag-main" id="thunder-diag-main"></div>\
@@ -1027,18 +1064,29 @@ var thunderDiagnostic = thunderDiagnostic || function() {
 var darknessDiagnostic = darknessDiagnostic || function() {
     var container;
     var diagnosticScreen, mainContent, questionsPanel;
-    var questions = [
-        { q: "Do you feel anxious in dark environments?", options: ["Never", "Sometimes", "Often", "Always"] },
-        { q: "Have you avoided dark places due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
-        { q: "Do you need a light source to fall asleep?", options: ["Never", "Sometimes", "Usually", "Always"] },
-        { q: "How would you rate your fear of darkness?", options: ["No fear", "Mild", "Moderate", "Severe"] },
-        { q: "Do you imagine threatening things in the dark?", options: ["Not at all", "Occasionally", "Often", "Constantly"] },
-        { q: "Does entering a dark room cause immediate anxiety?", options: ["Never", "Rarely", "Sometimes", "Always"] }
-    ];
     var answers = [];
     var animationFrameId = null;
     var particles = [];
     var canvas, ctx;
+
+    function getTranslations() {
+        var t = window.i18n ? window.i18n.t : function(k) { return k; };
+        var o = function(key) { return t('diagnostic.airplane.options.' + key); };
+        var od = function(key) { return t('diagnostic.darkness.options.' + key); };
+        var ot = function(key) { return t('diagnostic.thunder.options.' + key); };
+        return {
+            title: t('diagnostic.darkness.title'),
+            continueBtn: t('diagnostic.continueToExperience'),
+            questions: [
+                { q: t('diagnostic.darkness.q1'), options: [o('never'), o('sometimes'), o('often'), o('always')] },
+                { q: t('diagnostic.darkness.q2'), options: [o('never'), o('onceOrTwice'), o('severalTimes'), o('alwaysAvoid')] },
+                { q: t('diagnostic.darkness.q3'), options: [o('never'), o('sometimes'), od('usually'), o('always')] },
+                { q: t('diagnostic.darkness.q4'), options: [o('noFear'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.darkness.q5'), options: [o('notAtAll'), ot('occasionally'), o('often'), ot('constantly')] },
+                { q: t('diagnostic.darkness.q6'), options: [o('never'), o('rarely'), o('sometimes'), o('always')] }
+            ]
+        };
+    }
 
     function addStyles() {
         if (!document.getElementById('darkness-diagnostic-styles')) {
@@ -1119,7 +1167,9 @@ var darknessDiagnostic = darknessDiagnostic || function() {
     }
 
     function buildQuestionsHTML() {
-        var html = '<div class="dark-diag-title">Fear of Darkness Assessment</div>';
+        var trans = getTranslations();
+        var questions = trans.questions;
+        var html = '<div class="dark-diag-title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="dark-diag-question" data-index="' + i + '">';
             html += '<div class="dark-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
@@ -1188,7 +1238,7 @@ var darknessDiagnostic = darknessDiagnostic || function() {
 
     function checkAllAnswered() {
         var allAnswered = true;
-        for (var i = 0; i < questions.length; i++) {
+        for (var i = 0; i < 6; i++) {
             if (answers[i] === undefined) { allAnswered = false; break; }
         }
         var btn = container.querySelector('.dark-diag-continue');
@@ -1218,13 +1268,14 @@ var darknessDiagnostic = darknessDiagnostic || function() {
             container = parentElement;
             addStyles();
             answers = [];
+            var trans = getTranslations();
             container.innerHTML = '\
                 <div class="dark-diag-container" id="dark-diag-screen">\
                     <canvas class="dark-diag-canvas"></canvas>\
                     <div class="dark-diag-vignette"></div>\
                     <div class="dark-diag-panel" id="dark-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="dark-diag-continue">Continue to Experience</button>\
+                        <button class="dark-diag-continue">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="dark-diag-main" id="dark-diag-main"></div>\
@@ -1268,19 +1319,29 @@ var darknessDiagnostic = darknessDiagnostic || function() {
 var heightsDiagnostic = heightsDiagnostic || function() {
     var container;
     var diagnosticScreen, mainContent, questionsPanel;
-    var questions = [
-        { q: "Do you feel anxious when at high places?", options: ["Never", "Sometimes", "Often", "Always"] },
-        { q: "Have you avoided tall buildings, bridges, or balconies due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
-        { q: "Do you experience physical symptoms (dizziness, weak knees) at heights?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
-        { q: "How would you rate your fear of heights?", options: ["No fear", "Mild", "Moderate", "Severe"] },
-        { q: "Do you feel an urge to jump or fear of falling when at heights?", options: ["Not at all", "Occasionally", "Often", "Constantly"] },
-        { q: "Does looking down from a height cause immediate panic?", options: ["Never", "Rarely", "Sometimes", "Always"] }
-    ];
     var answers = [];
     var animationFrameId = null;
     var clouds = [];
     var birds = [];
     var canvas, ctx;
+
+    function getTranslations() {
+        var t = window.i18n ? window.i18n.t : function(k) { return k; };
+        var o = function(key) { return t('diagnostic.airplane.options.' + key); };
+        var ot = function(key) { return t('diagnostic.thunder.options.' + key); };
+        return {
+            title: t('diagnostic.heights.title'),
+            continueBtn: t('diagnostic.continueToExperience'),
+            questions: [
+                { q: t('diagnostic.heights.q1'), options: [o('never'), o('sometimes'), o('often'), o('always')] },
+                { q: t('diagnostic.heights.q2'), options: [o('never'), o('onceOrTwice'), o('severalTimes'), o('alwaysAvoid')] },
+                { q: t('diagnostic.heights.q3'), options: [o('noSymptoms'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.heights.q4'), options: [o('noFear'), o('mild'), o('moderate'), o('severe')] },
+                { q: t('diagnostic.heights.q5'), options: [o('notAtAll'), ot('occasionally'), o('often'), ot('constantly')] },
+                { q: t('diagnostic.heights.q6'), options: [o('never'), o('rarely'), o('sometimes'), o('always')] }
+            ]
+        };
+    }
 
     function addStyles() {
         if (!document.getElementById('heights-diagnostic-styles')) {
@@ -1361,7 +1422,9 @@ var heightsDiagnostic = heightsDiagnostic || function() {
     }
 
     function buildQuestionsHTML() {
-        var html = '<div class="heights-diag-title">Fear of Heights Assessment</div>';
+        var trans = getTranslations();
+        var questions = trans.questions;
+        var html = '<div class="heights-diag-title">' + trans.title + '</div>';
         for (var i = 0; i < questions.length; i++) {
             html += '<div class="heights-diag-question" data-index="' + i + '">';
             html += '<div class="heights-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
@@ -1466,7 +1529,7 @@ var heightsDiagnostic = heightsDiagnostic || function() {
 
     function checkAllAnswered() {
         var allAnswered = true;
-        for (var i = 0; i < questions.length; i++) {
+        for (var i = 0; i < 6; i++) {
             if (answers[i] === undefined) { allAnswered = false; break; }
         }
         var btn = container.querySelector('.heights-diag-continue');
@@ -1496,13 +1559,14 @@ var heightsDiagnostic = heightsDiagnostic || function() {
             container = parentElement;
             addStyles();
             answers = [];
+            var trans = getTranslations();
             container.innerHTML = '\
                 <div class="heights-diag-container" id="heights-diag-screen">\
                     <canvas class="heights-diag-canvas"></canvas>\
                     <div class="heights-diag-ground"></div>\
                     <div class="heights-diag-panel" id="heights-diag-panel">\
                         ' + buildQuestionsHTML() + '\
-                        <button class="heights-diag-continue">Continue to Experience</button>\
+                        <button class="heights-diag-continue">' + trans.continueBtn + '</button>\
                     </div>\
                 </div>\
                 <div class="heights-diag-main" id="heights-diag-main"></div>\

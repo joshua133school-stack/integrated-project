@@ -101,6 +101,93 @@ const translations = {
             ko: "한국어"
         },
 
+        // Diagnostic assessments
+        diagnostic: {
+            continueToExperience: "Continue to Experience",
+
+            // Airplane diagnostic
+            airplane: {
+                title: "Fear of Flying Assessment",
+                q1: "Do you feel anxious when thinking about flying?",
+                q2: "Have you avoided flying due to fear?",
+                q3: "Do you experience physical symptoms (sweating, racing heart) related to flying?",
+                q4: "How would you rate your fear of flying?",
+                q5: "Does turbulence cause you significant distress?",
+                q6: "Do thoughts of plane crashes intrude on your daily life?",
+                options: {
+                    never: "Never",
+                    sometimes: "Sometimes",
+                    often: "Often",
+                    always: "Always",
+                    onceOrTwice: "Once or twice",
+                    severalTimes: "Several times",
+                    alwaysAvoid: "Always avoid",
+                    noSymptoms: "No symptoms",
+                    mild: "Mild",
+                    moderate: "Moderate",
+                    severe: "Severe",
+                    noFear: "No fear",
+                    notAtAll: "Not at all",
+                    aLittle: "A little",
+                    quiteBit: "Quite a bit",
+                    extremely: "Extremely",
+                    rarely: "Rarely",
+                    frequently: "Frequently"
+                }
+            },
+
+            // Injection diagnostic
+            injection: {
+                title: "Fear of Needles Assessment",
+                q1: "Do you feel anxious when thinking about needles or injections?",
+                q2: "Have you avoided medical procedures due to fear of needles?",
+                q3: "Do you experience physical symptoms (sweating, dizziness) around needles?",
+                q4: "How would you rate your fear of injections?",
+                q5: "Do you feel faint or nauseous when seeing needles?",
+                q6: "Does anticipating an injection cause you significant distress?"
+            },
+
+            // Thunder diagnostic
+            thunder: {
+                title: "Fear of Thunder Assessment",
+                q1: "Do you feel anxious during thunderstorms?",
+                q2: "Have you sought shelter or hidden during storms due to fear?",
+                q3: "Do you experience physical symptoms (trembling, rapid heartbeat) during thunder?",
+                q4: "How would you rate your fear of thunder and lightning?",
+                q5: "Do you check weather forecasts obsessively to avoid storms?",
+                q6: "Does the sound of thunder cause you significant distress?",
+                options: {
+                    occasionally: "Occasionally",
+                    constantly: "Constantly"
+                }
+            },
+
+            // Darkness diagnostic
+            darkness: {
+                title: "Fear of Darkness Assessment",
+                q1: "Do you feel anxious in dark environments?",
+                q2: "Have you avoided dark places due to fear?",
+                q3: "Do you need a light source to fall asleep?",
+                q4: "How would you rate your fear of darkness?",
+                q5: "Do you imagine threatening things in the dark?",
+                q6: "Does entering a dark room cause immediate anxiety?",
+                options: {
+                    usually: "Usually"
+                }
+            },
+
+            // Heights diagnostic
+            heights: {
+                title: "Fear of Heights Assessment",
+                q1: "Do you feel anxious when at high places?",
+                q2: "Have you avoided tall buildings, bridges, or balconies due to fear?",
+                q3: "Do you experience physical symptoms (dizziness, weak knees) at heights?",
+                q4: "How would you rate your fear of heights?",
+                q5: "Do you feel an urge to jump or fear of falling when at heights?",
+                q6: "Does looking down from a height cause immediate panic?"
+            }
+        },
+
         // Poster tiles (main page)
         posters: {
             plane: { title: "Plane", date: "Fear of Airplanes" },
@@ -218,6 +305,93 @@ const translations = {
         langSwitch: {
             en: "EN",
             ko: "한국어"
+        },
+
+        // Diagnostic assessments
+        diagnostic: {
+            continueToExperience: "체험 계속하기",
+
+            // Airplane diagnostic
+            airplane: {
+                title: "비행 공포증 평가",
+                q1: "비행에 대해 생각할 때 불안함을 느끼시나요?",
+                q2: "두려움 때문에 비행을 피한 적이 있나요?",
+                q3: "비행과 관련하여 신체적 증상(땀, 심장 두근거림)을 경험하시나요?",
+                q4: "비행에 대한 두려움을 어떻게 평가하시나요?",
+                q5: "난기류가 심각한 고통을 유발하나요?",
+                q6: "비행기 추락에 대한 생각이 일상생활에 침투하나요?",
+                options: {
+                    never: "전혀 없음",
+                    sometimes: "가끔",
+                    often: "자주",
+                    always: "항상",
+                    onceOrTwice: "한두 번",
+                    severalTimes: "여러 번",
+                    alwaysAvoid: "항상 피함",
+                    noSymptoms: "증상 없음",
+                    mild: "가벼움",
+                    moderate: "보통",
+                    severe: "심함",
+                    noFear: "두려움 없음",
+                    notAtAll: "전혀 아님",
+                    aLittle: "조금",
+                    quiteBit: "꽤 많이",
+                    extremely: "매우 심하게",
+                    rarely: "드물게",
+                    frequently: "자주"
+                }
+            },
+
+            // Injection diagnostic
+            injection: {
+                title: "주사 공포증 평가",
+                q1: "바늘이나 주사에 대해 생각할 때 불안함을 느끼시나요?",
+                q2: "바늘에 대한 두려움 때문에 의료 시술을 피한 적이 있나요?",
+                q3: "바늘 주변에서 신체적 증상(땀, 어지러움)을 경험하시나요?",
+                q4: "주사에 대한 두려움을 어떻게 평가하시나요?",
+                q5: "바늘을 볼 때 기절하거나 메스꺼움을 느끼시나요?",
+                q6: "주사를 예상할 때 심각한 고통을 느끼시나요?"
+            },
+
+            // Thunder diagnostic
+            thunder: {
+                title: "천둥 공포증 평가",
+                q1: "천둥번개가 치는 동안 불안함을 느끼시나요?",
+                q2: "두려움 때문에 폭풍 중에 피난처를 찾거나 숨은 적이 있나요?",
+                q3: "천둥 중에 신체적 증상(떨림, 빠른 심장박동)을 경험하시나요?",
+                q4: "천둥과 번개에 대한 두려움을 어떻게 평가하시나요?",
+                q5: "폭풍을 피하기 위해 날씨 예보를 집착적으로 확인하시나요?",
+                q6: "천둥 소리가 심각한 고통을 유발하나요?",
+                options: {
+                    occasionally: "가끔",
+                    constantly: "끊임없이"
+                }
+            },
+
+            // Darkness diagnostic
+            darkness: {
+                title: "어둠 공포증 평가",
+                q1: "어두운 환경에서 불안함을 느끼시나요?",
+                q2: "두려움 때문에 어두운 곳을 피한 적이 있나요?",
+                q3: "잠들기 위해 조명이 필요하신가요?",
+                q4: "어둠에 대한 두려움을 어떻게 평가하시나요?",
+                q5: "어둠 속에서 위협적인 것을 상상하시나요?",
+                q6: "어두운 방에 들어가면 즉각적인 불안을 느끼시나요?",
+                options: {
+                    usually: "보통"
+                }
+            },
+
+            // Heights diagnostic
+            heights: {
+                title: "고소 공포증 평가",
+                q1: "높은 곳에 있을 때 불안함을 느끼시나요?",
+                q2: "두려움 때문에 높은 건물, 다리, 발코니를 피한 적이 있나요?",
+                q3: "높은 곳에서 신체적 증상(어지러움, 무릎 힘 빠짐)을 경험하시나요?",
+                q4: "높은 곳에 대한 두려움을 어떻게 평가하시나요?",
+                q5: "높은 곳에서 뛰어내리고 싶은 충동이나 떨어질 것 같은 두려움을 느끼시나요?",
+                q6: "높은 곳에서 아래를 내려다보면 즉각적인 공황을 느끼시나요?"
+            }
         },
 
         // Poster tiles (main page)
