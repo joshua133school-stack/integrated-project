@@ -516,6 +516,1033 @@ var airplaneDiagnostic = airplaneDiagnostic || function() {
     };
 }();
 
+// Injection Diagnostic Module - wraps the injection experience
+var injectionDiagnostic = injectionDiagnostic || function() {
+    var container;
+    var diagnosticScreen, mainContent, questionsPanel;
+    var questions = [
+        { q: "Do you feel anxious when thinking about needles or injections?", options: ["Never", "Sometimes", "Often", "Always"] },
+        { q: "Have you avoided medical procedures due to fear of needles?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
+        { q: "Do you experience physical symptoms (sweating, dizziness) around needles?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
+        { q: "How would you rate your fear of injections?", options: ["No fear", "Mild", "Moderate", "Severe"] },
+        { q: "Do you feel faint or nauseous when seeing needles?", options: ["Not at all", "A little", "Quite a bit", "Extremely"] },
+        { q: "Does anticipating an injection cause you significant distress?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
+    ];
+    var answers = [];
+    var bgColor = "#1a1a2e";
+    var particles = [];
+    var animationFrameId = null;
+    var canvas, ctx;
+
+    function addStyles() {
+        if (!document.getElementById('injection-diagnostic-styles')) {
+            var style = document.createElement('style');
+            style.id = 'injection-diagnostic-styles';
+            style.innerHTML = '\
+                .inj-diag-container {\
+                    width: 100%;\
+                    height: 100%;\
+                    background: ' + bgColor + ';\
+                    position: relative;\
+                    overflow: hidden;\
+                }\
+                .inj-diag-canvas {\
+                    position: absolute;\
+                    top: 0;\
+                    left: 0;\
+                    width: 100%;\
+                    height: 100%;\
+                    pointer-events: none;\
+                }\
+                .inj-diag-panel {\
+                    position: absolute;\
+                    top: 50%;\
+                    left: 50%;\
+                    transform: translate(-50%, -50%);\
+                    width: 600px;\
+                    max-width: 90%;\
+                    max-height: 85%;\
+                    display: flex;\
+                    flex-direction: column;\
+                    padding: 40px 50px;\
+                    box-sizing: border-box;\
+                    overflow-y: auto;\
+                    opacity: 0;\
+                    transition: opacity 0.6s ease;\
+                }\
+                .inj-diag-panel.visible { opacity: 1; }\
+                .inj-diag-title {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 28px;\
+                    color: #fff;\
+                    text-align: center;\
+                    margin-bottom: 30px;\
+                }\
+                .inj-diag-question {\
+                    margin-bottom: 22px;\
+                    opacity: 0;\
+                    transform: translateY(15px);\
+                    transition: opacity 0.4s ease, transform 0.4s ease;\
+                }\
+                .inj-diag-question.visible {\
+                    opacity: 1;\
+                    transform: translateY(0);\
+                }\
+                .inj-diag-question-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 16px;\
+                    color: #fff;\
+                    margin-bottom: 10px;\
+                }\
+                .inj-diag-options { display: flex; flex-wrap: wrap; gap: 8px; }\
+                .inj-diag-option {\
+                    display: flex;\
+                    align-items: center;\
+                    gap: 6px;\
+                    cursor: pointer;\
+                    padding: 6px 14px;\
+                    border-radius: 18px;\
+                    background: rgba(255,255,255,0.15);\
+                    transition: all 0.2s ease;\
+                }\
+                .inj-diag-option:hover { background: rgba(255,255,255,0.28); }\
+                .inj-diag-option.selected { background: rgba(100,200,255,0.9); }\
+                .inj-diag-option.selected .inj-diag-option-text { color: #1a1a2e; }\
+                .inj-diag-circle {\
+                    width: 16px;\
+                    height: 16px;\
+                    border-radius: 50%;\
+                    border: 2px solid rgba(255,255,255,0.6);\
+                    background: transparent;\
+                    transition: all 0.2s ease;\
+                }\
+                .inj-diag-option.selected .inj-diag-circle { background: #1a1a2e; border-color: #1a1a2e; }\
+                .inj-diag-option-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 14px;\
+                    color: rgba(255,255,255,0.95);\
+                }\
+                .inj-diag-continue {\
+                    margin-top: 25px;\
+                    padding: 14px 40px;\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 17px;\
+                    background: #64c8ff;\
+                    color: #1a1a2e;\
+                    border: none;\
+                    border-radius: 25px;\
+                    cursor: pointer;\
+                    opacity: 0;\
+                    transform: translateY(10px);\
+                    transition: all 0.3s ease;\
+                    align-self: center;\
+                }\
+                .inj-diag-continue.visible { opacity: 1; transform: translateY(0); }\
+                .inj-diag-continue:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(100,200,255,0.3); }\
+                .inj-diag-main {\
+                    position: absolute;\
+                    top: 0; left: 0; width: 100%; height: 100%;\
+                    opacity: 0;\
+                    pointer-events: none;\
+                    transition: opacity 0.5s ease;\
+                }\
+                .inj-diag-main.visible { opacity: 1; pointer-events: auto; }\
+            ';
+            document.head.appendChild(style);
+        }
+    }
+
+    function buildQuestionsHTML() {
+        var html = '<div class="inj-diag-title">Fear of Needles Assessment</div>';
+        for (var i = 0; i < questions.length; i++) {
+            html += '<div class="inj-diag-question" data-index="' + i + '">';
+            html += '<div class="inj-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="inj-diag-options">';
+            for (var j = 0; j < questions[i].options.length; j++) {
+                html += '<div class="inj-diag-option" data-question="' + i + '" data-value="' + j + '">';
+                html += '<div class="inj-diag-circle"></div>';
+                html += '<span class="inj-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+        return html;
+    }
+
+    function initParticles() {
+        canvas = container.querySelector('.inj-diag-canvas');
+        if (!canvas) return;
+        ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        particles = [];
+        for (var i = 0; i < 50; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 3 + 1,
+                speedY: Math.random() * 0.5 + 0.2,
+                opacity: Math.random() * 0.5 + 0.2
+            });
+        }
+    }
+
+    function animateParticles() {
+        if (!ctx || !canvas) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(function(p) {
+            p.y -= p.speedY;
+            if (p.y < -10) {
+                p.y = canvas.height + 10;
+                p.x = Math.random() * canvas.width;
+            }
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(100, 200, 255, ' + p.opacity + ')';
+            ctx.fill();
+        });
+        animationFrameId = requestAnimationFrame(animateParticles);
+    }
+
+    function onOptionClick(e) {
+        var option = e.target.closest('.inj-diag-option');
+        if (!option) return;
+        var questionIndex = parseInt(option.getAttribute('data-question'));
+        var siblings = option.parentElement.querySelectorAll('.inj-diag-option');
+        siblings.forEach(function(sib) { sib.classList.remove('selected'); });
+        option.classList.add('selected');
+        answers[questionIndex] = parseInt(option.getAttribute('data-value'));
+        checkAllAnswered();
+    }
+
+    function checkAllAnswered() {
+        var allAnswered = true;
+        for (var i = 0; i < questions.length; i++) {
+            if (answers[i] === undefined) { allAnswered = false; break; }
+        }
+        var btn = container.querySelector('.inj-diag-continue');
+        if (allAnswered && btn) btn.classList.add('visible');
+    }
+
+    function onContinueClick() {
+        if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        diagnosticScreen.style.opacity = '0';
+        setTimeout(function() {
+            diagnosticScreen.style.display = 'none';
+            mainContent.classList.add('visible');
+            injection.init(mainContent);
+            injection.start();
+        }, 500);
+    }
+
+    function showQuestionsSequentially() {
+        var questionEls = container.querySelectorAll('.inj-diag-question');
+        questionEls.forEach(function(el, index) {
+            setTimeout(function() { el.classList.add('visible'); }, 200 + index * 120);
+        });
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            addStyles();
+            answers = [];
+            container.innerHTML = '\
+                <div class="inj-diag-container" id="inj-diag-screen">\
+                    <canvas class="inj-diag-canvas"></canvas>\
+                    <div class="inj-diag-panel" id="inj-diag-panel">\
+                        ' + buildQuestionsHTML() + '\
+                        <button class="inj-diag-continue">Continue to Experience</button>\
+                    </div>\
+                </div>\
+                <div class="inj-diag-main" id="inj-diag-main"></div>\
+            ';
+            diagnosticScreen = container.querySelector('#inj-diag-screen');
+            mainContent = container.querySelector('#inj-diag-main');
+            questionsPanel = container.querySelector('#inj-diag-panel');
+            initParticles();
+        },
+        start: function() {
+            container.querySelectorAll('.inj-diag-option').forEach(function(opt) {
+                opt.addEventListener('click', onOptionClick);
+            });
+            var btn = container.querySelector('.inj-diag-continue');
+            if (btn) btn.addEventListener('click', onContinueClick);
+            animateParticles();
+            setTimeout(function() {
+                questionsPanel.classList.add('visible');
+                showQuestionsSequentially();
+            }, 300);
+        },
+        dispose: function() {
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (injection && injection.dispose) injection.dispose();
+            if (container) container.innerHTML = '';
+            particles = [];
+            answers = [];
+        },
+        pause: function() {
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (injection && injection.pause) injection.pause();
+        },
+        resume: function() {
+            if (!animationFrameId && diagnosticScreen && diagnosticScreen.style.display !== 'none') animateParticles();
+            if (injection && injection.resume) injection.resume();
+        }
+    };
+}();
+
+// Thunder Diagnostic Module - wraps the thunderClass experience
+var thunderDiagnostic = thunderDiagnostic || function() {
+    var container;
+    var diagnosticScreen, mainContent, questionsPanel;
+    var questions = [
+        { q: "Do you feel anxious during thunderstorms?", options: ["Never", "Sometimes", "Often", "Always"] },
+        { q: "Have you sought shelter or hidden during storms due to fear?", options: ["Never", "Once or twice", "Several times", "Always"] },
+        { q: "Do you experience physical symptoms (trembling, rapid heartbeat) during thunder?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
+        { q: "How would you rate your fear of thunder and lightning?", options: ["No fear", "Mild", "Moderate", "Severe"] },
+        { q: "Do you check weather forecasts obsessively to avoid storms?", options: ["Not at all", "Occasionally", "Often", "Constantly"] },
+        { q: "Does the sound of thunder cause you significant distress?", options: ["Never", "Rarely", "Sometimes", "Frequently"] }
+    ];
+    var answers = [];
+    var bgColor = "#1a1a2e";
+    var animationFrameId = null;
+    var lightningTimeout = null;
+    var flashEl = null;
+
+    function addStyles() {
+        if (!document.getElementById('thunder-diagnostic-styles')) {
+            var style = document.createElement('style');
+            style.id = 'thunder-diagnostic-styles';
+            style.innerHTML = '\
+                .thunder-diag-container {\
+                    width: 100%; height: 100%;\
+                    background: linear-gradient(180deg, #0d0d1a 0%, #1a1a3a 50%, #2d2d4a 100%);\
+                    position: relative; overflow: hidden;\
+                }\
+                .thunder-diag-flash {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    background: rgba(255,255,255,0); pointer-events: none;\
+                    transition: background 0.1s ease;\
+                }\
+                .thunder-diag-flash.active { background: rgba(200,200,255,0.3); }\
+                .thunder-diag-clouds {\
+                    position: absolute; top: 0; left: 0; width: 200%; height: 40%;\
+                    background: linear-gradient(90deg, \
+                        transparent 0%, rgba(40,40,60,0.8) 20%, rgba(30,30,50,0.9) 40%,\
+                        rgba(50,50,70,0.7) 60%, rgba(35,35,55,0.85) 80%, transparent 100%);\
+                    animation: thunderCloudsMove 30s linear infinite;\
+                }\
+                @keyframes thunderCloudsMove { from { transform: translateX(0); } to { transform: translateX(-50%); } }\
+                .thunder-diag-rain {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    background: repeating-linear-gradient(transparent 0%, transparent 50%, rgba(150,150,200,0.1) 50%, rgba(150,150,200,0.1) 100%);\
+                    background-size: 3px 20px;\
+                    animation: thunderRain 0.3s linear infinite;\
+                    pointer-events: none; opacity: 0.5;\
+                }\
+                @keyframes thunderRain { from { transform: translateY(-20px); } to { transform: translateY(0); } }\
+                .thunder-diag-panel {\
+                    position: absolute; top: 50%; left: 50%;\
+                    transform: translate(-50%, -50%);\
+                    width: 600px; max-width: 90%; max-height: 85%;\
+                    display: flex; flex-direction: column;\
+                    padding: 40px 50px; box-sizing: border-box; overflow-y: auto;\
+                    opacity: 0; transition: opacity 0.6s ease;\
+                }\
+                .thunder-diag-panel.visible { opacity: 1; }\
+                .thunder-diag-title {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 28px; color: #fff; text-align: center; margin-bottom: 30px;\
+                }\
+                .thunder-diag-question {\
+                    margin-bottom: 22px; opacity: 0; transform: translateY(15px);\
+                    transition: opacity 0.4s ease, transform 0.4s ease;\
+                }\
+                .thunder-diag-question.visible { opacity: 1; transform: translateY(0); }\
+                .thunder-diag-question-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 16px; color: #fff; margin-bottom: 10px;\
+                }\
+                .thunder-diag-options { display: flex; flex-wrap: wrap; gap: 8px; }\
+                .thunder-diag-option {\
+                    display: flex; align-items: center; gap: 6px; cursor: pointer;\
+                    padding: 6px 14px; border-radius: 18px;\
+                    background: rgba(255,255,255,0.15); transition: all 0.2s ease;\
+                }\
+                .thunder-diag-option:hover { background: rgba(255,255,255,0.28); }\
+                .thunder-diag-option.selected { background: rgba(180,180,255,0.9); }\
+                .thunder-diag-option.selected .thunder-diag-option-text { color: #1a1a2e; }\
+                .thunder-diag-circle {\
+                    width: 16px; height: 16px; border-radius: 50%;\
+                    border: 2px solid rgba(255,255,255,0.6); background: transparent;\
+                }\
+                .thunder-diag-option.selected .thunder-diag-circle { background: #1a1a2e; border-color: #1a1a2e; }\
+                .thunder-diag-option-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 14px; color: rgba(255,255,255,0.95);\
+                }\
+                .thunder-diag-continue {\
+                    margin-top: 25px; padding: 14px 40px;\
+                    font-family: "Crimson Text", Georgia, serif; font-size: 17px;\
+                    background: #b4b4ff; color: #1a1a2e; border: none;\
+                    border-radius: 25px; cursor: pointer; opacity: 0;\
+                    transform: translateY(10px); transition: all 0.3s ease; align-self: center;\
+                }\
+                .thunder-diag-continue.visible { opacity: 1; transform: translateY(0); }\
+                .thunder-diag-continue:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(180,180,255,0.3); }\
+                .thunder-diag-main {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    opacity: 0; pointer-events: none; transition: opacity 0.5s ease;\
+                }\
+                .thunder-diag-main.visible { opacity: 1; pointer-events: auto; }\
+            ';
+            document.head.appendChild(style);
+        }
+    }
+
+    function buildQuestionsHTML() {
+        var html = '<div class="thunder-diag-title">Fear of Thunder Assessment</div>';
+        for (var i = 0; i < questions.length; i++) {
+            html += '<div class="thunder-diag-question" data-index="' + i + '">';
+            html += '<div class="thunder-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="thunder-diag-options">';
+            for (var j = 0; j < questions[i].options.length; j++) {
+                html += '<div class="thunder-diag-option" data-question="' + i + '" data-value="' + j + '">';
+                html += '<div class="thunder-diag-circle"></div>';
+                html += '<span class="thunder-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+        return html;
+    }
+
+    function triggerLightning() {
+        if (!flashEl) return;
+        flashEl.classList.add('active');
+        setTimeout(function() { flashEl.classList.remove('active'); }, 100);
+        setTimeout(function() {
+            flashEl.classList.add('active');
+            setTimeout(function() { flashEl.classList.remove('active'); }, 50);
+        }, 150);
+        scheduleLightning();
+    }
+
+    function scheduleLightning() {
+        var delay = 3000 + Math.random() * 5000;
+        lightningTimeout = setTimeout(triggerLightning, delay);
+    }
+
+    function onOptionClick(e) {
+        var option = e.target.closest('.thunder-diag-option');
+        if (!option) return;
+        var questionIndex = parseInt(option.getAttribute('data-question'));
+        var siblings = option.parentElement.querySelectorAll('.thunder-diag-option');
+        siblings.forEach(function(sib) { sib.classList.remove('selected'); });
+        option.classList.add('selected');
+        answers[questionIndex] = parseInt(option.getAttribute('data-value'));
+        checkAllAnswered();
+    }
+
+    function checkAllAnswered() {
+        var allAnswered = true;
+        for (var i = 0; i < questions.length; i++) {
+            if (answers[i] === undefined) { allAnswered = false; break; }
+        }
+        var btn = container.querySelector('.thunder-diag-continue');
+        if (allAnswered && btn) btn.classList.add('visible');
+    }
+
+    function onContinueClick() {
+        if (lightningTimeout) { clearTimeout(lightningTimeout); lightningTimeout = null; }
+        diagnosticScreen.style.opacity = '0';
+        setTimeout(function() {
+            diagnosticScreen.style.display = 'none';
+            mainContent.classList.add('visible');
+            thunderClass.init(mainContent);
+            thunderClass.start();
+        }, 500);
+    }
+
+    function showQuestionsSequentially() {
+        var questionEls = container.querySelectorAll('.thunder-diag-question');
+        questionEls.forEach(function(el, index) {
+            setTimeout(function() { el.classList.add('visible'); }, 200 + index * 120);
+        });
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            addStyles();
+            answers = [];
+            container.innerHTML = '\
+                <div class="thunder-diag-container" id="thunder-diag-screen">\
+                    <div class="thunder-diag-clouds"></div>\
+                    <div class="thunder-diag-rain"></div>\
+                    <div class="thunder-diag-flash"></div>\
+                    <div class="thunder-diag-panel" id="thunder-diag-panel">\
+                        ' + buildQuestionsHTML() + '\
+                        <button class="thunder-diag-continue">Continue to Experience</button>\
+                    </div>\
+                </div>\
+                <div class="thunder-diag-main" id="thunder-diag-main"></div>\
+            ';
+            diagnosticScreen = container.querySelector('#thunder-diag-screen');
+            mainContent = container.querySelector('#thunder-diag-main');
+            questionsPanel = container.querySelector('#thunder-diag-panel');
+            flashEl = container.querySelector('.thunder-diag-flash');
+        },
+        start: function() {
+            container.querySelectorAll('.thunder-diag-option').forEach(function(opt) {
+                opt.addEventListener('click', onOptionClick);
+            });
+            var btn = container.querySelector('.thunder-diag-continue');
+            if (btn) btn.addEventListener('click', onContinueClick);
+            scheduleLightning();
+            setTimeout(function() {
+                questionsPanel.classList.add('visible');
+                showQuestionsSequentially();
+            }, 300);
+        },
+        dispose: function() {
+            if (lightningTimeout) { clearTimeout(lightningTimeout); lightningTimeout = null; }
+            if (thunderClass && thunderClass.dispose) thunderClass.dispose();
+            if (container) container.innerHTML = '';
+            answers = [];
+        },
+        pause: function() {
+            if (lightningTimeout) { clearTimeout(lightningTimeout); lightningTimeout = null; }
+            if (thunderClass && thunderClass.pause) thunderClass.pause();
+        },
+        resume: function() {
+            if (!lightningTimeout && diagnosticScreen && diagnosticScreen.style.display !== 'none') scheduleLightning();
+            if (thunderClass && thunderClass.resume) thunderClass.resume();
+        }
+    };
+}();
+
+// Darkness Diagnostic Module - wraps the Darkness experience
+var darknessDiagnostic = darknessDiagnostic || function() {
+    var container;
+    var diagnosticScreen, mainContent, questionsPanel;
+    var questions = [
+        { q: "Do you feel anxious in dark environments?", options: ["Never", "Sometimes", "Often", "Always"] },
+        { q: "Have you avoided dark places due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
+        { q: "Do you need a light source to fall asleep?", options: ["Never", "Sometimes", "Usually", "Always"] },
+        { q: "How would you rate your fear of darkness?", options: ["No fear", "Mild", "Moderate", "Severe"] },
+        { q: "Do you imagine threatening things in the dark?", options: ["Not at all", "Occasionally", "Often", "Constantly"] },
+        { q: "Does entering a dark room cause immediate anxiety?", options: ["Never", "Rarely", "Sometimes", "Always"] }
+    ];
+    var answers = [];
+    var animationFrameId = null;
+    var particles = [];
+    var canvas, ctx;
+
+    function addStyles() {
+        if (!document.getElementById('darkness-diagnostic-styles')) {
+            var style = document.createElement('style');
+            style.id = 'darkness-diagnostic-styles';
+            style.innerHTML = '\
+                .dark-diag-container {\
+                    width: 100%; height: 100%;\
+                    background: radial-gradient(ellipse at center, #1a1a1a 0%, #0a0a0a 50%, #000 100%);\
+                    position: relative; overflow: hidden;\
+                }\
+                .dark-diag-canvas {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    pointer-events: none;\
+                }\
+                .dark-diag-vignette {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    background: radial-gradient(ellipse at center, transparent 30%, rgba(0,0,0,0.8) 100%);\
+                    pointer-events: none;\
+                }\
+                .dark-diag-panel {\
+                    position: absolute; top: 50%; left: 50%;\
+                    transform: translate(-50%, -50%);\
+                    width: 600px; max-width: 90%; max-height: 85%;\
+                    display: flex; flex-direction: column;\
+                    padding: 40px 50px; box-sizing: border-box; overflow-y: auto;\
+                    opacity: 0; transition: opacity 0.6s ease;\
+                }\
+                .dark-diag-panel.visible { opacity: 1; }\
+                .dark-diag-title {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 28px; color: #ddd; text-align: center; margin-bottom: 30px;\
+                }\
+                .dark-diag-question {\
+                    margin-bottom: 22px; opacity: 0; transform: translateY(15px);\
+                    transition: opacity 0.4s ease, transform 0.4s ease;\
+                }\
+                .dark-diag-question.visible { opacity: 1; transform: translateY(0); }\
+                .dark-diag-question-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 16px; color: #ccc; margin-bottom: 10px;\
+                }\
+                .dark-diag-options { display: flex; flex-wrap: wrap; gap: 8px; }\
+                .dark-diag-option {\
+                    display: flex; align-items: center; gap: 6px; cursor: pointer;\
+                    padding: 6px 14px; border-radius: 18px;\
+                    background: rgba(255,255,255,0.1); transition: all 0.2s ease;\
+                }\
+                .dark-diag-option:hover { background: rgba(255,255,255,0.2); }\
+                .dark-diag-option.selected { background: rgba(255,200,100,0.8); }\
+                .dark-diag-option.selected .dark-diag-option-text { color: #1a1a1a; }\
+                .dark-diag-circle {\
+                    width: 16px; height: 16px; border-radius: 50%;\
+                    border: 2px solid rgba(255,255,255,0.4); background: transparent;\
+                }\
+                .dark-diag-option.selected .dark-diag-circle { background: #1a1a1a; border-color: #1a1a1a; }\
+                .dark-diag-option-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 14px; color: rgba(255,255,255,0.85);\
+                }\
+                .dark-diag-continue {\
+                    margin-top: 25px; padding: 14px 40px;\
+                    font-family: "Crimson Text", Georgia, serif; font-size: 17px;\
+                    background: #ffc864; color: #1a1a1a; border: none;\
+                    border-radius: 25px; cursor: pointer; opacity: 0;\
+                    transform: translateY(10px); transition: all 0.3s ease; align-self: center;\
+                }\
+                .dark-diag-continue.visible { opacity: 1; transform: translateY(0); }\
+                .dark-diag-continue:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,200,100,0.3); }\
+                .dark-diag-main {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    opacity: 0; pointer-events: none; transition: opacity 0.5s ease;\
+                }\
+                .dark-diag-main.visible { opacity: 1; pointer-events: auto; }\
+            ';
+            document.head.appendChild(style);
+        }
+    }
+
+    function buildQuestionsHTML() {
+        var html = '<div class="dark-diag-title">Fear of Darkness Assessment</div>';
+        for (var i = 0; i < questions.length; i++) {
+            html += '<div class="dark-diag-question" data-index="' + i + '">';
+            html += '<div class="dark-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="dark-diag-options">';
+            for (var j = 0; j < questions[i].options.length; j++) {
+                html += '<div class="dark-diag-option" data-question="' + i + '" data-value="' + j + '">';
+                html += '<div class="dark-diag-circle"></div>';
+                html += '<span class="dark-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+        return html;
+    }
+
+    function initParticles() {
+        canvas = container.querySelector('.dark-diag-canvas');
+        if (!canvas) return;
+        ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        particles = [];
+        for (var i = 0; i < 30; i++) {
+            particles.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2 + 0.5,
+                speedX: (Math.random() - 0.5) * 0.3,
+                speedY: (Math.random() - 0.5) * 0.3,
+                opacity: Math.random() * 0.3 + 0.1,
+                pulse: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    function animateParticles() {
+        if (!ctx || !canvas) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        particles.forEach(function(p) {
+            p.x += p.speedX;
+            p.y += p.speedY;
+            p.pulse += 0.02;
+            if (p.x < 0) p.x = canvas.width;
+            if (p.x > canvas.width) p.x = 0;
+            if (p.y < 0) p.y = canvas.height;
+            if (p.y > canvas.height) p.y = 0;
+            var pulsedOpacity = p.opacity * (0.5 + 0.5 * Math.sin(p.pulse));
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(255, 200, 100, ' + pulsedOpacity + ')';
+            ctx.fill();
+        });
+        animationFrameId = requestAnimationFrame(animateParticles);
+    }
+
+    function onOptionClick(e) {
+        var option = e.target.closest('.dark-diag-option');
+        if (!option) return;
+        var questionIndex = parseInt(option.getAttribute('data-question'));
+        var siblings = option.parentElement.querySelectorAll('.dark-diag-option');
+        siblings.forEach(function(sib) { sib.classList.remove('selected'); });
+        option.classList.add('selected');
+        answers[questionIndex] = parseInt(option.getAttribute('data-value'));
+        checkAllAnswered();
+    }
+
+    function checkAllAnswered() {
+        var allAnswered = true;
+        for (var i = 0; i < questions.length; i++) {
+            if (answers[i] === undefined) { allAnswered = false; break; }
+        }
+        var btn = container.querySelector('.dark-diag-continue');
+        if (allAnswered && btn) btn.classList.add('visible');
+    }
+
+    function onContinueClick() {
+        if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        diagnosticScreen.style.opacity = '0';
+        setTimeout(function() {
+            diagnosticScreen.style.display = 'none';
+            mainContent.classList.add('visible');
+            Darkness.init(mainContent);
+            Darkness.start();
+        }, 500);
+    }
+
+    function showQuestionsSequentially() {
+        var questionEls = container.querySelectorAll('.dark-diag-question');
+        questionEls.forEach(function(el, index) {
+            setTimeout(function() { el.classList.add('visible'); }, 200 + index * 120);
+        });
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            addStyles();
+            answers = [];
+            container.innerHTML = '\
+                <div class="dark-diag-container" id="dark-diag-screen">\
+                    <canvas class="dark-diag-canvas"></canvas>\
+                    <div class="dark-diag-vignette"></div>\
+                    <div class="dark-diag-panel" id="dark-diag-panel">\
+                        ' + buildQuestionsHTML() + '\
+                        <button class="dark-diag-continue">Continue to Experience</button>\
+                    </div>\
+                </div>\
+                <div class="dark-diag-main" id="dark-diag-main"></div>\
+            ';
+            diagnosticScreen = container.querySelector('#dark-diag-screen');
+            mainContent = container.querySelector('#dark-diag-main');
+            questionsPanel = container.querySelector('#dark-diag-panel');
+            initParticles();
+        },
+        start: function() {
+            container.querySelectorAll('.dark-diag-option').forEach(function(opt) {
+                opt.addEventListener('click', onOptionClick);
+            });
+            var btn = container.querySelector('.dark-diag-continue');
+            if (btn) btn.addEventListener('click', onContinueClick);
+            animateParticles();
+            setTimeout(function() {
+                questionsPanel.classList.add('visible');
+                showQuestionsSequentially();
+            }, 300);
+        },
+        dispose: function() {
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (Darkness && Darkness.dispose) Darkness.dispose();
+            if (container) container.innerHTML = '';
+            particles = [];
+            answers = [];
+        },
+        pause: function() {
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (Darkness && Darkness.pause) Darkness.pause();
+        },
+        resume: function() {
+            if (!animationFrameId && diagnosticScreen && diagnosticScreen.style.display !== 'none') animateParticles();
+            if (Darkness && Darkness.resume) Darkness.resume();
+        }
+    };
+}();
+
+// Heights Diagnostic Module - wraps the Ocean experience (renamed to Heights)
+var heightsDiagnostic = heightsDiagnostic || function() {
+    var container;
+    var diagnosticScreen, mainContent, questionsPanel;
+    var questions = [
+        { q: "Do you feel anxious when at high places?", options: ["Never", "Sometimes", "Often", "Always"] },
+        { q: "Have you avoided tall buildings, bridges, or balconies due to fear?", options: ["Never", "Once or twice", "Several times", "Always avoid"] },
+        { q: "Do you experience physical symptoms (dizziness, weak knees) at heights?", options: ["No symptoms", "Mild", "Moderate", "Severe"] },
+        { q: "How would you rate your fear of heights?", options: ["No fear", "Mild", "Moderate", "Severe"] },
+        { q: "Do you feel an urge to jump or fear of falling when at heights?", options: ["Not at all", "Occasionally", "Often", "Constantly"] },
+        { q: "Does looking down from a height cause immediate panic?", options: ["Never", "Rarely", "Sometimes", "Always"] }
+    ];
+    var answers = [];
+    var animationFrameId = null;
+    var clouds = [];
+    var birds = [];
+    var canvas, ctx;
+
+    function addStyles() {
+        if (!document.getElementById('heights-diagnostic-styles')) {
+            var style = document.createElement('style');
+            style.id = 'heights-diagnostic-styles';
+            style.innerHTML = '\
+                .heights-diag-container {\
+                    width: 100%; height: 100%;\
+                    background: linear-gradient(180deg, #87CEEB 0%, #B0E0E6 30%, #E0F6FF 60%, #F0F8FF 100%);\
+                    position: relative; overflow: hidden;\
+                }\
+                .heights-diag-canvas {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    pointer-events: none;\
+                }\
+                .heights-diag-ground {\
+                    position: absolute; bottom: 0; left: 0; width: 100%; height: 15%;\
+                    background: linear-gradient(180deg, #8fbc8f 0%, #228b22 50%, #006400 100%);\
+                    opacity: 0.6;\
+                }\
+                .heights-diag-panel {\
+                    position: absolute; top: 50%; left: 50%;\
+                    transform: translate(-50%, -50%);\
+                    width: 600px; max-width: 90%; max-height: 85%;\
+                    display: flex; flex-direction: column;\
+                    padding: 40px 50px; box-sizing: border-box; overflow-y: auto;\
+                    opacity: 0; transition: opacity 0.6s ease;\
+                }\
+                .heights-diag-panel.visible { opacity: 1; }\
+                .heights-diag-title {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 28px; color: #2c3e50; text-align: center; margin-bottom: 30px;\
+                }\
+                .heights-diag-question {\
+                    margin-bottom: 22px; opacity: 0; transform: translateY(15px);\
+                    transition: opacity 0.4s ease, transform 0.4s ease;\
+                }\
+                .heights-diag-question.visible { opacity: 1; transform: translateY(0); }\
+                .heights-diag-question-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 16px; color: #2c3e50; margin-bottom: 10px;\
+                }\
+                .heights-diag-options { display: flex; flex-wrap: wrap; gap: 8px; }\
+                .heights-diag-option {\
+                    display: flex; align-items: center; gap: 6px; cursor: pointer;\
+                    padding: 6px 14px; border-radius: 18px;\
+                    background: rgba(255,255,255,0.6); transition: all 0.2s ease;\
+                }\
+                .heights-diag-option:hover { background: rgba(255,255,255,0.85); }\
+                .heights-diag-option.selected { background: rgba(70,130,180,0.9); }\
+                .heights-diag-option.selected .heights-diag-option-text { color: #fff; }\
+                .heights-diag-circle {\
+                    width: 16px; height: 16px; border-radius: 50%;\
+                    border: 2px solid rgba(44,62,80,0.5); background: transparent;\
+                }\
+                .heights-diag-option.selected .heights-diag-circle { background: #fff; border-color: #fff; }\
+                .heights-diag-option-text {\
+                    font-family: "Crimson Text", Georgia, serif;\
+                    font-size: 14px; color: #2c3e50;\
+                }\
+                .heights-diag-continue {\
+                    margin-top: 25px; padding: 14px 40px;\
+                    font-family: "Crimson Text", Georgia, serif; font-size: 17px;\
+                    background: #4682b4; color: #fff; border: none;\
+                    border-radius: 25px; cursor: pointer; opacity: 0;\
+                    transform: translateY(10px); transition: all 0.3s ease; align-self: center;\
+                }\
+                .heights-diag-continue.visible { opacity: 1; transform: translateY(0); }\
+                .heights-diag-continue:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(70,130,180,0.4); }\
+                .heights-diag-main {\
+                    position: absolute; top: 0; left: 0; width: 100%; height: 100%;\
+                    opacity: 0; pointer-events: none; transition: opacity 0.5s ease;\
+                }\
+                .heights-diag-main.visible { opacity: 1; pointer-events: auto; }\
+            ';
+            document.head.appendChild(style);
+        }
+    }
+
+    function buildQuestionsHTML() {
+        var html = '<div class="heights-diag-title">Fear of Heights Assessment</div>';
+        for (var i = 0; i < questions.length; i++) {
+            html += '<div class="heights-diag-question" data-index="' + i + '">';
+            html += '<div class="heights-diag-question-text">' + (i + 1) + '. ' + questions[i].q + '</div>';
+            html += '<div class="heights-diag-options">';
+            for (var j = 0; j < questions[i].options.length; j++) {
+                html += '<div class="heights-diag-option" data-question="' + i + '" data-value="' + j + '">';
+                html += '<div class="heights-diag-circle"></div>';
+                html += '<span class="heights-diag-option-text">' + questions[i].options[j] + '</span>';
+                html += '</div>';
+            }
+            html += '</div></div>';
+        }
+        return html;
+    }
+
+    function initAnimation() {
+        canvas = container.querySelector('.heights-diag-canvas');
+        if (!canvas) return;
+        ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        clouds = [];
+        birds = [];
+        // Create clouds
+        for (var i = 0; i < 5; i++) {
+            clouds.push({
+                x: Math.random() * canvas.width,
+                y: 50 + Math.random() * 150,
+                width: 80 + Math.random() * 60,
+                speed: 0.2 + Math.random() * 0.3,
+                opacity: 0.7 + Math.random() * 0.3
+            });
+        }
+        // Create birds
+        for (var j = 0; j < 8; j++) {
+            birds.push({
+                x: Math.random() * canvas.width,
+                y: 100 + Math.random() * 200,
+                size: 3 + Math.random() * 4,
+                speed: 1 + Math.random() * 1.5,
+                wingPhase: Math.random() * Math.PI * 2
+            });
+        }
+    }
+
+    function drawCloud(x, y, width, opacity) {
+        ctx.fillStyle = 'rgba(255, 255, 255, ' + opacity + ')';
+        ctx.beginPath();
+        ctx.ellipse(x, y, width * 0.5, width * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(x - width * 0.25, y + 5, width * 0.3, width * 0.2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(x + width * 0.25, y + 5, width * 0.35, width * 0.22, 0, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function drawBird(x, y, size, wingPhase) {
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        var wingY = Math.sin(wingPhase) * size * 0.5;
+        ctx.moveTo(x - size, y + wingY);
+        ctx.quadraticCurveTo(x - size * 0.3, y - size * 0.3, x, y);
+        ctx.quadraticCurveTo(x + size * 0.3, y - size * 0.3, x + size, y + wingY);
+        ctx.stroke();
+    }
+
+    function animate() {
+        if (!ctx || !canvas) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Draw clouds
+        clouds.forEach(function(c) {
+            c.x -= c.speed;
+            if (c.x + c.width < 0) c.x = canvas.width + c.width;
+            drawCloud(c.x, c.y, c.width, c.opacity);
+        });
+        // Draw birds
+        birds.forEach(function(b) {
+            b.x += b.speed;
+            b.wingPhase += 0.15;
+            if (b.x > canvas.width + 20) {
+                b.x = -20;
+                b.y = 100 + Math.random() * 200;
+            }
+            drawBird(b.x, b.y, b.size, b.wingPhase);
+        });
+        animationFrameId = requestAnimationFrame(animate);
+    }
+
+    function onOptionClick(e) {
+        var option = e.target.closest('.heights-diag-option');
+        if (!option) return;
+        var questionIndex = parseInt(option.getAttribute('data-question'));
+        var siblings = option.parentElement.querySelectorAll('.heights-diag-option');
+        siblings.forEach(function(sib) { sib.classList.remove('selected'); });
+        option.classList.add('selected');
+        answers[questionIndex] = parseInt(option.getAttribute('data-value'));
+        checkAllAnswered();
+    }
+
+    function checkAllAnswered() {
+        var allAnswered = true;
+        for (var i = 0; i < questions.length; i++) {
+            if (answers[i] === undefined) { allAnswered = false; break; }
+        }
+        var btn = container.querySelector('.heights-diag-continue');
+        if (allAnswered && btn) btn.classList.add('visible');
+    }
+
+    function onContinueClick() {
+        if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+        diagnosticScreen.style.opacity = '0';
+        setTimeout(function() {
+            diagnosticScreen.style.display = 'none';
+            mainContent.classList.add('visible');
+            Ocean.init(mainContent);
+            Ocean.start();
+        }, 500);
+    }
+
+    function showQuestionsSequentially() {
+        var questionEls = container.querySelectorAll('.heights-diag-question');
+        questionEls.forEach(function(el, index) {
+            setTimeout(function() { el.classList.add('visible'); }, 200 + index * 120);
+        });
+    }
+
+    return {
+        init: function(parentElement) {
+            container = parentElement;
+            addStyles();
+            answers = [];
+            container.innerHTML = '\
+                <div class="heights-diag-container" id="heights-diag-screen">\
+                    <canvas class="heights-diag-canvas"></canvas>\
+                    <div class="heights-diag-ground"></div>\
+                    <div class="heights-diag-panel" id="heights-diag-panel">\
+                        ' + buildQuestionsHTML() + '\
+                        <button class="heights-diag-continue">Continue to Experience</button>\
+                    </div>\
+                </div>\
+                <div class="heights-diag-main" id="heights-diag-main"></div>\
+            ';
+            diagnosticScreen = container.querySelector('#heights-diag-screen');
+            mainContent = container.querySelector('#heights-diag-main');
+            questionsPanel = container.querySelector('#heights-diag-panel');
+            initAnimation();
+        },
+        start: function() {
+            container.querySelectorAll('.heights-diag-option').forEach(function(opt) {
+                opt.addEventListener('click', onOptionClick);
+            });
+            var btn = container.querySelector('.heights-diag-continue');
+            if (btn) btn.addEventListener('click', onContinueClick);
+            animate();
+            setTimeout(function() {
+                questionsPanel.classList.add('visible');
+                showQuestionsSequentially();
+            }, 300);
+        },
+        dispose: function() {
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (Ocean && Ocean.dispose) Ocean.dispose();
+            if (container) container.innerHTML = '';
+            clouds = [];
+            birds = [];
+            answers = [];
+        },
+        pause: function() {
+            if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
+            if (Ocean && Ocean.pause) Ocean.pause();
+        },
+        resume: function() {
+            if (!animationFrameId && diagnosticScreen && diagnosticScreen.style.display !== 'none') animate();
+            if (Ocean && Ocean.resume) Ocean.resume();
+        }
+    };
+}();
+
 var FireflyTown = FireflyTown || function() {
     var container;
     var scene, camera, renderer, playerMesh;
@@ -5567,11 +6594,11 @@ Y.appendChild(CMDetect.circleMask);N=document.getElementById("triangulation-guid
 !0;TweenLite.killTweensOf(O);r();null!=T&&T.pause()},resume:function(){B=!1;null==T?n():T.resume()},resize:k}}(),ConfigModel=ConfigModel||function(){function d(a,b,c,d){var e=ConfigModel.configArr[b].poster.browser,f=ConfigModel.configArr[b].poster.preload;CircleAniamtion.ready();-1!=e.indexOf(CMDetect.browserName)||CMDetect.isDevice?(e=ConfigModel.configArr[b].poster.classfn,m(f)):(e=BrowserError,CircleAniamtion.loaded());Contents.init(a,b,c,d,e)}function m(a){var b=[],c,d=a.length;if(0!=d){for(c=
 0;c<d;c++)b[c]='<img src="'+a[c]+'">';a=b.join("");q.innerHTML=a;var f=$(q).imagesLoaded();f.always(function(){q.innerHTML="";f=null;CircleAniamtion.loaded()})}else CircleAniamtion.loaded()}var g={configArr:null,screensaverArr:null,total:0,screensaverTotal:0,isWhite:0,imgArr:null,screensaverID:null,sectionID:null},k,q,c=[{item:{id:"sheeps",mac:"data/screensaver/fffsheeps_mac_1.0.zip",win:"data/screensaver/fffsheeps_win_1.0.zip"}},{item:{id:"scream",mac:"data/screensaver/fffscream_mac_1.0.zip",win:"data/screensaver/fffscream_win_1.0.zip"}},
 {item:{id:"wipertypo",mac:"data/screensaver/fffwiper_mac_1.0.zip",win:"data/screensaver/fffwiper_win_1.0.zip"}},{item:{id:"rainingmen",mac:"data/screensaver/fffraining_mac_1.0.zip",win:"data/screensaver/fffraining_win_1.0.zip"}}],f=[{poster:{id:"plane",classfn:airplaneDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"injection",classfn:injection,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#111",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
-title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp","data/images/4.webp","data/images/5.webp","data/images/6.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:Darkness,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:Ocean,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
-title:"Ocean",date:"Fear of Oceans",img:"data/poster/ocean",itemcolor:"#259ab3",bgcolor:"#001a33",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42ad",bgcolor:"#2691c9",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"injection",classfn:injectionDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#1a1a2e",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:thunderDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
+title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp","data/images/4.webp","data/images/5.webp","data/images/6.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:darknessDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:heightsDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
+title:"Heights",date:"Fear of Heights",img:"data/poster/ocean",itemcolor:"#259ab3",bgcolor:"#87CEEB",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"circles",date:"Fear of Circles",img:"data/poster/circle",itemcolor:"#29a5c0",bgcolor:"#ddd",preload:["contents/rainingmen/rain.png"],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"ripples",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Insects",date:"Fear of Insects",img:"data/poster/insect",itemcolor:"#80b23c",bgcolor:"#8fc600",preload:["contents/ripple/ripple-mask.png","contents/ripple/ripple1.png","contents/ripple/ripple2.png"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"flipclock",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Heights",date:"Fear of Heights",img:"data/poster/lock",itemcolor:"#83ba3a",bgcolor:"#111",preload:["contents/flipclock/flipbg.png","contents/flipclock/flipbg2.png"],white:1,browser:["ch","ff","sf","ie10"]}},{poster:{id:"triangulation",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
