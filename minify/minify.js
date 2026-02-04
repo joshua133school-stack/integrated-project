@@ -3366,12 +3366,14 @@ var thunderClass = thunderClass || function() {
 }();
 
 var injection = injection || function() {
-    var container, currentStep = 0;
+    var container, currentStep = 0, mosaicRemoved = false, mosaicRemoved2 = false, pixelationLevel = 40, pixelationLevel2 = 40, fadeInterval = null, fadeInterval2 = null, canvas, ctx, sourceImage, canvas2, ctx2, sourceImage2;
 
-    const steps = ['threejs-scene', 'actual-size'];
+    const steps = ['threejs-scene', 'mosaic', 'mosaic2'];
     var threeJsIframe = null;
 
     function setupEventListeners() {
+        const removeMosaicBtn = container.querySelector('#remove-mosaic-btn');
+        const removeMosaicBtn2 = container.querySelector('#remove-mosaic-btn-2');
         const nextBtn = container.querySelector('#injection-next-btn');
         const prevBtn = container.querySelector('#injection-prev-btn');
         const threejsNextBtn = container.querySelector('#threejs-next-btn');
@@ -3380,12 +3382,179 @@ var injection = injection || function() {
             threejsNextBtn.addEventListener('click', nextStep);
         }
 
+        if (removeMosaicBtn) {
+            removeMosaicBtn.addEventListener('mousedown', function() { startMosaicRemoval(1); });
+            removeMosaicBtn.addEventListener('mouseup', function() { stopMosaicRemoval(1); });
+            removeMosaicBtn.addEventListener('mouseleave', function() { stopMosaicRemoval(1); });
+            removeMosaicBtn.addEventListener('touchstart', function(e) { e.preventDefault(); startMosaicRemoval(1); });
+            removeMosaicBtn.addEventListener('touchend', function(e) { e.preventDefault(); stopMosaicRemoval(1); });
+        }
+
+        if (removeMosaicBtn2) {
+            removeMosaicBtn2.addEventListener('mousedown', function() { startMosaicRemoval(2); });
+            removeMosaicBtn2.addEventListener('mouseup', function() { stopMosaicRemoval(2); });
+            removeMosaicBtn2.addEventListener('mouseleave', function() { stopMosaicRemoval(2); });
+            removeMosaicBtn2.addEventListener('touchstart', function(e) { e.preventDefault(); startMosaicRemoval(2); });
+            removeMosaicBtn2.addEventListener('touchend', function(e) { e.preventDefault(); stopMosaicRemoval(2); });
+        }
+
         if (nextBtn) {
             nextBtn.addEventListener('click', nextStep);
         }
 
         if (prevBtn) {
             prevBtn.addEventListener('click', prevStep);
+        }
+    }
+
+    function initCanvas() {
+        canvas = container.querySelector('#mosaic-canvas');
+        sourceImage = container.querySelector('#source-image');
+        canvas2 = container.querySelector('#mosaic-canvas-2');
+        sourceImage2 = container.querySelector('#source-image-2');
+
+        function waitForImage(img, callback) {
+            if (img.complete && img.naturalWidth > 0) {
+                callback();
+            } else {
+                img.onload = callback;
+            }
+        }
+
+        if (canvas && sourceImage) {
+            ctx = canvas.getContext('2d');
+            canvas.width = 500;
+            canvas.height = 500;
+            waitForImage(sourceImage, function() {
+                drawPixelated(pixelationLevel, 1);
+            });
+        }
+
+        if (canvas2 && sourceImage2) {
+            ctx2 = canvas2.getContext('2d');
+            canvas2.width = 500;
+            canvas2.height = 500;
+            waitForImage(sourceImage2, function() {
+                drawPixelated(pixelationLevel2, 2);
+            });
+        }
+    }
+
+    function drawPixelated(pixelSize, canvasNum) {
+        var currentCtx, currentSourceImage, currentCanvas;
+
+        if (canvasNum === 2) {
+            currentCtx = ctx2;
+            currentSourceImage = sourceImage2;
+            currentCanvas = canvas2;
+        } else {
+            currentCtx = ctx;
+            currentSourceImage = sourceImage;
+            currentCanvas = canvas;
+        }
+
+        if (!currentCtx || !currentSourceImage || !currentCanvas) return;
+
+        const w = currentCanvas.width;
+        const h = currentCanvas.height;
+
+        const imgW = currentSourceImage.naturalWidth || currentSourceImage.width;
+        const imgH = currentSourceImage.naturalHeight || currentSourceImage.height;
+
+        if (!imgW || !imgH) return;
+
+        currentCtx.fillStyle = '#f5f5f5';
+        currentCtx.fillRect(0, 0, w, h);
+
+        var sx, sy, sw, sh;
+        const imgRatio = imgW / imgH;
+        const canvasRatio = w / h;
+
+        if (imgRatio > canvasRatio) {
+            sh = imgH;
+            sw = imgH * canvasRatio;
+            sx = (imgW - sw) / 2;
+            sy = 0;
+        } else {
+            sw = imgW;
+            sh = imgW / canvasRatio;
+            sx = 0;
+            sy = (imgH - sh) / 2;
+        }
+
+        if (pixelSize <= 1) {
+            currentCtx.drawImage(currentSourceImage, sx, sy, sw, sh, 0, 0, w, h);
+            return;
+        }
+
+        currentCtx.imageSmoothingEnabled = false;
+
+        var tempCanvas = document.createElement('canvas');
+        tempCanvas.width = w;
+        tempCanvas.height = h;
+        var tempCtx = tempCanvas.getContext('2d');
+        tempCtx.drawImage(currentSourceImage, sx, sy, sw, sh, 0, 0, w, h);
+
+        const scaledW = Math.ceil(w / pixelSize);
+        const scaledH = Math.ceil(h / pixelSize);
+
+        currentCtx.drawImage(tempCanvas, 0, 0, w, h, 0, 0, scaledW, scaledH);
+        currentCtx.drawImage(currentCanvas, 0, 0, scaledW, scaledH, 0, 0, w, h);
+    }
+
+    function startMosaicRemoval(canvasNum) {
+        if (canvasNum === 2) {
+            if (mosaicRemoved2 || fadeInterval2) return;
+
+            const btn = container.querySelector('#remove-mosaic-btn-2');
+
+            fadeInterval2 = setInterval(function() {
+                pixelationLevel2 -= 0.4;
+
+                if (pixelationLevel2 <= 1) {
+                    pixelationLevel2 = 1;
+                    clearInterval(fadeInterval2);
+                    fadeInterval2 = null;
+                    mosaicRemoved2 = true;
+                    btn.textContent = '✓';
+                    btn.style.background = '#4CAF50';
+                }
+
+                drawPixelated(pixelationLevel2, 2);
+            }, 100);
+        } else {
+            if (mosaicRemoved || fadeInterval) return;
+
+            const btn = container.querySelector('#remove-mosaic-btn');
+
+            fadeInterval = setInterval(function() {
+                pixelationLevel -= 0.4;
+
+                if (pixelationLevel <= 1) {
+                    pixelationLevel = 1;
+                    clearInterval(fadeInterval);
+                    fadeInterval = null;
+                    mosaicRemoved = true;
+                    btn.textContent = '✓';
+                    btn.style.background = '#4CAF50';
+                }
+
+                drawPixelated(pixelationLevel, 1);
+            }, 100);
+        }
+    }
+
+    function stopMosaicRemoval(canvasNum) {
+        if (canvasNum === 2) {
+            if (fadeInterval2) {
+                clearInterval(fadeInterval2);
+                fadeInterval2 = null;
+            }
+        } else {
+            if (fadeInterval) {
+                clearInterval(fadeInterval);
+                fadeInterval = null;
+            }
         }
     }
 
@@ -3519,44 +3688,51 @@ var injection = injection || function() {
                     cursor: not-allowed;
                 }
 
-                .injection-actual-size {
-                    background: #fff;
-                    border: 2px solid #e0e0e0;
-                    padding: 40px;
-                    border-radius: 20px;
-                    text-align: center;
-                    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
-                }
-
-                .injection-needle-real {
-                    margin: 30px auto;
-                    height: 1px;
-                    background: #333;
+                .injection-mosaic-container {
                     position: relative;
+                    width: 500px;
+                    height: 500px;
+                    margin: 20px 0;
+                    border-radius: 50%;
+                    overflow: hidden;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+                    background: #f5f5f5;
                 }
 
-                .injection-needle-25g {
-                    width: 0.5mm;
+                #mosaic-canvas, #mosaic-canvas-2 {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    display: block;
+                    margin: 0;
+                    padding: 0;
+                    border: 0;
+                    image-rendering: pixelated;
+                    image-rendering: -moz-crisp-edges;
+                    image-rendering: crisp-edges;
                 }
 
-                .injection-needle-23g {
-                    width: 0.6mm;
+                #source-image, #source-image-2 {
+                    display: none;
                 }
 
-                .injection-needle-21g {
-                    width: 0.8mm;
-                }
-
-                .injection-needle-label {
+                #remove-mosaic-btn, #remove-mosaic-btn-2 {
+                    width: 80px;
+                    height: 80px;
+                    border-radius: 50%;
+                    padding: 0;
                     font-size: 14px;
-                    margin: 10px 0;
-                    opacity: 0.9;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    text-align: center;
+                    line-height: 1.2;
                 }
 
-                .injection-comparison {
-                    margin-top: 30px;
-                    font-size: 18px;
-                    line-height: 1.8;
+                #remove-mosaic-btn:hover:not(:disabled), #remove-mosaic-btn-2:hover:not(:disabled) {
+                    transform: scale(1.05);
                 }
 
                 .injection-navigation {
@@ -3630,29 +3806,22 @@ var injection = injection || function() {
                         <button id="threejs-next-btn" class="injection-nav-btn threejs-nav-btn" data-i18n="common.next">${t('common.next') || 'Next'}</button>
                     </div>
 
-                    <!-- Step 2: Actual Size -->
+                    <!-- Step 2: Mosaic Needle -->
                     <div class="injection-step" style="display: none;">
-                        <h1 class="injection-title" data-i18n="injection.actualNeedleSize">${t('injection.actualNeedleSize')}</h1>
-                        <p class="injection-subtitle" data-i18n="injection.needleSizeSubtitle">${t('injection.needleSizeSubtitle')}</p>
-                        <div class="injection-actual-size">
-                            <div>
-                                <div class="injection-needle-label" data-i18n="injection.gauge25">${t('injection.gauge25')}</div>
-                                <div class="injection-needle-real injection-needle-25g"></div>
-                            </div>
-                            <div>
-                                <div class="injection-needle-label" data-i18n="injection.gauge23">${t('injection.gauge23')}</div>
-                                <div class="injection-needle-real injection-needle-23g"></div>
-                            </div>
-                            <div>
-                                <div class="injection-needle-label" data-i18n="injection.gauge21">${t('injection.gauge21')}</div>
-                                <div class="injection-needle-real injection-needle-21g"></div>
-                            </div>
-                            <div class="injection-comparison">
-                                <p data-i18n="injection.needleComparison1">${t('injection.needleComparison1')}</p>
-                                <p data-i18n="injection.needleComparison2">${t('injection.needleComparison2')}</p>
-                                <p data-i18n="injection.needleComparison3">${t('injection.needleComparison3')}</p>
-                            </div>
+                        <div class="injection-mosaic-container">
+                            <canvas id="mosaic-canvas"></canvas>
+                            <img id="source-image" src="data/images/injectionimg1.jpg" alt="Needle" crossorigin="anonymous">
                         </div>
+                        <button id="remove-mosaic-btn" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
+                    </div>
+
+                    <!-- Step 3: Second Mosaic Needle -->
+                    <div class="injection-step" style="display: none;">
+                        <div class="injection-mosaic-container">
+                            <canvas id="mosaic-canvas-2"></canvas>
+                            <img id="source-image-2" src="data/images/injection2.webp" alt="Needle" crossorigin="anonymous">
+                        </div>
+                        <button id="remove-mosaic-btn-2" class="injection-btn" data-i18n="injection.holdToClear">${t('injection.holdToClear')}</button>
                     </div>
 
                     <!-- Navigation -->
@@ -3668,22 +3837,50 @@ var injection = injection || function() {
 
         start: function() {
             setupEventListeners();
+            initCanvas();
             // Store reference to Three.js iframe for cleanup
             threeJsIframe = container.querySelector('#injection-threejs-iframe');
             showStep(0);
         },
 
         dispose: function() {
+            if (fadeInterval) {
+                clearInterval(fadeInterval);
+                fadeInterval = null;
+            }
+            if (fadeInterval2) {
+                clearInterval(fadeInterval2);
+                fadeInterval2 = null;
+            }
             // Clean up Three.js iframe
             if (threeJsIframe) {
                 threeJsIframe.src = 'about:blank';
                 threeJsIframe = null;
             }
             currentStep = 0;
+            mosaicRemoved = false;
+            mosaicRemoved2 = false;
+            pixelationLevel = 40;
+            pixelationLevel2 = 40;
+            canvas = null;
+            ctx = null;
+            sourceImage = null;
+            canvas2 = null;
+            ctx2 = null;
+            sourceImage2 = null;
             container = null;
         },
 
-        pause: function() {},
+        pause: function() {
+            if (fadeInterval) {
+                clearInterval(fadeInterval);
+                fadeInterval = null;
+            }
+            if (fadeInterval2) {
+                clearInterval(fadeInterval2);
+                fadeInterval2 = null;
+            }
+        },
 
         resume: function() {
             // Resume animations if needed
