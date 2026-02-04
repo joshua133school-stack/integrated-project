@@ -21,48 +21,25 @@
             width: 100vw;
             height: 100vh;
             position: relative;
-        }
-
-        #info-panel {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 15px 20px;
-            border-radius: 10px;
-            font-size: 14px;
-            max-width: 280px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        #info-panel h3 {
-            margin-bottom: 10px;
-            color: #64b5f6;
-            font-size: 16px;
-        }
-
-        #info-panel p {
-            margin-bottom: 8px;
-            line-height: 1.4;
+            cursor: crosshair;
         }
 
         #needle-info {
             position: absolute;
-            bottom: 20px;
+            bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.8);
+            background: rgba(0, 0, 0, 0.85);
             color: #fff;
-            padding: 15px 30px;
-            border-radius: 10px;
-            font-size: 14px;
+            padding: 20px 40px;
+            border-radius: 12px;
+            font-size: 16px;
             text-align: center;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             opacity: 0;
             transition: opacity 0.3s ease;
+            pointer-events: none;
         }
 
         #needle-info.visible {
@@ -70,60 +47,47 @@
         }
 
         #needle-info .gauge {
-            font-size: 24px;
+            font-size: 32px;
             font-weight: bold;
             color: #4fc3f7;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         #needle-info .description {
             color: #b0bec5;
+            font-size: 14px;
         }
 
-        #controls {
+        #hint {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            top: 30px;
+            left: 50%;
+            transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.7);
-            color: #fff;
-            padding: 15px;
-            border-radius: 10px;
-            font-size: 12px;
+            color: #90caf9;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            opacity: 1;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
         }
 
-        #controls p {
-            margin: 5px 0;
-        }
-
-        .key {
-            background: rgba(255, 255, 255, 0.2);
-            padding: 2px 8px;
-            border-radius: 4px;
-            font-family: monospace;
+        #hint.hidden {
+            opacity: 0;
         }
     </style>
 </head>
 <body>
     <div id="container"></div>
 
-    <div id="info-panel">
-        <h3>Needle Gauge Reference</h3>
-        <p>Smaller gauge number = thicker needle</p>
-        <p>Larger gauge number = thinner needle</p>
-        <p style="margin-top: 10px; color: #90caf9;">Hover over syringes to see details</p>
-    </div>
+    <div id="hint">Move your mouse to look around. Hover over syringes to learn about needle gauges.</div>
 
     <div id="needle-info">
         <div class="gauge">21G</div>
         <div class="description">Standard medical needle</div>
-    </div>
-
-    <div id="controls">
-        <p><span class="key">Drag</span> Rotate view</p>
-        <p><span class="key">Scroll</span> Zoom in/out</p>
-        <p><span class="key">Hover</span> View needle info</p>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -131,13 +95,20 @@
         // Scene setup
         const container = document.getElementById('container');
         const needleInfo = document.getElementById('needle-info');
+        const hint = document.getElementById('hint');
+
+        // Hide hint after 5 seconds
+        setTimeout(() => hint.classList.add('hidden'), 5000);
 
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x1a1a2e);
+        scene.background = new THREE.Color(0x0d1520);
+        scene.fog = new THREE.FogExp2(0x0d1520, 0.02);
 
-        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 8, 18);
-        camera.lookAt(0, 0, 0);
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+        // Position camera to look at the arm from a natural viewing angle
+        const baseCameraPos = new THREE.Vector3(0, 4, 12);
+        camera.position.copy(baseCameraPos);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -145,34 +116,51 @@
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.2;
+        renderer.toneMappingExposure = 1.0;
         container.appendChild(renderer.domElement);
 
-        // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+        // Camera look-around variables
+        let targetLookX = 0;
+        let targetLookY = 0;
+        let currentLookX = 0;
+        let currentLookY = 0;
+        const lookRangeX = 8;  // How far left/right the camera can look
+        const lookRangeY = 4;  // How far up/down the camera can look
+        const lookSmoothness = 0.08;
+
+        // Lighting - Medical/clinical feel
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
         scene.add(ambientLight);
 
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1.0);
-        mainLight.position.set(10, 20, 10);
+        // Main overhead light
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        mainLight.position.set(5, 15, 10);
         mainLight.castShadow = true;
         mainLight.shadow.mapSize.width = 2048;
         mainLight.shadow.mapSize.height = 2048;
         mainLight.shadow.camera.near = 1;
         mainLight.shadow.camera.far = 50;
-        mainLight.shadow.camera.left = -15;
-        mainLight.shadow.camera.right = 15;
-        mainLight.shadow.camera.top = 15;
-        mainLight.shadow.camera.bottom = -15;
+        mainLight.shadow.camera.left = -20;
+        mainLight.shadow.camera.right = 20;
+        mainLight.shadow.camera.top = 20;
+        mainLight.shadow.camera.bottom = -20;
         mainLight.shadow.bias = -0.001;
         scene.add(mainLight);
 
-        const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.3);
-        fillLight.position.set(-10, 5, -5);
+        // Fill light from the side
+        const fillLight = new THREE.DirectionalLight(0x87ceeb, 0.4);
+        fillLight.position.set(-10, 8, 5);
         scene.add(fillLight);
 
-        const rimLight = new THREE.DirectionalLight(0xffd4a6, 0.4);
-        rimLight.position.set(0, 5, -15);
-        scene.add(rimLight);
+        // Soft backlight
+        const backLight = new THREE.DirectionalLight(0xffd4a6, 0.3);
+        backLight.position.set(0, 5, -10);
+        scene.add(backLight);
+
+        // Point light near syringes for highlights
+        const syringeLight = new THREE.PointLight(0xffffff, 0.5, 15);
+        syringeLight.position.set(-2, 6, -3);
+        scene.add(syringeLight);
 
         // Materials
         const skinMaterial = new THREE.MeshStandardMaterial({
@@ -200,8 +188,8 @@
             const armGroup = new THREE.Group();
 
             // Forearm - using capsule-like shape
-            const forearmLength = 8;
-            const forearmRadius = 1.2;
+            const forearmLength = 10;
+            const forearmRadius = 1.4;
 
             // Create forearm with tapered shape
             const forearmPoints = [];
@@ -221,43 +209,41 @@
             armGroup.add(forearm);
 
             // Wrist
-            const wristGeometry = new THREE.CylinderGeometry(0.8, 0.85, 1.5, 32);
+            const wristGeometry = new THREE.CylinderGeometry(0.9, 0.95, 1.8, 32);
             const wrist = new THREE.Mesh(wristGeometry, skinMaterial);
             wrist.rotation.z = Math.PI / 2;
-            wrist.position.set(2.5, 0, 0);
+            wrist.position.set(3.5, 0, 0);
             wrist.castShadow = true;
             armGroup.add(wrist);
 
             // Palm/Hand base
-            const handGeometry = new THREE.BoxGeometry(2.5, 0.8, 2);
-            handGeometry.translate(0, 0, 0);
+            const handGeometry = new THREE.BoxGeometry(3, 0.9, 2.4);
             const handMesh = new THREE.Mesh(handGeometry, skinMaterial);
-            handMesh.position.set(4.5, 0, 0);
+            handMesh.position.set(5.8, 0, 0);
             handMesh.castShadow = true;
 
-            // Round the hand edges
             const handGroup = new THREE.Group();
             handGroup.add(handMesh);
 
             // Thumb
-            const thumbGroup = createFinger(0.35, [1.2, 1.0], Math.PI * 0.3);
-            thumbGroup.position.set(3.8, 0.2, -1.0);
+            const thumbGroup = createFinger(0.4, [1.4, 1.2], Math.PI * 0.3);
+            thumbGroup.position.set(4.8, 0.2, -1.2);
             thumbGroup.rotation.y = -Math.PI * 0.4;
             thumbGroup.rotation.z = Math.PI * 0.15;
             handGroup.add(thumbGroup);
 
             // Fingers
             const fingerConfigs = [
-                { radius: 0.22, lengths: [0.8, 0.6, 0.5], zPos: -0.75 },  // Index
-                { radius: 0.24, lengths: [0.9, 0.7, 0.55], zPos: -0.25 }, // Middle
-                { radius: 0.22, lengths: [0.85, 0.65, 0.5], zPos: 0.25 }, // Ring
-                { radius: 0.18, lengths: [0.7, 0.5, 0.4], zPos: 0.75 },   // Pinky
+                { radius: 0.26, lengths: [1.0, 0.75, 0.6], zPos: -0.9 },
+                { radius: 0.28, lengths: [1.1, 0.85, 0.65], zPos: -0.3 },
+                { radius: 0.26, lengths: [1.0, 0.8, 0.6], zPos: 0.3 },
+                { radius: 0.22, lengths: [0.85, 0.6, 0.5], zPos: 0.9 },
             ];
 
             fingerConfigs.forEach((config, i) => {
                 const finger = createFinger(config.radius, config.lengths);
-                finger.position.set(5.7, 0, config.zPos);
-                finger.rotation.z = -0.1 - i * 0.02; // Slight curl
+                finger.position.set(7.3, 0, config.zPos);
+                finger.rotation.z = -0.15 - i * 0.03;
                 handGroup.add(finger);
             });
 
@@ -283,7 +269,6 @@
                 segment.castShadow = true;
                 fingerGroup.add(segment);
 
-                // Add nail to last segment
                 if (i === segmentLengths.length - 1) {
                     const nailGeometry = new THREE.BoxGeometry(length * 0.5, segRadius * 0.3, segRadius * 1.4);
                     const nail = new THREE.Mesh(nailGeometry, nailMaterial);
@@ -301,43 +286,40 @@
         function createVeins() {
             const veinGroup = new THREE.Group();
 
-            // Main cephalic vein (outer arm)
             const veinPath1 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-5, 0.9, -0.5),
-                new THREE.Vector3(-3, 1.0, -0.3),
-                new THREE.Vector3(-1, 0.95, -0.4),
-                new THREE.Vector3(1, 0.85, -0.2),
-                new THREE.Vector3(2.5, 0.75, -0.3),
+                new THREE.Vector3(-6, 1.1, -0.6),
+                new THREE.Vector3(-4, 1.2, -0.4),
+                new THREE.Vector3(-2, 1.15, -0.5),
+                new THREE.Vector3(0, 1.0, -0.3),
+                new THREE.Vector3(2, 0.9, -0.4),
+                new THREE.Vector3(3.5, 0.85, -0.3),
             ]);
 
-            // Main basilic vein (inner arm)
             const veinPath2 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-5, 0.8, 0.6),
-                new THREE.Vector3(-3, 0.9, 0.5),
-                new THREE.Vector3(-1, 0.85, 0.4),
-                new THREE.Vector3(1, 0.75, 0.3),
-                new THREE.Vector3(2, 0.7, 0.2),
+                new THREE.Vector3(-6, 1.0, 0.7),
+                new THREE.Vector3(-4, 1.1, 0.6),
+                new THREE.Vector3(-2, 1.05, 0.5),
+                new THREE.Vector3(0, 0.95, 0.4),
+                new THREE.Vector3(2, 0.85, 0.3),
             ]);
 
-            // Median cubital vein (elbow area - common injection site)
             const veinPath3 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-4, 1.1, 0.1),
-                new THREE.Vector3(-3.5, 1.15, 0),
-                new THREE.Vector3(-3, 1.1, -0.1),
+                new THREE.Vector3(-5, 1.3, 0.1),
+                new THREE.Vector3(-4.5, 1.35, 0),
+                new THREE.Vector3(-4, 1.3, -0.15),
             ]);
 
-            // Branching veins
             const veinPath4 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-2, 0.92, -0.2),
-                new THREE.Vector3(-1.5, 0.98, 0.1),
-                new THREE.Vector3(-1, 0.9, 0.3),
+                new THREE.Vector3(-3, 1.12, -0.3),
+                new THREE.Vector3(-2.5, 1.18, 0.1),
+                new THREE.Vector3(-2, 1.1, 0.4),
             ]);
 
             const veinPaths = [
-                { path: veinPath1, radius: 0.08 },
-                { path: veinPath2, radius: 0.07 },
-                { path: veinPath3, radius: 0.09 },
-                { path: veinPath4, radius: 0.05 },
+                { path: veinPath1, radius: 0.1 },
+                { path: veinPath2, radius: 0.09 },
+                { path: veinPath3, radius: 0.11 },
+                { path: veinPath4, radius: 0.06 },
             ];
 
             veinPaths.forEach(({ path, radius }) => {
@@ -350,51 +332,50 @@
             return veinGroup;
         }
 
-        // Syringe data with needle gauge info
+        // Syringe data
         const syringeData = [
             {
                 gauge: '18G',
-                color: 0x4caf50, // Green
-                needleRadius: 0.065,
-                needleLength: 2.5,
+                color: 0x4caf50,
+                needleRadius: 0.07,
+                needleLength: 3.0,
                 description: 'Large bore - Blood donation, IV fluids',
                 volume: '20mL'
             },
             {
                 gauge: '21G',
-                color: 0x4caf50, // Green
-                needleRadius: 0.045,
-                needleLength: 2.0,
+                color: 0x4caf50,
+                needleRadius: 0.05,
+                needleLength: 2.5,
                 description: 'Standard - Blood draws, most injections',
                 volume: '10mL'
             },
             {
                 gauge: '23G',
-                color: 0x2196f3, // Blue
-                needleRadius: 0.035,
-                needleLength: 1.5,
+                color: 0x2196f3,
+                needleRadius: 0.04,
+                needleLength: 2.0,
                 description: 'Medium - Vaccines, medications',
                 volume: '5mL'
             },
             {
                 gauge: '25G',
-                color: 0xff9800, // Orange
-                needleRadius: 0.028,
-                needleLength: 1.5,
+                color: 0xff9800,
+                needleRadius: 0.032,
+                needleLength: 1.8,
                 description: 'Small - Subcutaneous injections',
                 volume: '3mL'
             },
             {
                 gauge: '27G',
-                color: 0x9e9e9e, // Grey
-                needleRadius: 0.022,
-                needleLength: 1.2,
+                color: 0x9e9e9e,
+                needleRadius: 0.025,
+                needleLength: 1.5,
                 description: 'Fine - Insulin, cosmetic injections',
                 volume: '1mL'
             },
         ];
 
-        // Create syringe
         function createSyringe(data, index) {
             const syringeGroup = new THREE.Group();
             syringeGroup.userData = {
@@ -403,257 +384,221 @@
                 type: 'syringe'
             };
 
-            // Scale based on volume
             const volumeScale = parseFloat(data.volume) / 10;
-            const barrelLength = 3 + volumeScale * 2;
-            const barrelRadius = 0.35 + volumeScale * 0.15;
+            const barrelLength = 4 + volumeScale * 2.5;
+            const barrelRadius = 0.4 + volumeScale * 0.18;
 
-            // Barrel (transparent)
+            // Barrel
             const barrelGeometry = new THREE.CylinderGeometry(barrelRadius, barrelRadius, barrelLength, 32);
             const barrelMaterial = new THREE.MeshPhysicalMaterial({
                 color: 0xffffff,
                 transparent: true,
-                opacity: 0.3,
+                opacity: 0.35,
                 roughness: 0.1,
                 metalness: 0.0,
-                transmission: 0.8,
+                transmission: 0.7,
                 thickness: 0.5,
             });
             const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
             barrel.castShadow = true;
             syringeGroup.add(barrel);
 
-            // Barrel markings (graduation lines)
+            // Graduation marks
             const markingsGroup = new THREE.Group();
             const markingMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
             for (let i = 0; i < 10; i++) {
                 const markHeight = 0.01;
-                const markWidth = i % 2 === 0 ? 0.15 : 0.1;
+                const markWidth = i % 2 === 0 ? 0.18 : 0.12;
                 const markGeometry = new THREE.BoxGeometry(markWidth, markHeight, barrelRadius * 2.1);
                 const mark = new THREE.Mesh(markGeometry, markingMaterial);
-                mark.position.y = -barrelLength / 2 + 0.3 + i * (barrelLength - 0.6) / 10;
+                mark.position.y = -barrelLength / 2 + 0.4 + i * (barrelLength - 0.8) / 10;
                 mark.position.x = barrelRadius * 0.95;
                 markingsGroup.add(mark);
             }
             syringeGroup.add(markingsGroup);
 
-            // Liquid inside (partial fill)
+            // Liquid
             const liquidHeight = barrelLength * 0.6;
             const liquidGeometry = new THREE.CylinderGeometry(
-                barrelRadius * 0.9, barrelRadius * 0.9, liquidHeight, 32
+                barrelRadius * 0.88, barrelRadius * 0.88, liquidHeight, 32
             );
             const liquidMaterial = new THREE.MeshPhysicalMaterial({
-                color: 0xe3f2fd,
+                color: 0xb3e5fc,
                 transparent: true,
-                opacity: 0.6,
+                opacity: 0.65,
                 roughness: 0.1,
             });
             const liquid = new THREE.Mesh(liquidGeometry, liquidMaterial);
-            liquid.position.y = -barrelLength / 2 + liquidHeight / 2 + 0.1;
+            liquid.position.y = -barrelLength / 2 + liquidHeight / 2 + 0.15;
             syringeGroup.add(liquid);
 
-            // Plunger
+            // Plunger rod
             const plungerLength = barrelLength * 0.5;
-            const plungerGeometry = new THREE.CylinderGeometry(0.08, 0.08, plungerLength, 16);
+            const plungerGeometry = new THREE.CylinderGeometry(0.1, 0.1, plungerLength, 16);
             const plungerMaterial = new THREE.MeshStandardMaterial({
                 color: 0x424242,
                 roughness: 0.5,
                 metalness: 0.3,
             });
             const plunger = new THREE.Mesh(plungerGeometry, plungerMaterial);
-            plunger.position.y = barrelLength / 2 + plungerLength / 2 - 0.2;
+            plunger.position.y = barrelLength / 2 + plungerLength / 2 - 0.25;
             syringeGroup.add(plunger);
 
-            // Plunger top (thumb rest)
-            const plungerTopGeometry = new THREE.CylinderGeometry(0.4, 0.35, 0.15, 32);
+            // Thumb rest
+            const plungerTopGeometry = new THREE.CylinderGeometry(0.5, 0.42, 0.18, 32);
             const plungerTop = new THREE.Mesh(plungerTopGeometry, plungerMaterial);
-            plungerTop.position.y = barrelLength / 2 + plungerLength - 0.1;
+            plungerTop.position.y = barrelLength / 2 + plungerLength - 0.15;
             syringeGroup.add(plungerTop);
 
-            // Plunger rubber stopper
+            // Rubber stopper
             const stopperGeometry = new THREE.CylinderGeometry(
-                barrelRadius * 0.85, barrelRadius * 0.85, 0.2, 32
+                barrelRadius * 0.83, barrelRadius * 0.83, 0.25, 32
             );
             const stopperMaterial = new THREE.MeshStandardMaterial({
                 color: 0x1a1a1a,
                 roughness: 0.9,
             });
             const stopper = new THREE.Mesh(stopperGeometry, stopperMaterial);
-            stopper.position.y = liquidHeight - barrelLength / 2 + 0.2;
+            stopper.position.y = liquidHeight - barrelLength / 2 + 0.25;
             syringeGroup.add(stopper);
 
-            // Barrel flange (finger grip)
-            const flangeGeometry = new THREE.CylinderGeometry(0.6, 0.6, 0.08, 32);
+            // Finger flange
+            const flangeGeometry = new THREE.CylinderGeometry(0.7, 0.7, 0.1, 32);
             const flangeMaterial = new THREE.MeshStandardMaterial({
                 color: 0xeceff1,
                 roughness: 0.3,
                 metalness: 0.1,
             });
             const flange = new THREE.Mesh(flangeGeometry, flangeMaterial);
-            flange.position.y = barrelLength / 2 - 0.1;
+            flange.position.y = barrelLength / 2 - 0.12;
             syringeGroup.add(flange);
 
-            // Needle hub (colored by gauge)
-            const hubGeometry = new THREE.CylinderGeometry(0.2, barrelRadius * 0.6, 0.5, 32);
+            // Needle hub (color-coded)
+            const hubGeometry = new THREE.CylinderGeometry(0.22, barrelRadius * 0.55, 0.6, 32);
             const hubMaterial = new THREE.MeshStandardMaterial({
                 color: data.color,
                 roughness: 0.4,
                 metalness: 0.1,
             });
             const hub = new THREE.Mesh(hubGeometry, hubMaterial);
-            hub.position.y = -barrelLength / 2 - 0.25;
+            hub.position.y = -barrelLength / 2 - 0.3;
             syringeGroup.add(hub);
 
-            // Needle (metallic)
+            // Needle
             const needleGeometry = new THREE.CylinderGeometry(
                 data.needleRadius * 0.3, data.needleRadius, data.needleLength, 16
             );
             const needleMaterial = new THREE.MeshStandardMaterial({
                 color: 0xc0c0c0,
-                roughness: 0.2,
-                metalness: 0.9,
+                roughness: 0.15,
+                metalness: 0.95,
             });
             const needle = new THREE.Mesh(needleGeometry, needleMaterial);
-            needle.position.y = -barrelLength / 2 - 0.5 - data.needleLength / 2;
+            needle.position.y = -barrelLength / 2 - 0.6 - data.needleLength / 2;
             syringeGroup.add(needle);
 
-            // Needle bevel (angled tip)
-            const bevelGeometry = new THREE.ConeGeometry(data.needleRadius * 0.8, 0.15, 16);
+            // Needle tip
+            const bevelGeometry = new THREE.ConeGeometry(data.needleRadius * 0.7, 0.2, 16);
             const bevel = new THREE.Mesh(bevelGeometry, needleMaterial);
-            bevel.position.y = -barrelLength / 2 - 0.5 - data.needleLength - 0.05;
+            bevel.position.y = -barrelLength / 2 - 0.6 - data.needleLength - 0.08;
             bevel.rotation.x = Math.PI;
             syringeGroup.add(bevel);
 
-            // Label
-            const labelGeometry = new THREE.PlaneGeometry(0.8, 0.3);
+            // Gauge label
+            const labelGeometry = new THREE.PlaneGeometry(1.0, 0.4);
             const canvas = document.createElement('canvas');
-            canvas.width = 128;
-            canvas.height = 48;
+            canvas.width = 160;
+            canvas.height = 64;
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, 128, 48);
+            ctx.fillRect(0, 0, 160, 64);
             ctx.fillStyle = '#333333';
-            ctx.font = 'bold 24px Arial';
+            ctx.font = 'bold 32px Arial';
             ctx.textAlign = 'center';
-            ctx.fillText(data.gauge, 64, 32);
+            ctx.fillText(data.gauge, 80, 44);
             const labelTexture = new THREE.CanvasTexture(canvas);
             const labelMaterial = new THREE.MeshBasicMaterial({
                 map: labelTexture,
                 transparent: true
             });
             const label = new THREE.Mesh(labelGeometry, labelMaterial);
-            label.position.set(barrelRadius + 0.01, 0, 0);
+            label.position.set(barrelRadius + 0.02, 0, 0);
             label.rotation.y = Math.PI / 2;
             syringeGroup.add(label);
 
             return syringeGroup;
         }
 
-        // Create arm and syringes
+        // Create arm
         const arm = createArm();
-        arm.position.set(0, -2, 0);
-        arm.rotation.z = 0.1;
+        arm.position.set(0, -1, 0);
+        arm.rotation.z = 0.05;
         scene.add(arm);
 
-        // Create and position syringes in an arc above the arm
+        // Create syringes arranged above the arm
         const syringes = [];
         syringeData.forEach((data, i) => {
             const syringe = createSyringe(data, i);
-            const angle = (i - 2) * 0.4;
-            const radius = 6;
-            syringe.position.set(
-                Math.sin(angle) * radius - 2,
-                4,
-                Math.cos(angle) * 3 - 5
-            );
-            syringe.rotation.x = 0.3;
-            syringe.rotation.z = -angle * 0.3;
+            const spreadX = (i - 2) * 3.5;
+            const spreadZ = -Math.abs(i - 2) * 0.8 - 4;
+            syringe.position.set(spreadX, 5, spreadZ);
+            syringe.rotation.x = 0.25;
+            syringe.rotation.z = (i - 2) * -0.08;
             scene.add(syringe);
             syringes.push(syringe);
         });
 
-        // Surface/table
-        const tableGeometry = new THREE.PlaneGeometry(30, 30);
+        // Medical table surface
+        const tableGeometry = new THREE.PlaneGeometry(50, 50);
         const tableMaterial = new THREE.MeshStandardMaterial({
-            color: 0x2d3436,
-            roughness: 0.8,
+            color: 0x1a2530,
+            roughness: 0.7,
             metalness: 0.1,
         });
         const table = new THREE.Mesh(tableGeometry, tableMaterial);
         table.rotation.x = -Math.PI / 2;
-        table.position.y = -3.5;
+        table.position.y = -3;
         table.receiveShadow = true;
         scene.add(table);
 
-        // Subtle grid on table
-        const gridHelper = new THREE.GridHelper(20, 20, 0x3d4852, 0x3d4852);
-        gridHelper.position.y = -3.49;
-        gridHelper.material.opacity = 0.3;
+        // Subtle grid
+        const gridHelper = new THREE.GridHelper(40, 40, 0x2a3a4a, 0x2a3a4a);
+        gridHelper.position.y = -2.99;
+        gridHelper.material.opacity = 0.25;
         gridHelper.material.transparent = true;
         scene.add(gridHelper);
 
-        // Mouse interaction
+        // Mouse interaction for look-around
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
         let hoveredSyringe = null;
 
         function onMouseMove(event) {
+            // Get mouse position for raycasting
             mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
             mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            // Calculate look target based on mouse position (limited range)
+            targetLookX = (event.clientX / window.innerWidth - 0.5) * lookRangeX;
+            targetLookY = (event.clientY / window.innerHeight - 0.5) * lookRangeY;
         }
 
         window.addEventListener('mousemove', onMouseMove);
-
-        // Orbit controls (manual implementation)
-        let isDragging = false;
-        let previousMousePosition = { x: 0, y: 0 };
-        let spherical = { theta: 0, phi: Math.PI / 4, radius: 18 };
-        const target = new THREE.Vector3(0, 0, 0);
-
-        container.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            previousMousePosition = { x: e.clientX, y: e.clientY };
-        });
-
-        container.addEventListener('mouseup', () => {
-            isDragging = false;
-        });
-
-        container.addEventListener('mouseleave', () => {
-            isDragging = false;
-        });
-
-        container.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-
-            const deltaX = e.clientX - previousMousePosition.x;
-            const deltaY = e.clientY - previousMousePosition.y;
-
-            spherical.theta -= deltaX * 0.005;
-            spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi + deltaY * 0.005));
-
-            previousMousePosition = { x: e.clientX, y: e.clientY };
-        });
-
-        container.addEventListener('wheel', (e) => {
-            e.preventDefault();
-            spherical.radius = Math.max(8, Math.min(35, spherical.radius + e.deltaY * 0.02));
-        }, { passive: false });
 
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
 
-            // Update camera position from spherical coordinates
-            camera.position.x = target.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
-            camera.position.y = target.y + spherical.radius * Math.cos(spherical.phi);
-            camera.position.z = target.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
-            camera.lookAt(target);
+            // Smoothly interpolate camera look position
+            currentLookX += (targetLookX - currentLookX) * lookSmoothness;
+            currentLookY += (targetLookY - currentLookY) * lookSmoothness;
 
-            // Raycasting for hover
+            // Update camera to look at interpolated target
+            const lookTarget = new THREE.Vector3(currentLookX, -currentLookY, 0);
+            camera.lookAt(lookTarget);
+
+            // Raycasting for syringe hover
             raycaster.setFromCamera(mouse, camera);
-
-            // Check intersection with syringes
             const intersects = raycaster.intersectObjects(syringes, true);
 
             if (intersects.length > 0) {
@@ -674,10 +619,10 @@
             }
 
             // Subtle floating animation for syringes
+            const time = Date.now() * 0.001;
             syringes.forEach((syringe, i) => {
-                const time = Date.now() * 0.001;
-                syringe.position.y = 4 + Math.sin(time + i * 0.5) * 0.1;
-                syringe.rotation.y = Math.sin(time * 0.5 + i) * 0.05;
+                syringe.position.y = 5 + Math.sin(time * 0.8 + i * 0.7) * 0.15;
+                syringe.rotation.y = Math.sin(time * 0.4 + i) * 0.08;
             });
 
             renderer.render(scene, camera);
@@ -690,7 +635,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Start animation
+        // Start
         animate();
     </script>
 </body>
