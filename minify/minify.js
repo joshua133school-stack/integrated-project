@@ -3434,6 +3434,7 @@ var thunderClass = thunderClass || function() {
 
 var injection = injection || function() {
     var container, currentStep = 0, mosaicRemoved = false, mosaicRemoved2 = false, pixelationLevel = 40, pixelationLevel2 = 40, fadeInterval = null, fadeInterval2 = null, canvas, ctx, sourceImage, canvas2, ctx2, sourceImage2;
+    var breathingInterval = null;
 
     const steps = ['mosaic', 'mosaic2', 'comparison', 'injection-demo', 'threejs-game', 'breathing'];
     var threeJsIframe = null;
@@ -3678,7 +3679,41 @@ var injection = injection || function() {
         }
     }
 
+    function startBreathingAnimation() {
+        var t = window.i18n ? window.i18n.t : function(k) { return k; };
+        const textEl = container.querySelector('#breathing-text');
+        const counterEl = container.querySelector('#breathing-counter');
+        if (!textEl || !counterEl) return;
+
+        let isInhale = true;
+        let count = 3;
+
+        function updateBreathing() {
+            counterEl.textContent = count;
+            textEl.textContent = isInhale ? t('injection.inhale') : t('injection.exhale');
+
+            count--;
+            if (count < 1) {
+                count = 3;
+                isInhale = !isInhale;
+            }
+        }
+
+        updateBreathing();
+        breathingInterval = setInterval(updateBreathing, 1000);
+    }
+
+    function stopBreathingAnimation() {
+        if (breathingInterval) {
+            clearInterval(breathingInterval);
+            breathingInterval = null;
+        }
+    }
+
     function showStep(stepIndex) {
+        // Stop breathing animation when leaving step
+        stopBreathingAnimation();
+
         const allSteps = container.querySelectorAll('.injection-step');
         allSteps.forEach((step, index) => {
             step.style.display = index === stepIndex ? 'flex' : 'none';
@@ -3689,6 +3724,11 @@ var injection = injection || function() {
 
         if (prevBtn) prevBtn.style.display = stepIndex > 0 ? 'block' : 'none';
         if (nextBtn) nextBtn.style.display = stepIndex < steps.length - 1 ? 'block' : 'none';
+
+        // Start breathing animation on step 5 (breathing)
+        if (stepIndex === 5) {
+            startBreathingAnimation();
+        }
     }
 
     function addStyles() {
@@ -4264,19 +4304,43 @@ var injection = injection || function() {
 
                 .breathing-container {
                     display: flex;
+                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
                     width: 100%;
                     height: 100%;
+                    gap: 40px;
                 }
 
                 .breathing-circle {
-                    width: 150px;
-                    height: 150px;
+                    width: 120px;
+                    height: 120px;
                     border-radius: 50%;
                     background: radial-gradient(circle at 30% 30%, #f5d0c5, #e8c4b8, #ddb5a5);
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-                    animation: breathe 4s ease-in-out infinite;
+                    animation: breathe 6s ease-in-out infinite;
+                }
+
+                .breathing-guide {
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .breathing-text {
+                    font-size: 1.2rem;
+                    font-weight: 300;
+                    color: #333;
+                    letter-spacing: 0.1em;
+                    text-transform: uppercase;
+                }
+
+                .breathing-counter {
+                    font-size: 2rem;
+                    font-weight: 200;
+                    color: #666;
+                    font-variant-numeric: tabular-nums;
                 }
 
                 @keyframes breathe {
@@ -4284,7 +4348,7 @@ var injection = injection || function() {
                         transform: scale(1);
                     }
                     50% {
-                        transform: scale(1.8);
+                        transform: scale(1.6);
                     }
                 }
 
@@ -4381,6 +4445,10 @@ var injection = injection || function() {
                     <div class="injection-step" style="display: none;">
                         <div class="breathing-container">
                             <div class="breathing-circle"></div>
+                            <div class="breathing-guide">
+                                <div class="breathing-text" id="breathing-text" data-i18n="injection.inhale">${t('injection.inhale')}</div>
+                                <div class="breathing-counter" id="breathing-counter">3</div>
+                            </div>
                         </div>
                     </div>
 
@@ -4411,6 +4479,10 @@ var injection = injection || function() {
             if (fadeInterval2) {
                 clearInterval(fadeInterval2);
                 fadeInterval2 = null;
+            }
+            if (breathingInterval) {
+                clearInterval(breathingInterval);
+                breathingInterval = null;
             }
             // Clean up Three.js iframe
             if (threeJsIframe) {

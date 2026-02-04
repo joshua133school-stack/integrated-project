@@ -46,7 +46,10 @@ const translations = {
             insert: "Insert",
             inject: "Inject",
             withdraw: "Withdraw",
-            done: "Done!"
+            done: "Done!",
+            // Breathing exercise
+            inhale: "Inhale",
+            exhale: "Exhale"
         },
 
         // Knife safety experience
@@ -357,7 +360,10 @@ const translations = {
             insert: "삽입",
             inject: "주입",
             withdraw: "빼기",
-            done: "완료!"
+            done: "완료!",
+            // Breathing exercise
+            inhale: "들이쉬기",
+            exhale: "내쉬기"
         },
 
         // Knife safety experience
