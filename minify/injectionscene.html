@@ -132,16 +132,19 @@
             roughness: 0.7,
             transparent: true,
             opacity: 1.0,
+            depthWrite: true,
         });
+        skinMaterial.renderOrder = 0; // Render first
 
         // Vein material - starts subtle, becomes bright
+        // Use depthTest settings to show through transparent skin
         const veinMaterial = new THREE.MeshStandardMaterial({
             color: 0x2255aa,
             roughness: 0.5,
             transparent: true,
-            opacity: 0.3,
-            emissive: 0x001133,
-            emissiveIntensity: 0.1,
+            opacity: 0.4,
+            emissive: 0x112244,
+            emissiveIntensity: 0.2,
         });
 
         let armSkinMeshes = [];
@@ -166,42 +169,45 @@
             armGroup.add(forearm);
             armSkinMeshes.push(forearm);
 
-            // Main vein - thicker and more visible
+            // Main vein - positioned ON the skin surface (higher Z), with renderOrder
             const veinCurve = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(0.35, 0.5, 0.2),
-                new THREE.Vector3(0.42, 1.5, 0.15),
-                new THREE.Vector3(0.4, 2.5, 0.18),
-                new THREE.Vector3(0.38, 3.5, 0.15),
-                new THREE.Vector3(0.35, 4.5, 0.18),
+                new THREE.Vector3(0.35, 0.5, 0.42),
+                new THREE.Vector3(0.40, 1.5, 0.38),
+                new THREE.Vector3(0.38, 2.5, 0.40),
+                new THREE.Vector3(0.36, 3.5, 0.38),
+                new THREE.Vector3(0.34, 4.5, 0.40),
             ]);
             const vein1Mat = veinMaterial.clone();
-            const veinGeo = new THREE.TubeGeometry(veinCurve, 32, 0.09, 12, false);
+            const veinGeo = new THREE.TubeGeometry(veinCurve, 32, 0.06, 12, false);
             const vein = new THREE.Mesh(veinGeo, vein1Mat);
+            vein.renderOrder = 1; // Render after skin
             armGroup.add(vein);
             armVeinMeshes.push(vein);
 
-            // Second vein
+            // Second vein - on surface
             const veinCurve2 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(-0.1, 1.0, 0.25),
-                new THREE.Vector3(-0.05, 2.0, 0.2),
-                new THREE.Vector3(-0.08, 3.0, 0.22),
-                new THREE.Vector3(-0.03, 4.0, 0.18),
+                new THREE.Vector3(-0.15, 1.0, 0.48),
+                new THREE.Vector3(-0.10, 2.0, 0.45),
+                new THREE.Vector3(-0.12, 3.0, 0.46),
+                new THREE.Vector3(-0.08, 4.0, 0.42),
             ]);
             const vein2Mat = veinMaterial.clone();
-            const veinGeo2 = new THREE.TubeGeometry(veinCurve2, 24, 0.06, 10, false);
+            const veinGeo2 = new THREE.TubeGeometry(veinCurve2, 24, 0.045, 10, false);
             const vein2 = new THREE.Mesh(veinGeo2, vein2Mat);
+            vein2.renderOrder = 1;
             armGroup.add(vein2);
             armVeinMeshes.push(vein2);
 
-            // Branching vein near injection site
+            // Branching vein near injection site - on surface
             const veinCurve3 = new THREE.CatmullRomCurve3([
-                new THREE.Vector3(0.4, 2.5, 0.18),
-                new THREE.Vector3(0.3, 2.9, 0.25),
-                new THREE.Vector3(0.15, 3.3, 0.28),
+                new THREE.Vector3(0.38, 2.5, 0.40),
+                new THREE.Vector3(0.28, 2.9, 0.48),
+                new THREE.Vector3(0.12, 3.3, 0.52),
             ]);
             const vein3Mat = veinMaterial.clone();
-            const veinGeo3 = new THREE.TubeGeometry(veinCurve3, 16, 0.045, 8, false);
+            const veinGeo3 = new THREE.TubeGeometry(veinCurve3, 16, 0.035, 8, false);
             const vein3 = new THREE.Mesh(veinGeo3, vein3Mat);
+            vein3.renderOrder = 1;
             armGroup.add(vein3);
             armVeinMeshes.push(vein3);
 
@@ -306,6 +312,26 @@
             thumbPad.userData.topY = barrelLength * 1.4;          // Full (pulled out)
             thumbPad.position.y = thumbPad.userData.bottomY; // START pushed in
             group.add(thumbPad);
+
+            // Finger wings/flanges (same material as barrel, smaller)
+            const wingMat = new THREE.MeshPhysicalMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.4,
+                roughness: 0.1,
+            });
+            const wingWidth = barrelRadius * 1.2;
+            const wingHeight = 0.025;
+            const wingDepth = barrelRadius * 0.5;
+            const wingGeo = new THREE.BoxGeometry(wingWidth, wingHeight, wingDepth);
+
+            const leftWing = new THREE.Mesh(wingGeo, wingMat);
+            leftWing.position.set(-barrelRadius - wingWidth/2 + 0.01, -barrelLength/2 + 0.03, 0);
+            group.add(leftWing);
+
+            const rightWing = new THREE.Mesh(wingGeo, wingMat);
+            rightWing.position.set(barrelRadius + wingWidth/2 - 0.01, -barrelLength/2 + 0.03, 0);
+            group.add(rightWing);
 
             // Needle hub (colored plastic)
             const hubGeo = new THREE.CylinderGeometry(0.03, barrelRadius * 0.5, 0.1, 16);
@@ -414,10 +440,16 @@
             const siteWorldPos = new THREE.Vector3();
             injectionSiteMesh.getWorldPosition(siteWorldPos);
 
-            // Target position: needle tip just above injection site
+            // Calculate needle tip offset from syringe center
+            // Needle tip is at: -barrelLength/2 - needleFullLength (relative to syringe center)
+            // When syringe is rotated 90 degrees (pointing down), this becomes Y offset
+            // So syringe center needs to be at: siteWorldPos.y + barrelLength/2 + needleFullLength
+            const needleTipOffset = barrelLength / 2 + needleFullLength;
+
+            // Target position: position syringe so needle TIP is at injection site
             const targetPos = new THREE.Vector3(
                 siteWorldPos.x,
-                siteWorldPos.y + barrelLength / 2 + needleFullLength,
+                siteWorldPos.y + needleTipOffset + 0.05, // Needle tip just above site
                 siteWorldPos.z
             );
 
@@ -484,17 +516,19 @@
 
                     case 2: // INSERT NEEDLE - skin to 50%, veins VERY visible
                         status.textContent = 'Inserting needle...';
-                        const insertDepth = eased * 0.3;
+                        const insertDepth = eased * 0.4; // Insert deeper
                         syringe.position.y = targetPos.y - insertDepth;
 
-                        // Skin fades to 50%
+                        // Skin fades to 50% and disable depthWrite so veins show through
                         skinMaterial.opacity = 1.0 - eased * 0.5;
+                        skinMaterial.depthWrite = eased < 0.5; // Disable depthWrite when more transparent
 
-                        // Veins become VERY visible
+                        // Veins become VERY visible - bright blue with strong glow
                         armVeinMeshes.forEach(v => {
-                            v.material.opacity = 0.3 + eased * 0.7; // 0.3 -> 1.0
-                            v.material.emissiveIntensity = 0.1 + eased * 0.6; // Glow
-                            v.material.color.setHex(0x3388dd); // Brighter blue
+                            v.material.opacity = 0.4 + eased * 0.6; // 0.4 -> 1.0
+                            v.material.emissive.setHex(0x4488ff); // Bright blue glow
+                            v.material.emissiveIntensity = 0.2 + eased * 0.8; // Strong glow
+                            v.material.color.setHex(0x2266cc); // Brighter blue
                         });
                         break;
 
@@ -515,15 +549,17 @@
 
                     case 4: // WITHDRAW NEEDLE - skin returns
                         status.textContent = 'Withdrawing needle...';
-                        syringe.position.y = targetPos.y - 0.3 + eased * 0.3;
+                        syringe.position.y = targetPos.y - 0.4 + eased * 0.4;
 
-                        // Skin returns to full opacity
+                        // Skin returns to full opacity and re-enable depthWrite
                         skinMaterial.opacity = 0.5 + eased * 0.5;
+                        skinMaterial.depthWrite = eased > 0.5; // Re-enable depthWrite as skin becomes opaque
 
-                        // Veins fade back
+                        // Veins fade back to subtle
                         armVeinMeshes.forEach(v => {
-                            v.material.opacity = 1.0 - eased * 0.7;
-                            v.material.emissiveIntensity = 0.7 - eased * 0.6;
+                            v.material.opacity = 1.0 - eased * 0.6; // 1.0 -> 0.4
+                            v.material.emissive.setHex(0x112244);
+                            v.material.emissiveIntensity = 1.0 - eased * 0.8; // 1.0 -> 0.2
                             v.material.color.setHex(0x2255aa);
                         });
                         break;
