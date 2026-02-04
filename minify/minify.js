@@ -3418,34 +3418,30 @@ var injection = injection || function() {
         canvas2 = container.querySelector('#mosaic-canvas-2');
         sourceImage2 = container.querySelector('#source-image-2');
 
+        function waitForImage(img, callback) {
+            if (img.complete && img.naturalWidth > 0) {
+                callback();
+            } else {
+                img.onload = callback;
+            }
+        }
+
         if (canvas && sourceImage) {
             ctx = canvas.getContext('2d');
             canvas.width = 500;
             canvas.height = 500;
-
-            sourceImage.onload = function() {
+            waitForImage(sourceImage, function() {
                 drawPixelated(pixelationLevel, 1);
-            };
-
-            // If image is already loaded
-            if (sourceImage.complete) {
-                drawPixelated(pixelationLevel, 1);
-            }
+            });
         }
 
         if (canvas2 && sourceImage2) {
             ctx2 = canvas2.getContext('2d');
             canvas2.width = 500;
             canvas2.height = 500;
-
-            sourceImage2.onload = function() {
+            waitForImage(sourceImage2, function() {
                 drawPixelated(pixelationLevel2, 2);
-            };
-
-            // If image is already loaded
-            if (sourceImage2.complete) {
-                drawPixelated(pixelationLevel2, 2);
-            }
+            });
         }
     }
 
@@ -3467,56 +3463,57 @@ var injection = injection || function() {
         const w = currentCanvas.width;
         const h = currentCanvas.height;
 
-        // Clear canvas
-        currentCtx.clearRect(0, 0, w, h);
-
-        // Calculate cover dimensions (like object-fit: cover)
+        // Get actual image dimensions
         const imgW = currentSourceImage.naturalWidth || currentSourceImage.width;
         const imgH = currentSourceImage.naturalHeight || currentSourceImage.height;
 
         if (!imgW || !imgH) return;
 
+        // Clear canvas with a fill first to prevent any transparency issues
+        currentCtx.fillStyle = '#f5f5f5';
+        currentCtx.fillRect(0, 0, w, h);
+
+        // Calculate source crop for cover behavior (crop from source image)
+        var sx, sy, sw, sh;
         const imgRatio = imgW / imgH;
         const canvasRatio = w / h;
 
-        var drawW, drawH, drawX, drawY;
-
         if (imgRatio > canvasRatio) {
-            // Image is wider - fit height, crop width
-            drawH = h;
-            drawW = h * imgRatio;
-            drawX = (w - drawW) / 2;
-            drawY = 0;
+            // Image is wider - crop width from source
+            sh = imgH;
+            sw = imgH * canvasRatio;
+            sx = (imgW - sw) / 2;
+            sy = 0;
         } else {
-            // Image is taller - fit width, crop height
-            drawW = w;
-            drawH = w / imgRatio;
-            drawX = 0;
-            drawY = (h - drawH) / 2;
+            // Image is taller - crop height from source
+            sw = imgW;
+            sh = imgW / canvasRatio;
+            sx = 0;
+            sy = (imgH - sh) / 2;
         }
 
         if (pixelSize <= 1) {
             // Draw normal image when pixelSize is 1 or less
-            currentCtx.drawImage(currentSourceImage, drawX, drawY, drawW, drawH);
+            currentCtx.drawImage(currentSourceImage, sx, sy, sw, sh, 0, 0, w, h);
             return;
         }
 
-        // Draw pixelated effect using off-screen canvas for cover behavior
+        // Draw pixelated effect
         currentCtx.imageSmoothingEnabled = false;
 
-        // Create temp canvas for proper cover scaling
+        // Create temp canvas for cover-cropped image
         var tempCanvas = document.createElement('canvas');
         tempCanvas.width = w;
         tempCanvas.height = h;
         var tempCtx = tempCanvas.getContext('2d');
-        tempCtx.drawImage(currentSourceImage, drawX, drawY, drawW, drawH);
+        tempCtx.drawImage(currentSourceImage, sx, sy, sw, sh, 0, 0, w, h);
 
         // Scale down
-        const scaledW = w / pixelSize;
-        const scaledH = h / pixelSize;
+        const scaledW = Math.ceil(w / pixelSize);
+        const scaledH = Math.ceil(h / pixelSize);
 
         // Draw small version from temp canvas
-        currentCtx.drawImage(tempCanvas, 0, 0, scaledW, scaledH);
+        currentCtx.drawImage(tempCanvas, 0, 0, w, h, 0, 0, scaledW, scaledH);
 
         // Scale back up
         currentCtx.drawImage(currentCanvas, 0, 0, scaledW, scaledH, 0, 0, w, h);
@@ -3773,16 +3770,16 @@ var injection = injection || function() {
                     background: #000;
                 }
 
-                #mosaic-canvas {
+                #mosaic-canvas, #mosaic-canvas-2 {
                     width: 100%;
                     height: 100%;
-                    object-fit: cover;
+                    display: block;
                     image-rendering: pixelated;
                     image-rendering: -moz-crisp-edges;
                     image-rendering: crisp-edges;
                 }
 
-                #source-image {
+                #source-image, #source-image-2 {
                     display: none;
                 }
 
