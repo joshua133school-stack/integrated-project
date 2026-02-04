@@ -223,42 +223,42 @@ var OasisAccount = (function() {
         var style = document.createElement('style');
         style.id = 'oasis-account-styles';
         style.textContent = `
-            /* Note Icon Button */
+            /* Note Icon Button - Compact */
             .oasis-account-btn {
                 position: fixed;
-                top: 20px;
-                right: 20px;
-                width: 32px;
-                height: 40px;
-                background: rgba(255,255,255,0.15);
-                border: 1px solid rgba(255,255,255,0.25);
-                border-radius: 2px;
+                top: 18px;
+                right: 18px;
+                width: 20px;
+                height: 24px;
+                background: rgba(255,255,255,0.12);
+                border: 1px solid rgba(255,255,255,0.2);
+                border-radius: 1px;
                 cursor: pointer;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
                 justify-content: center;
-                gap: 3px;
-                padding: 6px 4px;
+                gap: 2px;
+                padding: 3px 2px;
                 transition: all 0.3s ease;
                 z-index: 9999;
                 backdrop-filter: blur(10px);
             }
             .oasis-account-btn:hover {
-                background: rgba(255,255,255,0.25);
-                transform: scale(1.05);
+                background: rgba(255,255,255,0.2);
+                transform: scale(1.08);
             }
             .oasis-account-btn .note-line {
-                width: 16px;
+                width: 10px;
                 height: 1px;
-                background: rgba(255,255,255,0.7);
+                background: rgba(255,255,255,0.6);
             }
             .oasis-account-btn.checked-in {
-                background: rgba(76, 175, 80, 0.25);
-                border-color: rgba(76, 175, 80, 0.4);
+                background: rgba(76, 175, 80, 0.2);
+                border-color: rgba(76, 175, 80, 0.35);
             }
             .oasis-account-btn.checked-in .note-line {
-                background: rgba(255,255,255,0.85);
+                background: rgba(255,255,255,0.8);
             }
 
             /* Panel Overlay */
@@ -279,25 +279,28 @@ var OasisAccount = (function() {
                 visibility: visible;
             }
 
-            /* Note Panel - Pops from bottom */
+            /* Note Panel - Slides from right to center, exits left */
             .oasis-note-panel {
                 position: fixed;
-                bottom: -100%;
+                top: 50%;
                 left: 50%;
-                transform: translateX(-50%);
+                transform: translate(100vw, -50%);
                 width: 90%;
-                max-width: 400px;
-                max-height: 80vh;
-                background: rgba(255, 253, 240, 0.92);
-                border-radius: 4px 4px 0 0;
-                box-shadow: 0 -10px 60px rgba(0,0,0,0.25);
+                max-width: 480px;
+                max-height: 85vh;
+                background: rgba(255, 253, 240, 0.94);
+                border-radius: 4px;
+                box-shadow: 0 10px 60px rgba(0,0,0,0.25);
                 z-index: 10001;
-                transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
                 font-family: 'Crimson Text', Georgia, serif;
                 overflow: hidden;
             }
             .oasis-note-panel.active {
-                bottom: 10%;
+                transform: translate(-50%, -50%);
+            }
+            .oasis-note-panel.closing {
+                transform: translate(-150vw, -50%);
             }
 
             /* Lined paper effect */
@@ -1014,11 +1017,21 @@ var OasisAccount = (function() {
     }
 
     /**
-     * Close all panels
+     * Close all panels (exits to left)
      */
     function closePanels() {
-        document.getElementById('oasis-overlay').classList.remove('active');
-        document.getElementById('oasis-note-panel').classList.remove('active');
+        var panel = document.getElementById('oasis-note-panel');
+        var overlay = document.getElementById('oasis-overlay');
+
+        // Add closing class for left exit animation
+        panel.classList.add('closing');
+        panel.classList.remove('active');
+        overlay.classList.remove('active');
+
+        // Remove closing class after animation
+        setTimeout(function() {
+            panel.classList.remove('closing');
+        }, 400);
     }
 
     /**
