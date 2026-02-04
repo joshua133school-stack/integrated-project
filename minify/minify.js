@@ -3942,74 +3942,123 @@ var injection = injection || function() {
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    gap: 30px;
+                    gap: 20px;
+                    width: 100%;
+                    height: 100%;
                 }
 
                 .injection-demo-area {
                     position: relative;
-                    width: 400px;
-                    height: 300px;
+                    width: 500px;
+                    height: 400px;
+                    display: flex;
+                    flex-direction: column;
+                }
+
+                .syringe-zone {
+                    position: relative;
+                    height: 250px;
+                    display: flex;
+                    align-items: flex-end;
+                    justify-content: center;
+                    padding-bottom: 20px;
+                }
+
+                .arm-zone {
+                    height: 150px;
                     background: linear-gradient(180deg, #f5d0c5 0%, #e8c4b8 50%, #ddb5a5 100%);
                     border-radius: 20px;
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-                    overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
 
                 .arm-prompt {
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
                     font-size: 18px;
                     color: #8b6f66;
                     text-align: center;
                     transition: opacity 0.3s ease;
                 }
 
+                /* Proper Syringe */
                 .demo-syringe {
-                    position: absolute;
-                    top: -80px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 8px;
-                    height: 60px;
-                    background: linear-gradient(to right, #a8a8a8, #e8e8e8, #a8a8a8);
-                    border-radius: 2px;
-                    transition: top 0.5s ease-in-out;
+                    position: relative;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    transform: translateY(0);
+                    transition: transform 0.4s ease-in-out;
                 }
 
-                .demo-syringe::before {
-                    content: '';
-                    position: absolute;
-                    top: -30px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 30px;
-                    height: 30px;
-                    background: linear-gradient(to right, #ddd, #fff, #ddd);
+                .syringe-plunger-handle {
+                    width: 50px;
+                    height: 12px;
+                    background: linear-gradient(to bottom, #e74c3c, #c0392b);
+                    border-radius: 3px;
+                    position: relative;
+                    top: 0;
+                    transition: top 0.3s ease-in-out;
+                }
+
+                .syringe-plunger-rod {
+                    width: 6px;
+                    height: 40px;
+                    background: linear-gradient(to right, #888, #bbb, #888);
+                    transition: height 0.3s ease-in-out;
+                }
+
+                .syringe-barrel {
+                    width: 40px;
+                    height: 80px;
+                    background: linear-gradient(to right, rgba(200, 220, 255, 0.3), rgba(255, 255, 255, 0.5), rgba(200, 220, 255, 0.3));
                     border: 2px solid #999;
                     border-radius: 4px;
+                    position: relative;
                 }
 
-                .demo-syringe::after {
+                .syringe-barrel::after {
                     content: '';
                     position: absolute;
-                    bottom: -8px;
+                    bottom: -2px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 12px;
+                    height: 8px;
+                    background: #888;
+                    border-radius: 0 0 2px 2px;
+                }
+
+                .syringe-needle {
+                    width: 3px;
+                    height: 50px;
+                    background: linear-gradient(to right, #a8a8a8, #e8e8e8, #a8a8a8);
+                    position: relative;
+                }
+
+                .syringe-needle::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -10px;
                     left: 50%;
                     transform: translateX(-50%);
                     width: 0;
                     height: 0;
-                    border-left: 4px solid transparent;
-                    border-right: 4px solid transparent;
-                    border-top: 8px solid #c0c0c0;
+                    border-left: 2px solid transparent;
+                    border-right: 2px solid transparent;
+                    border-top: 10px solid #c0c0c0;
                 }
 
                 .demo-syringe.injecting {
-                    top: 120px;
+                    transform: translateY(80px);
+                }
+
+                .demo-syringe.injecting .syringe-plunger-rod {
+                    height: 70px;
                 }
 
                 .demo-syringe.done {
-                    top: -80px;
+                    transform: translateY(0);
                 }
 
                 #start-demo-btn {
@@ -4111,8 +4160,17 @@ var injection = injection || function() {
                     <div class="injection-step" style="display: none;">
                         <div class="injection-demo-container">
                             <div class="injection-demo-area">
-                                <div class="arm-prompt">Put arm here</div>
-                                <div class="demo-syringe"></div>
+                                <div class="syringe-zone">
+                                    <div class="demo-syringe">
+                                        <div class="syringe-plunger-handle"></div>
+                                        <div class="syringe-plunger-rod"></div>
+                                        <div class="syringe-barrel"></div>
+                                        <div class="syringe-needle"></div>
+                                    </div>
+                                </div>
+                                <div class="arm-zone">
+                                    <div class="arm-prompt">Put arm here</div>
+                                </div>
                             </div>
                             <button id="start-demo-btn">Start</button>
                         </div>
