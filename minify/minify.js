@@ -1832,6 +1832,11 @@ var injection = injection || function() {
         const nextBtn = container.querySelector('#injection-next-btn');
         const prevBtn = container.querySelector('#injection-prev-btn');
         const startSimBtn = container.querySelector('#start-simulation-btn');
+        const threejsNextBtn = container.querySelector('#threejs-next-btn');
+
+        if (threejsNextBtn) {
+            threejsNextBtn.addEventListener('click', nextStep);
+        }
 
         if (removeMosaicBtn) {
             removeMosaicBtn.addEventListener('mousedown', function() { startMosaicRemoval(1); });
@@ -2131,21 +2136,53 @@ var injection = injection || function() {
                 }
 
                 .injection-threejs-container {
-                    position: relative;
-                    width: 100%;
-                    max-width: 900px;
-                    height: 500px;
-                    margin: 20px 0;
-                    border-radius: 15px;
-                    overflow: hidden;
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-                    background: #1a1a2e;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    z-index: 100;
+                    background: #0d1520;
                 }
 
                 .injection-threejs-container iframe {
                     width: 100%;
                     height: 100%;
                     border: none;
+                }
+
+                .injection-step.threejs-fullscreen {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100vw;
+                    height: 100vh;
+                    max-width: none;
+                    z-index: 100;
+                    padding: 0;
+                    margin: 0;
+                }
+
+                .threejs-nav-btn {
+                    position: fixed;
+                    bottom: 40px;
+                    right: 40px;
+                    z-index: 200;
+                    padding: 15px 40px;
+                    font-size: 18px;
+                    background: rgba(255, 255, 255, 0.95);
+                    border: none;
+                    border-radius: 30px;
+                    color: #333;
+                    cursor: pointer;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+                    transition: all 0.3s ease;
+                }
+
+                .threejs-nav-btn:hover {
+                    background: #fff;
+                    transform: translateY(-2px);
+                    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.4);
                 }
 
                 .injection-mosaic-container {
@@ -2720,13 +2757,12 @@ var injection = injection || function() {
             var t = window.i18n ? window.i18n.t : function(k) { return k; };
             container.innerHTML = `
                 <div class="injection-experience">
-                    <!-- Step 1: Three.js 3D Scene -->
-                    <div class="injection-step" style="display: flex;">
-                        <h1 class="injection-title" data-i18n="injection.explore3D">${t('injection.explore3D') || 'Explore the Injection Scene'}</h1>
-                        <p class="injection-subtitle" data-i18n="injection.explore3DSubtitle">${t('injection.explore3DSubtitle') || 'Drag to rotate, scroll to zoom. Hover over syringes to learn about needle gauges.'}</p>
+                    <!-- Step 1: Three.js 3D Scene (Fullscreen) -->
+                    <div class="injection-step threejs-fullscreen" style="display: flex;">
                         <div class="injection-threejs-container">
                             <iframe id="injection-threejs-iframe" src="minify/injectionscene.html" frameborder="0" allowfullscreen></iframe>
                         </div>
+                        <button id="threejs-next-btn" class="injection-nav-btn threejs-nav-btn" data-i18n="common.next">${t('common.next') || 'Next'}</button>
                     </div>
 
                     <!-- Step 2: Mosaic Needle -->
