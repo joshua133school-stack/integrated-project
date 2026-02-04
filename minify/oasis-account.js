@@ -1099,35 +1099,14 @@ var OasisAccount = (function() {
         document.body.appendChild(checkup);
     }
 
-    // Checkup questions for each phobia type
-    // All questions oriented: 0 = Not at all (better) → 100 = Very much (worse)
-    var checkupQuestions = {
-        airplane: [
-            'How anxious do you feel about flying right now?',
-            'How much does the thought of a flight still worry you?',
-            'How much discomfort do you still feel about air travel?'
-        ],
-        injection: [
-            'How anxious do you feel about needles right now?',
-            'How much does the thought of an injection still worry you?',
-            'How much discomfort do you still feel about medical procedures?'
-        ],
-        thunder: [
-            'How anxious do you feel about thunderstorms?',
-            'How much would a storm still disturb you?',
-            'How much unease do you still feel about severe weather?'
-        ],
-        darkness: [
-            'How anxious do you feel about darkness now?',
-            'How much does being in the dark still worry you?',
-            'How much discomfort do you feel in dark spaces?'
-        ],
-        heights: [
-            'How anxious do you feel about heights right now?',
-            'How much does being up high still worry you?',
-            'How much discomfort do you feel at elevated places?'
-        ]
-    };
+    // Helper function to get translations
+    function t(key, fallback) {
+        if (window.i18n && window.i18n.t) {
+            var translated = window.i18n.t(key);
+            return translated !== key ? translated : (fallback || key);
+        }
+        return fallback || key;
+    }
 
     var currentCheckupType = null;
 
@@ -1136,24 +1115,30 @@ var OasisAccount = (function() {
      */
     function showCheckup(type, onComplete) {
         currentCheckupType = type;
-        var questions = checkupQuestions[type] || checkupQuestions.airplane;
         var checkupEl = document.getElementById('oasis-checkup');
 
+        // Get translated questions
+        var questions = [
+            t('checkup.questions.' + type + '.q1', 'How anxious do you feel right now?'),
+            t('checkup.questions.' + type + '.q2', 'How much does this still worry you?'),
+            t('checkup.questions.' + type + '.q3', 'How much discomfort do you still feel?')
+        ];
+
         var html = '<div class="oasis-checkup-content">';
-        html += '<h2>Session Complete</h2>';
-        html += '<div class="subtitle">Quick Check-in</div>';
+        html += '<h2>' + t('checkup.sessionComplete', 'Session Complete') + '</h2>';
+        html += '<div class="subtitle">' + t('checkup.quickCheckin', 'Quick Check-in') + '</div>';
 
         questions.forEach(function(q, i) {
             html += '<div class="oasis-checkup-question">';
             html += '<label class="oasis-checkup-label">' + q + '</label>';
             html += '<div class="oasis-checkup-slider-wrap">';
             html += '<input type="range" class="oasis-checkup-slider" id="checkup-q' + i + '" min="0" max="100" value="50">';
-            html += '<div class="oasis-checkup-range"><span>Not at all</span><span>Very much</span></div>';
+            html += '<div class="oasis-checkup-range"><span>' + t('checkup.notAtAll', 'Not at all') + '</span><span>' + t('checkup.veryMuch', 'Very much') + '</span></div>';
             html += '</div></div>';
         });
 
-        html += '<button class="oasis-checkup-btn" onclick="OasisAccount.submitCheckup()">Submit</button>';
-        html += '<a class="oasis-checkup-skip" onclick="OasisAccount.closeCheckup()">Skip</a>';
+        html += '<button class="oasis-checkup-btn" onclick="OasisAccount.submitCheckup()">' + t('checkup.submit', 'Submit') + '</button>';
+        html += '<a class="oasis-checkup-skip" onclick="OasisAccount.closeCheckup()">' + t('checkup.skip', 'Skip') + '</a>';
         html += '</div>';
 
         checkupEl.innerHTML = html;
@@ -1205,10 +1190,10 @@ var OasisAccount = (function() {
         if (btn) {
             if (isLoggedIn) {
                 btn.classList.add('checked-in');
-                btn.title = currentUser.name + ' (Checked In)';
+                btn.title = currentUser.name + ' (' + t('account.checkedIn', 'Checked In') + ')';
             } else {
                 btn.classList.remove('checked-in');
-                btn.title = 'Register / Check-in';
+                btn.title = t('account.registerCheckin', 'Register / Check-in');
             }
         }
     }
@@ -1245,35 +1230,35 @@ var OasisAccount = (function() {
      */
     function renderRegisterView() {
         var panel = document.getElementById('oasis-note-panel');
-        var storageType = useFirebase ? 'Global Account' : 'Local Storage';
+        var storageType = useFirebase ? t('account.globalAccount', 'Global Account') : t('account.localStorage', 'Local Storage');
 
         panel.innerHTML = `
             <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
             <div class="oasis-note-paper">
-                <h2>Register</h2>
-                <div class="note-subtitle">New Patient File · ${storageType}</div>
+                <h2>${t('account.register', 'Register')}</h2>
+                <div class="note-subtitle">${t('account.newPatientFile', 'New Patient File')} · ${storageType}</div>
 
                 <div class="oasis-note-field">
-                    <div class="oasis-note-label">Name</div>
-                    <input type="text" class="oasis-note-input" id="oasis-name-input" placeholder="Enter your name...">
+                    <div class="oasis-note-label">${t('account.name', 'Name')}</div>
+                    <input type="text" class="oasis-note-input" id="oasis-name-input" placeholder="${t('account.enterName', 'Enter your name...')}">
                 </div>
 
                 ${useFirebase ? `
                 <div class="oasis-note-field">
-                    <div class="oasis-note-label">Email</div>
-                    <input type="email" class="oasis-note-input" id="oasis-email-input" placeholder="Enter your email...">
+                    <div class="oasis-note-label">${t('account.email', 'Email')}</div>
+                    <input type="email" class="oasis-note-input" id="oasis-email-input" placeholder="${t('account.enterEmail', 'Enter your email...')}">
                 </div>
                 ` : ''}
 
                 <div class="oasis-note-field">
-                    <div class="oasis-note-label">Password</div>
-                    <input type="password" class="oasis-note-input" id="oasis-password-input" placeholder="Create a password...">
+                    <div class="oasis-note-label">${t('account.password', 'Password')}</div>
+                    <input type="password" class="oasis-note-input" id="oasis-password-input" placeholder="${t('account.createPassword', 'Create a password...')}">
                 </div>
 
                 <div id="oasis-register-error" class="oasis-note-error" style="display:none;"></div>
 
-                <button class="oasis-note-btn" onclick="OasisAccount.submitRegister()">Create File</button>
-                <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToCheckIn()">Already Registered</button>
+                <button class="oasis-note-btn" onclick="OasisAccount.submitRegister()">${t('account.createFile', 'Create File')}</button>
+                <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToCheckIn()">${t('account.alreadyRegistered', 'Already Registered')}</button>
             </div>
         `;
     }
@@ -1288,31 +1273,31 @@ var OasisAccount = (function() {
         panel.innerHTML = `
             <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
             <div class="oasis-note-paper">
-                <h2>Check-in</h2>
-                <div class="note-subtitle">Welcome Back</div>
+                <h2>${t('account.checkIn', 'Check-in')}</h2>
+                <div class="note-subtitle">${t('account.welcomeBack', 'Welcome Back')}</div>
 
                 <div class="oasis-note-field">
-                    <div class="oasis-note-label">Patient</div>
+                    <div class="oasis-note-label">${t('account.patient', 'Patient')}</div>
                     <div class="oasis-note-value">${currentUser.name}</div>
                 </div>
 
                 ${hasPassword ? `
                 <div class="oasis-note-field">
-                    <div class="oasis-note-label">Password</div>
-                    <input type="password" class="oasis-note-input" id="oasis-checkin-password" placeholder="Enter password...">
+                    <div class="oasis-note-label">${t('account.password', 'Password')}</div>
+                    <input type="password" class="oasis-note-input" id="oasis-checkin-password" placeholder="${t('account.enterPassword', 'Enter password...')}">
                 </div>
                 <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
                 ` : ''}
 
                 <div class="oasis-session-info">
                     <div class="oasis-session-stat">
-                        <span>Sessions</span>
+                        <span>${t('account.sessions', 'Sessions')}</span>
                         <span>${currentUser.history ? currentUser.history.length : 0}</span>
                     </div>
                 </div>
 
-                <button class="oasis-note-btn" onclick="OasisAccount.checkIn()">Check In</button>
-                <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToRegister()">New Patient</button>
+                <button class="oasis-note-btn" onclick="OasisAccount.checkIn()">${t('account.checkIn', 'Check In')}</button>
+                <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToRegister()">${t('account.newPatient', 'New Patient')}</button>
             </div>
         `;
     }
@@ -1328,15 +1313,15 @@ var OasisAccount = (function() {
             <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
             <div class="oasis-note-paper">
                 <h2>${currentUser.name}</h2>
-                <div class="note-subtitle">Patient ID: ${currentUser.id}</div>
+                <div class="note-subtitle">${t('account.patientId', 'Patient ID')}: ${currentUser.id}</div>
         `;
 
         if (!analytics) {
             html += `
                 <div class="oasis-note-field" style="margin-top: 30px;">
                     <div class="oasis-note-value" style="font-size: 15px; color: #888; font-style: italic;">
-                        No sessions recorded yet.<br>
-                        Complete an experience to begin.
+                        ${t('account.noSessions', 'No sessions recorded yet.')}<br>
+                        ${t('account.completeExperience', 'Complete an experience to begin.')}
                     </div>
                 </div>
             `;
@@ -1345,29 +1330,21 @@ var OasisAccount = (function() {
             html += `
                 <div class="oasis-session-info" style="margin-bottom: 25px;">
                     <div class="oasis-session-stat">
-                        <span>Total Sessions</span>
+                        <span>${t('account.totalSessions', 'Total Sessions')}</span>
                         <span>${analytics.totalSessions}</span>
                     </div>
                 </div>
             `;
 
-            // Phobia names
-            var phobiaNames = {
-                airplane: 'Flying',
-                injection: 'Needles',
-                thunder: 'Thunder',
-                darkness: 'Darkness',
-                heights: 'Heights'
-            };
-
             // Show each tracked phobia with progress bar
             Object.keys(analytics.byPhobia).forEach(function(type) {
                 var data = analytics.byPhobia[type];
-                var name = phobiaNames[type] || type;
+                var name = t('account.phobiaShort.' + type, type);
                 var trendIcon = data.trend === 'improving' ? '↓' : (data.trend === 'increasing' ? '↑' : '→');
-                var trendLabel = data.trend === 'improving' ? 'Improving' : (data.trend === 'increasing' ? 'Rising' : 'Stable');
+                var trendLabel = data.trend === 'improving' ? t('account.improving', 'Improving') : (data.trend === 'increasing' ? t('account.rising', 'Rising') : t('account.stable', 'Stable'));
                 // Progress shows improvement: 100 - latestScore (higher bar = better)
                 var progressWidth = 100 - data.latestScore;
+                var sessionWord = data.sessions !== 1 ? t('account.sessions', 'sessions') : t('account.session', 'session');
 
                 html += `
                     <div class="oasis-phobia-item">
@@ -1379,8 +1356,8 @@ var OasisAccount = (function() {
                             <div class="oasis-progress-fill ${data.trend}" style="width: ${progressWidth}%"></div>
                         </div>
                         <div class="oasis-phobia-meta">
-                            <span>${data.sessions} session${data.sessions !== 1 ? 's' : ''}</span>
-                            <span>${Math.abs(data.improvement)}% change</span>
+                            <span>${data.sessions} ${sessionWord}</span>
+                            <span>${Math.abs(data.improvement)}% ${t('account.change', 'change')}</span>
                         </div>
                     </div>
                 `;
@@ -1388,7 +1365,7 @@ var OasisAccount = (function() {
         }
 
         html += `
-                <button class="oasis-note-btn secondary" onclick="OasisAccount.checkOut()" style="margin-top: 30px;">Check Out</button>
+                <button class="oasis-note-btn secondary" onclick="OasisAccount.checkOut()" style="margin-top: 30px;">${t('account.checkOut', 'Check Out')}</button>
             </div>
         `;
 
@@ -1460,23 +1437,23 @@ var OasisAccount = (function() {
             panel.innerHTML = `
                 <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
                 <div class="oasis-note-paper">
-                    <h2>Check-in</h2>
-                    <div class="note-subtitle">Sign In · Global Account</div>
+                    <h2>${t('account.checkIn', 'Check-in')}</h2>
+                    <div class="note-subtitle">${t('account.signIn', 'Sign In')} · ${t('account.globalAccount', 'Global Account')}</div>
 
                     <div class="oasis-note-field">
-                        <div class="oasis-note-label">Email</div>
-                        <input type="email" class="oasis-note-input" id="oasis-checkin-email" placeholder="Enter your email...">
+                        <div class="oasis-note-label">${t('account.email', 'Email')}</div>
+                        <input type="email" class="oasis-note-input" id="oasis-checkin-email" placeholder="${t('account.enterEmail', 'Enter your email...')}">
                     </div>
 
                     <div class="oasis-note-field">
-                        <div class="oasis-note-label">Password</div>
-                        <input type="password" class="oasis-note-input" id="oasis-checkin-password" placeholder="Enter password...">
+                        <div class="oasis-note-label">${t('account.password', 'Password')}</div>
+                        <input type="password" class="oasis-note-input" id="oasis-checkin-password" placeholder="${t('account.enterPassword', 'Enter password...')}">
                     </div>
 
                     <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
 
-                    <button class="oasis-note-btn" onclick="OasisAccount.checkInWithEmail()">Check In</button>
-                    <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToRegister()">New Patient</button>
+                    <button class="oasis-note-btn" onclick="OasisAccount.checkInWithEmail()">${t('account.checkIn', 'Check In')}</button>
+                    <button class="oasis-note-btn secondary" onclick="OasisAccount.switchToRegister()">${t('account.newPatient', 'New Patient')}</button>
                 </div>
             `;
         } else {
@@ -1484,19 +1461,19 @@ var OasisAccount = (function() {
             panel.innerHTML = `
                 <button class="oasis-note-close" onclick="OasisAccount.closePanels()">&times;</button>
                 <div class="oasis-note-paper">
-                    <h2>Check-in</h2>
-                    <div class="note-subtitle">Find Your File</div>
+                    <h2>${t('account.checkIn', 'Check-in')}</h2>
+                    <div class="note-subtitle">${t('account.findYourFile', 'Find Your File')}</div>
 
                     <div class="oasis-note-field" style="margin-top: 20px;">
                         <div class="oasis-note-value" style="font-size: 14px; color: #888; font-style: italic;">
-                            No account found on this device.<br>
-                            Your data is stored locally in this browser.
+                            ${t('account.noAccountFound', 'No account found on this device.')}<br>
+                            ${t('account.dataStoredLocally', 'Your data is stored locally in this browser.')}
                         </div>
                     </div>
 
                     <div id="oasis-checkin-error" class="oasis-note-error" style="display:none;"></div>
 
-                    <button class="oasis-note-btn" onclick="OasisAccount.switchToRegister()">Register New Account</button>
+                    <button class="oasis-note-btn" onclick="OasisAccount.switchToRegister()">${t('account.registerNewAccount', 'Register New Account')}</button>
                 </div>
             `;
         }
@@ -1519,22 +1496,22 @@ var OasisAccount = (function() {
         if (errorEl) errorEl.style.display = 'none';
 
         if (!name) {
-            showError('oasis-register-error', 'Please enter your name');
+            showError('oasis-register-error', t('account.enterNameError', 'Please enter your name'));
             return;
         }
 
         if (useFirebase && !email) {
-            showError('oasis-register-error', 'Please enter your email');
+            showError('oasis-register-error', t('account.enterEmailError', 'Please enter your email'));
             return;
         }
 
         if (!password) {
-            showError('oasis-register-error', 'Please create a password');
+            showError('oasis-register-error', t('account.createPasswordError', 'Please create a password'));
             return;
         }
 
         if (password.length < 6) {
-            showError('oasis-register-error', 'Password must be at least 6 characters');
+            showError('oasis-register-error', t('account.passwordLengthError', 'Password must be at least 6 characters'));
             return;
         }
 
@@ -1552,12 +1529,12 @@ var OasisAccount = (function() {
         var password = passwordInput ? passwordInput.value : '';
 
         if (!email) {
-            showError('oasis-checkin-error', 'Please enter your email');
+            showError('oasis-checkin-error', t('account.enterEmailError', 'Please enter your email'));
             return;
         }
 
         if (!password) {
-            showError('oasis-checkin-error', 'Please enter your password');
+            showError('oasis-checkin-error', t('account.enterPasswordError', 'Please enter your password'));
             return;
         }
 
@@ -1577,7 +1554,7 @@ var OasisAccount = (function() {
 
             if (!validatePassword(password)) {
                 if (errorEl) {
-                    errorEl.textContent = 'Incorrect password';
+                    errorEl.textContent = t('account.incorrectPassword', 'Incorrect password');
                     errorEl.style.display = 'block';
                 }
                 return;
@@ -1624,42 +1601,34 @@ var OasisAccount = (function() {
         if (!analytics) {
             html += `
                 <div class="oasis-empty-state">
-                    <p>No sessions recorded yet.<br>Complete a diagnostic to begin tracking your progress.</p>
+                    <p>${t('account.noSessions', 'No sessions recorded yet.')}<br>${t('account.completeDiagnostic', 'Complete a diagnostic to begin tracking your progress.')}</p>
                 </div>
             `;
         } else {
             // Total sessions stat
             html += `
                 <div class="oasis-stat-card">
-                    <div class="oasis-stat-label">Total Sessions</div>
+                    <div class="oasis-stat-label">${t('account.totalSessions', 'Total Sessions')}</div>
                     <div class="oasis-stat-value">${analytics.totalSessions}</div>
                 </div>
             `;
 
-            // Phobia progress cards
-            var phobiaNames = {
-                airplane: 'Fear of Flying',
-                injection: 'Fear of Needles',
-                thunder: 'Fear of Thunder',
-                darkness: 'Fear of Darkness',
-                heights: 'Fear of Heights',
-                ocean: 'Fear of Water'
-            };
-
             Object.keys(analytics.byPhobia).forEach(function(type) {
                 var data = analytics.byPhobia[type];
-                var name = phobiaNames[type] || type;
+                var name = t('account.phobias.' + type, type);
                 var trendIcon = data.trend === 'improving' ? '↓' : (data.trend === 'increasing' ? '↑' : '→');
                 var trendClass = data.trend === 'improving' ? 'down' : (data.trend === 'increasing' ? 'up' : 'stable');
+                var trendLabel = data.trend === 'improving' ? t('account.improving', 'improving') : (data.trend === 'increasing' ? t('account.rising', 'rising') : t('account.stable', 'stable'));
+                var sessionWord = data.sessions !== 1 ? t('account.sessions', 'sessions') : t('account.session', 'session');
 
                 html += `
                     <div class="oasis-phobia-card ${data.trend}">
                         <div class="oasis-phobia-name">${name}</div>
                         <div class="oasis-phobia-stats">
-                            <span>${data.sessions} session${data.sessions !== 1 ? 's' : ''}</span>
+                            <span>${data.sessions} ${sessionWord}</span>
                             <div class="oasis-phobia-trend">
                                 <span class="oasis-trend-arrow ${trendClass}">${trendIcon}</span>
-                                <span>${Math.abs(data.improvement)}% ${data.trend}</span>
+                                <span>${Math.abs(data.improvement)}% ${trendLabel}</span>
                             </div>
                         </div>
                         <div class="oasis-progress-bar">
@@ -1672,12 +1641,12 @@ var OasisAccount = (function() {
             // Recent activity
             if (analytics.recentActivity.length > 0) {
                 html += `<div class="oasis-activity-list">
-                    <div class="oasis-activity-title">Recent Activity</div>`;
+                    <div class="oasis-activity-title">${t('account.recentActivity', 'Recent Activity')}</div>`;
 
                 analytics.recentActivity.forEach(function(item) {
                     var date = new Date(item.date);
                     var dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    var typeName = phobiaNames[item.type] || item.type;
+                    var typeName = t('account.phobias.' + item.type, item.type);
 
                     html += `
                         <div class="oasis-activity-item">
@@ -1692,7 +1661,7 @@ var OasisAccount = (function() {
         }
 
         html += `
-                <button class="oasis-logout-btn" onclick="OasisAccount.logout(); OasisAccount.closePanels();">End Session</button>
+                <button class="oasis-logout-btn" onclick="OasisAccount.logout(); OasisAccount.closePanels();">${t('account.endSession', 'End Session')}</button>
             </div>
         `;
 
