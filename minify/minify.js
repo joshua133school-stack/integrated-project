@@ -3421,21 +3421,23 @@ var injection = injection || function() {
         btn.style.display = 'none';
         armPrompt.style.opacity = '0';
 
-        // Quick injection animation
+        // Injection animation (~2 seconds for the injection)
         setTimeout(function() {
             syringe.classList.add('injecting');
-        }, 300);
+        }, 500);
 
+        // After 2 seconds of injection, start withdrawing
         setTimeout(function() {
             syringe.classList.remove('injecting');
             syringe.classList.add('done');
-        }, 800);
+        }, 2500);
 
+        // Reset after withdrawal
         setTimeout(function() {
             syringe.classList.remove('done');
             btn.style.display = 'block';
             armPrompt.style.opacity = '1';
-        }, 2500);
+        }, 4000);
     }
 
     function initCanvas() {
@@ -3981,80 +3983,162 @@ var injection = injection || function() {
                     transition: opacity 0.3s ease;
                 }
 
-                /* Proper Syringe */
+                /* Proper Syringe - matching Three.js design */
                 .demo-syringe {
                     position: relative;
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     transform: translateY(0);
-                    transition: transform 0.4s ease-in-out;
+                    transition: transform 1s ease-in-out;
                 }
 
-                .syringe-plunger-handle {
-                    width: 50px;
-                    height: 12px;
-                    background: linear-gradient(to bottom, #e74c3c, #c0392b);
+                /* Thumb pad at top */
+                .syringe-thumb-pad {
+                    width: 36px;
+                    height: 10px;
+                    background: linear-gradient(to bottom, #888, #666);
                     border-radius: 3px;
                     position: relative;
-                    top: 0;
-                    transition: top 0.3s ease-in-out;
+                    z-index: 2;
+                    transition: transform 1s ease-in-out;
                 }
 
+                /* Plunger rod */
                 .syringe-plunger-rod {
                     width: 6px;
-                    height: 40px;
-                    background: linear-gradient(to right, #888, #bbb, #888);
-                    transition: height 0.3s ease-in-out;
+                    height: 60px;
+                    background: linear-gradient(to right, #777, #aaa, #777);
+                    position: relative;
+                    z-index: 1;
+                    transition: height 1s ease-in-out;
                 }
 
+                /* Barrel container */
                 .syringe-barrel {
-                    width: 40px;
-                    height: 80px;
-                    background: linear-gradient(to right, rgba(200, 220, 255, 0.3), rgba(255, 255, 255, 0.5), rgba(200, 220, 255, 0.3));
-                    border: 2px solid #999;
+                    width: 44px;
+                    height: 90px;
+                    background: linear-gradient(to right, rgba(220, 235, 255, 0.35), rgba(255, 255, 255, 0.5), rgba(220, 235, 255, 0.35));
+                    border: 2px solid rgba(150, 150, 150, 0.6);
                     border-radius: 4px;
                     position: relative;
+                    overflow: hidden;
                 }
 
-                .syringe-barrel::after {
+                /* Graduation marks on barrel */
+                .syringe-barrel::before {
                     content: '';
                     position: absolute;
-                    bottom: -2px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    width: 12px;
-                    height: 8px;
-                    background: #888;
-                    border-radius: 0 0 2px 2px;
+                    right: 6px;
+                    top: 10px;
+                    width: 8px;
+                    height: 70px;
+                    background: repeating-linear-gradient(
+                        to bottom,
+                        transparent 0px,
+                        transparent 8px,
+                        #666 8px,
+                        #666 9px,
+                        transparent 9px,
+                        transparent 17px,
+                        #444 17px,
+                        #444 19px
+                    );
                 }
 
+                /* Rubber stopper inside barrel */
+                .syringe-stopper {
+                    position: absolute;
+                    top: 2px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 34px;
+                    height: 10px;
+                    background: linear-gradient(to bottom, #222, #1a1a1a);
+                    border-radius: 2px;
+                    z-index: 2;
+                    transition: top 1s ease-in-out;
+                }
+
+                /* Liquid inside barrel */
+                .syringe-liquid {
+                    position: absolute;
+                    bottom: 2px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 36px;
+                    height: 74px;
+                    background: linear-gradient(to bottom, rgba(64, 160, 224, 0.85), rgba(80, 180, 240, 0.9));
+                    border-radius: 2px;
+                    transition: height 1s ease-in-out;
+                }
+
+                /* Finger wings */
+                .syringe-wings {
+                    position: absolute;
+                    top: -2px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 70px;
+                    height: 8px;
+                    display: flex;
+                    justify-content: space-between;
+                }
+
+                .syringe-wing {
+                    width: 14px;
+                    height: 8px;
+                    background: rgba(200, 220, 255, 0.4);
+                    border: 1px solid rgba(150, 150, 150, 0.4);
+                    border-radius: 2px;
+                }
+
+                /* Hub (connects barrel to needle) */
+                .syringe-hub {
+                    width: 20px;
+                    height: 14px;
+                    background: linear-gradient(to bottom, #4caf50, #388e3c);
+                    border-radius: 2px 2px 4px 4px;
+                    clip-path: polygon(0% 0%, 100% 0%, 80% 100%, 20% 100%);
+                }
+
+                /* Needle shaft */
                 .syringe-needle {
                     width: 3px;
-                    height: 50px;
-                    background: linear-gradient(to right, #a8a8a8, #e8e8e8, #a8a8a8);
+                    height: 45px;
+                    background: linear-gradient(to right, #b0b0b0, #e8e8e8, #b0b0b0);
                     position: relative;
                 }
 
+                /* Needle tip */
                 .syringe-needle::after {
                     content: '';
                     position: absolute;
-                    bottom: -10px;
+                    bottom: -12px;
                     left: 50%;
                     transform: translateX(-50%);
                     width: 0;
                     height: 0;
                     border-left: 2px solid transparent;
                     border-right: 2px solid transparent;
-                    border-top: 10px solid #c0c0c0;
+                    border-top: 12px solid #d0d0d0;
                 }
 
+                /* Animation states */
                 .demo-syringe.injecting {
-                    transform: translateY(80px);
+                    transform: translateY(90px);
                 }
 
                 .demo-syringe.injecting .syringe-plunger-rod {
-                    height: 70px;
+                    height: 130px;
+                }
+
+                .demo-syringe.injecting .syringe-stopper {
+                    top: 76px;
+                }
+
+                .demo-syringe.injecting .syringe-liquid {
+                    height: 0px;
                 }
 
                 .demo-syringe.done {
@@ -4162,9 +4246,17 @@ var injection = injection || function() {
                             <div class="injection-demo-area">
                                 <div class="syringe-zone">
                                     <div class="demo-syringe">
-                                        <div class="syringe-plunger-handle"></div>
+                                        <div class="syringe-thumb-pad"></div>
                                         <div class="syringe-plunger-rod"></div>
-                                        <div class="syringe-barrel"></div>
+                                        <div class="syringe-barrel">
+                                            <div class="syringe-stopper"></div>
+                                            <div class="syringe-liquid"></div>
+                                            <div class="syringe-wings">
+                                                <div class="syringe-wing"></div>
+                                                <div class="syringe-wing"></div>
+                                            </div>
+                                        </div>
+                                        <div class="syringe-hub"></div>
                                         <div class="syringe-needle"></div>
                                     </div>
                                 </div>
