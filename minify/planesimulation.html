@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plane Simulation - Oasis</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            overflow: hidden;
+            background: #87CEEB;
+            font-family: 'Georgia', serif;
+        }
+        #canvas-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+        }
+        .prompt-overlay {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.8rem;
+            text-align: center;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+            text-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 80%;
+        }
+        .prompt-overlay.visible { opacity: 1; }
+        #controls-hint {
+            position: fixed;
+            bottom: 30px; left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.9);
+            font-size: 1rem;
+            z-index: 50;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            transition: opacity 1s;
+            background: rgba(0,0,0,0.4);
+            padding: 12px 24px;
+            border-radius: 8px;
+        }
+        #phase-indicator {
+            position: fixed;
+            top: 20px; left: 20px;
+            color: white;
+            font-size: 1rem;
+            z-index: 50;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.4);
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+        #altitude-indicator {
+            position: fixed;
+            top: 20px; right: 20px;
+            color: white;
+            font-size: 1rem;
+            z-index: 50;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.4);
+            padding: 8px 16px;
+            border-radius: 6px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+        #altitude-indicator.visible { opacity: 1; }
+        #fade-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: black;
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 2s ease;
+        }
+        #fade-overlay.visible { opacity: 1; pointer-events: all; }
+        #warning-text {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff6b6b;
+            font-size: 2rem;
+            z-index: 101;
+            opacity: 0;
+            transition: opacity 0.5s;
+            text-shadow: 0 0 30px rgba(255,0,0,0.5);
+            text-align: center;
+        }
+        #warning-text.visible { opacity: 1; }
+        .seatbelt-sign {
+            position: fixed;
+            top: 80px; left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(145deg, #ff4444, #cc0000);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            z-index: 50;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 0 20px rgba(255,0,0,0.5);
+        }
+        .seatbelt-sign.visible { opacity: 1; animation: pulse 1s infinite; }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255,0,0,0.5); }
+            50% { box-shadow: 0 0 40px rgba(255,0,0,0.8); }
+        }
+        .oxygen-mask {
+            position: fixed;
+            width: 60px;
+            height: 80px;
+            background: linear-gradient(145deg, #ffcc00, #ff9900);
+            border-radius: 0 0 30px 30px;
+            z-index: 60;
+            opacity: 0;
+            transition: transform 1s ease-out;
+        }
+        .oxygen-mask::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 4px;
+            height: 40px;
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="phase-indicator">Airport Terminal</div>
+    <div id="altitude-indicator">Altitude: 0 ft</div>
+    <div class="prompt-overlay" id="intro-text">Welcome aboard...</div>
+    <div id="controls-hint">Click to continue | WASD to look around</div>
+    <div class="seatbelt-sign" id="seatbelt-sign">FASTEN SEATBELT</div>
+    <div id="warning-text"></div>
+    <div id="fade-overlay"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
+    <script>
+        // ============== SCENE SETUP ==============
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        camera.position.set(0, 1.7, 0);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        // ============== GAME STATE ==============
+        const State = {
+            phase: 'airport', // airport, boarding, interior, taxiing, takeoff, flying, turbulence, crash, end
+            time: 0,
+            altitude: 0,
+            speed: 0,
+            canInteract: true,
+            lookX: 0,
+            lookY: 0,
+            targetLookX: 0,
+            targetLookY: 0,
+            keys: { w: false, a: false, s: false, d: false },
+            shakeIntensity: 0,
+            cloudsPassed: 0
+        };
+
+        // ============== LIGHTING ==============
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambientLight);
+
+        const sunLight = new THREE.DirectionalLight(0xffffee, 1.0);
+        sunLight.position.set(50, 100, 50);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        scene.add(sunLight);
+
+        // ============== MATERIALS ==============
+        const materials = {
+            concrete: new THREE.MeshLambertMaterial({ color: 0x888888 }),
+            asphalt: new THREE.MeshLambertMaterial({ color: 0x333333 }),
+            grass: new THREE.MeshLambertMaterial({ color: 0x4a7c23 }),
+            glass: new THREE.MeshPhysicalMaterial({
+                color: 0x88ccff, transparent: true, opacity: 0.4,
+                roughness: 0.1, metalness: 0.1
+            }),
+            metal: new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.3, metalness: 0.8 }),
+            white: new THREE.MeshLambertMaterial({ color: 0xffffff }),
+            blue: new THREE.MeshLambertMaterial({ color: 0x1a4b8c }),
+            red: new THREE.MeshLambertMaterial({ color: 0xcc3333 }),
+            seat: new THREE.MeshLambertMaterial({ color: 0x2244aa }),
+            seatBack: new THREE.MeshLambertMaterial({ color: 0x1a3366 }),
+            carpet: new THREE.MeshLambertMaterial({ color: 0x334455 }),
+            plastic: new THREE.MeshLambertMaterial({ color: 0xe8e0d0 }),
+            window: new THREE.MeshPhysicalMaterial({
+                color: 0xaaddff, transparent: true, opacity: 0.3,
+                roughness: 0.05, metalness: 0.1
+            })
+        };
+
+        // ============== SCENE CONTAINERS ==============
+        const airportGroup = new THREE.Group();
+        const planeExteriorGroup = new THREE.Group();
+        const planeInteriorGroup = new THREE.Group();
+        const cloudsGroup = new THREE.Group();
+        const groundGroup = new THREE.Group();
+
+        scene.add(airportGroup);
+        scene.add(planeExteriorGroup);
+        scene.add(planeInteriorGroup);
+        scene.add(cloudsGroup);
+        scene.add(groundGroup);
+
+        // ============== CREATE AIRPORT ==============
+        function createAirport() {
+            // Ground
+            const groundGeo = new THREE.PlaneGeometry(500, 500);
+            const ground = new THREE.Mesh(groundGeo, materials.grass);
+            ground.rotation.x = -Math.PI / 2;
+            ground.receiveShadow = true;
+            airportGroup.add(ground);
+            groundGroup.add(ground.clone());
+
+            // Runway
+            const runwayGeo = new THREE.PlaneGeometry(20, 200);
+            const runway = new THREE.Mesh(runwayGeo, materials.asphalt);
+            runway.rotation.x = -Math.PI / 2;
+            runway.position.set(30, 0.01, 0);
+            runway.receiveShadow = true;
+            airportGroup.add(runway);
+
+            // Runway markings
+            const markingMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            for (let i = -80; i < 80; i += 10) {
+                const marking = new THREE.Mesh(
+                    new THREE.PlaneGeometry(1, 4),
+                    markingMat
+                );
+                marking.rotation.x = -Math.PI / 2;
+                marking.position.set(30, 0.02, i);
+                airportGroup.add(marking);
+            }
+
+            // Terminal building
+            const terminalGeo = new THREE.BoxGeometry(60, 15, 30);
+            const terminal = new THREE.Mesh(terminalGeo, materials.concrete);
+            terminal.position.set(-20, 7.5, 0);
+            terminal.castShadow = true;
+            terminal.receiveShadow = true;
+            airportGroup.add(terminal);
+
+            // Terminal windows
+            for (let x = -25; x <= 5; x += 5) {
+                for (let y = 3; y <= 12; y += 4) {
+                    const windowGeo = new THREE.PlaneGeometry(3, 2.5);
+                    const windowMesh = new THREE.Mesh(windowGeo, materials.glass);
+                    windowMesh.position.set(x, y, 15.01);
+                    airportGroup.add(windowMesh);
+                }
+            }
+
+            // Control tower
+            const towerBase = new THREE.Mesh(
+                new THREE.CylinderGeometry(4, 5, 25, 8),
+                materials.concrete
+            );
+            towerBase.position.set(-50, 12.5, -30);
+            airportGroup.add(towerBase);
+
+            const towerTop = new THREE.Mesh(
+                new THREE.CylinderGeometry(7, 5, 6, 8),
+                materials.glass
+            );
+            towerTop.position.set(-50, 28, -30);
+            airportGroup.add(towerTop);
+
+            // Jet bridge
+            const bridgeGeo = new THREE.BoxGeometry(15, 3, 4);
+            const bridge = new THREE.Mesh(bridgeGeo, materials.metal);
+            bridge.position.set(2, 4, 0);
+            airportGroup.add(bridge);
+        }
+
+        // ============== CREATE PLANE EXTERIOR ==============
+        function createPlaneExterior() {
+            // Fuselage
+            const fuselageLength = 40;
+            const fuselageRadius = 2.5;
+
+            // Main body
+            const fuselageGeo = new THREE.CylinderGeometry(
+                fuselageRadius, fuselageRadius, fuselageLength, 24, 1, false
+            );
+            const fuselage = new THREE.Mesh(fuselageGeo, materials.white);
+            fuselage.rotation.z = Math.PI / 2;
+            fuselage.castShadow = true;
+            planeExteriorGroup.add(fuselage);
+
+            // Nose cone
+            const noseGeo = new THREE.ConeGeometry(fuselageRadius, 6, 24);
+            const nose = new THREE.Mesh(noseGeo, materials.white);
+            nose.rotation.z = -Math.PI / 2;
+            nose.position.x = fuselageLength / 2 + 3;
+            planeExteriorGroup.add(nose);
+
+            // Tail cone
+            const tailGeo = new THREE.ConeGeometry(fuselageRadius, 8, 24);
+            const tail = new THREE.Mesh(tailGeo, materials.white);
+            tail.rotation.z = Math.PI / 2;
+            tail.position.x = -fuselageLength / 2 - 4;
+            planeExteriorGroup.add(tail);
+
+            // Windows (exterior)
+            for (let i = -15; i <= 15; i += 2) {
+                const windowGeo = new THREE.CircleGeometry(0.3, 16);
+                const windowL = new THREE.Mesh(windowGeo, materials.glass);
+                windowL.position.set(i, 1.5, fuselageRadius + 0.01);
+                windowL.rotation.x = 0;
+                planeExteriorGroup.add(windowL);
+
+                const windowR = new THREE.Mesh(windowGeo, materials.glass);
+                windowR.position.set(i, 1.5, -fuselageRadius - 0.01);
+                windowR.rotation.x = 0;
+                windowR.rotation.y = Math.PI;
+                planeExteriorGroup.add(windowR);
+            }
+
+            // Wings
+            const wingShape = new THREE.Shape();
+            wingShape.moveTo(0, 0);
+            wingShape.lineTo(15, -2);
+            wingShape.lineTo(16, -2.5);
+            wingShape.lineTo(14, -0.5);
+            wingShape.lineTo(0, 0.5);
+
+            const wingExtrudeSettings = { depth: 0.3, bevelEnabled: false };
+            const wingGeo = new THREE.ExtrudeGeometry(wingShape, wingExtrudeSettings);
+
+            const wingL = new THREE.Mesh(wingGeo, materials.metal);
+            wingL.position.set(-2, -1, fuselageRadius - 0.5);
+            wingL.rotation.x = Math.PI / 2;
+            planeExteriorGroup.add(wingL);
+
+            const wingR = new THREE.Mesh(wingGeo, materials.metal);
+            wingR.position.set(-2, -1, -fuselageRadius + 0.5);
+            wingR.rotation.x = -Math.PI / 2;
+            wingR.scale.z = -1;
+            planeExteriorGroup.add(wingR);
+
+            // Engines
+            function createEngine(x, z) {
+                const engineGroup = new THREE.Group();
+
+                const nacelle = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.8, 1, 4, 16),
+                    materials.metal
+                );
+                nacelle.rotation.z = Math.PI / 2;
+                engineGroup.add(nacelle);
+
+                const intake = new THREE.Mesh(
+                    new THREE.RingGeometry(0.3, 0.8, 16),
+                    new THREE.MeshBasicMaterial({ color: 0x222222 })
+                );
+                intake.position.x = 2;
+                intake.rotation.y = Math.PI / 2;
+                engineGroup.add(intake);
+
+                engineGroup.position.set(x, -1.8, z);
+                return engineGroup;
+            }
+
+            planeExteriorGroup.add(createEngine(-4, 8));
+            planeExteriorGroup.add(createEngine(-4, -8));
+
+            // Vertical stabilizer (tail fin)
+            const vStabGeo = new THREE.BoxGeometry(6, 5, 0.3);
+            const vStab = new THREE.Mesh(vStabGeo, materials.blue);
+            vStab.position.set(-fuselageLength / 2 - 2, 4, 0);
+            vStab.rotation.z = 0.2;
+            planeExteriorGroup.add(vStab);
+
+            // Horizontal stabilizers
+            const hStabGeo = new THREE.BoxGeometry(4, 0.2, 6);
+            const hStabL = new THREE.Mesh(hStabGeo, materials.metal);
+            hStabL.position.set(-fuselageLength / 2 - 3, 1, 4);
+            planeExteriorGroup.add(hStabL);
+
+            const hStabR = hStabL.clone();
+            hStabR.position.z = -4;
+            planeExteriorGroup.add(hStabR);
+
+            // Position plane at gate
+            planeExteriorGroup.position.set(15, 2.5, 0);
+            planeExteriorGroup.rotation.y = Math.PI;
+        }
+
+        // ============== CREATE PLANE INTERIOR ==============
+        function createPlaneInterior() {
+            const cabinLength = 30;
+            const cabinWidth = 4.6;
+            const cabinHeight = 2.4;
+
+            // Floor
+            const floorGeo = new THREE.PlaneGeometry(cabinLength, cabinWidth);
+            const floor = new THREE.Mesh(floorGeo, materials.carpet);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = 0;
+            planeInteriorGroup.add(floor);
+
+            // Ceiling
+            const ceilingGeo = new THREE.PlaneGeometry(cabinLength, cabinWidth);
+            const ceiling = new THREE.Mesh(ceilingGeo, materials.plastic);
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = cabinHeight;
+            planeInteriorGroup.add(ceiling);
+
+            // Walls (curved appearance)
+            const wallSegments = 20;
+            for (let i = 0; i < wallSegments; i++) {
+                const angle = (i / wallSegments) * Math.PI;
+                const y = Math.sin(angle) * cabinHeight / 2 + cabinHeight / 2;
+                const z = Math.cos(angle) * cabinWidth / 2;
+
+                const panelGeo = new THREE.PlaneGeometry(cabinLength, cabinHeight / wallSegments);
+                const panelL = new THREE.Mesh(panelGeo, materials.plastic);
+                panelL.position.set(0, y, cabinWidth / 2);
+                panelL.rotation.y = -Math.PI / 2;
+                planeInteriorGroup.add(panelL);
+
+                const panelR = new THREE.Mesh(panelGeo, materials.plastic);
+                panelR.position.set(0, y, -cabinWidth / 2);
+                panelR.rotation.y = Math.PI / 2;
+                planeInteriorGroup.add(panelR);
+            }
+
+            // Create seats
+            function createSeat(x, z, rotation = 0) {
+                const seatGroup = new THREE.Group();
+
+                // Seat cushion
+                const cushionGeo = new THREE.BoxGeometry(0.5, 0.15, 0.45);
+                const cushion = new THREE.Mesh(cushionGeo, materials.seat);
+                cushion.position.y = 0.45;
+                seatGroup.add(cushion);
+
+                // Seat back
+                const backGeo = new THREE.BoxGeometry(0.5, 0.7, 0.08);
+                const back = new THREE.Mesh(backGeo, materials.seatBack);
+                back.position.set(0, 0.8, -0.2);
+                back.rotation.x = 0.1;
+                seatGroup.add(back);
+
+                // Headrest
+                const headrestGeo = new THREE.BoxGeometry(0.3, 0.25, 0.06);
+                const headrest = new THREE.Mesh(headrestGeo, materials.plastic);
+                headrest.position.set(0, 1.2, -0.22);
+                seatGroup.add(headrest);
+
+                // Armrests
+                const armrestGeo = new THREE.BoxGeometry(0.5, 0.05, 0.08);
+                const armrestL = new THREE.Mesh(armrestGeo, materials.plastic);
+                armrestL.position.set(0, 0.5, 0.22);
+                seatGroup.add(armrestL);
+
+                const armrestR = new THREE.Mesh(armrestGeo, materials.plastic);
+                armrestR.position.set(0, 0.5, -0.28);
+                seatGroup.add(armrestR);
+
+                // Seat legs
+                const legGeo = new THREE.BoxGeometry(0.05, 0.4, 0.4);
+                const legL = new THREE.Mesh(legGeo, materials.metal);
+                legL.position.set(-0.2, 0.2, 0);
+                seatGroup.add(legL);
+
+                const legR = new THREE.Mesh(legGeo, materials.metal);
+                legR.position.set(0.2, 0.2, 0);
+                seatGroup.add(legR);
+
+                seatGroup.position.set(x, 0, z);
+                seatGroup.rotation.y = rotation;
+                return seatGroup;
+            }
+
+            // Seat rows (3-3 configuration)
+            for (let row = -12; row <= 10; row += 2.2) {
+                // Left side (A, B, C)
+                planeInteriorGroup.add(createSeat(row, 1.8, 0));
+                planeInteriorGroup.add(createSeat(row, 1.2, 0));
+                planeInteriorGroup.add(createSeat(row, 0.6, 0));
+
+                // Right side (D, E, F)
+                planeInteriorGroup.add(createSeat(row, -0.6, 0));
+                planeInteriorGroup.add(createSeat(row, -1.2, 0));
+                planeInteriorGroup.add(createSeat(row, -1.8, 0));
+            }
+
+            // Overhead bins
+            for (let x = -12; x <= 10; x += 4) {
+                const binGeo = new THREE.BoxGeometry(3.8, 0.4, 0.6);
+                const binL = new THREE.Mesh(binGeo, materials.plastic);
+                binL.position.set(x, cabinHeight - 0.3, 1.8);
+                planeInteriorGroup.add(binL);
+
+                const binR = new THREE.Mesh(binGeo, materials.plastic);
+                binR.position.set(x, cabinHeight - 0.3, -1.8);
+                planeInteriorGroup.add(binR);
+            }
+
+            // Windows (interior view)
+            for (let x = -12; x <= 10; x += 2.2) {
+                // Left window
+                const windowFrameL = new THREE.Mesh(
+                    new THREE.RingGeometry(0.2, 0.28, 16),
+                    materials.plastic
+                );
+                windowFrameL.position.set(x, 1.3, cabinWidth / 2 - 0.05);
+                windowFrameL.rotation.y = -Math.PI / 2;
+                planeInteriorGroup.add(windowFrameL);
+
+                const windowGlassL = new THREE.Mesh(
+                    new THREE.CircleGeometry(0.2, 16),
+                    materials.window
+                );
+                windowGlassL.position.set(x, 1.3, cabinWidth / 2 - 0.04);
+                windowGlassL.rotation.y = -Math.PI / 2;
+                windowGlassL.userData.isWindow = true;
+                planeInteriorGroup.add(windowGlassL);
+
+                // Right window
+                const windowFrameR = windowFrameL.clone();
+                windowFrameR.position.z = -cabinWidth / 2 + 0.05;
+                windowFrameR.rotation.y = Math.PI / 2;
+                planeInteriorGroup.add(windowFrameR);
+
+                const windowGlassR = windowGlassL.clone();
+                windowGlassR.position.z = -cabinWidth / 2 + 0.04;
+                windowGlassR.rotation.y = Math.PI / 2;
+                planeInteriorGroup.add(windowGlassR);
+            }
+
+            // Aisle lights
+            for (let x = -12; x <= 10; x += 4) {
+                const lightGeo = new THREE.BoxGeometry(0.1, 0.05, 0.3);
+                const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffcc });
+                const light = new THREE.Mesh(lightGeo, lightMat);
+                light.position.set(x, cabinHeight - 0.05, 0);
+                planeInteriorGroup.add(light);
+            }
+
+            // Cockpit door
+            const cockpitDoorGeo = new THREE.BoxGeometry(0.1, 2, 1.5);
+            const cockpitDoor = new THREE.Mesh(cockpitDoorGeo, materials.metal);
+            cockpitDoor.position.set(cabinLength / 2 - 0.05, 1, 0);
+            planeInteriorGroup.add(cockpitDoor);
+
+            // Exit signs
+            const exitSignGeo = new THREE.BoxGeometry(0.4, 0.15, 0.02);
+            const exitSignMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+
+            const exitSignFront = new THREE.Mesh(exitSignGeo, exitSignMat);
+            exitSignFront.position.set(cabinLength / 2 - 1, cabinHeight - 0.2, 0);
+            planeInteriorGroup.add(exitSignFront);
+
+            const exitSignBack = new THREE.Mesh(exitSignGeo, exitSignMat);
+            exitSignBack.position.set(-cabinLength / 2 + 1, cabinHeight - 0.2, 0);
+            planeInteriorGroup.add(exitSignBack);
+
+            // Hide interior initially
+            planeInteriorGroup.visible = false;
+        }
+
+        // ============== CREATE CLOUDS ==============
+        function createCloud(x, y, z, scale = 1) {
+            const cloudGroup = new THREE.Group();
+            const cloudMat = new THREE.MeshLambertMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.9
+            });
+
+            const sphereCount = 5 + Math.floor(Math.random() * 5);
+            for (let i = 0; i < sphereCount; i++) {
+                const radius = (0.8 + Math.random() * 1.2) * scale;
+                const sphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(radius, 8, 8),
+                    cloudMat
+                );
+                sphere.position.set(
+                    (Math.random() - 0.5) * 4 * scale,
+                    (Math.random() - 0.5) * 1.5 * scale,
+                    (Math.random() - 0.5) * 3 * scale
+                );
+                cloudGroup.add(sphere);
+            }
+
+            cloudGroup.position.set(x, y, z);
+            cloudGroup.userData.speed = 0.5 + Math.random() * 0.5;
+            return cloudGroup;
+        }
+
+        function populateClouds() {
+            for (let i = 0; i < 30; i++) {
+                const cloud = createCloud(
+                    (Math.random() - 0.5) * 400,
+                    30 + Math.random() * 60,
+                    (Math.random() - 0.5) * 400,
+                    2 + Math.random() * 3
+                );
+                cloudsGroup.add(cloud);
+            }
+        }
+
+        // ============== INITIALIZE ==============
+        createAirport();
+        createPlaneExterior();
+        createPlaneInterior();
+        populateClouds();
+
+        // Position camera at airport initially
+        camera.position.set(-10, 1.7, 10);
+        camera.lookAt(planeExteriorGroup.position);
+
+        // ============== UI ELEMENTS ==============
+        const introText = document.getElementById('intro-text');
+        const phaseIndicator = document.getElementById('phase-indicator');
+        const altitudeIndicator = document.getElementById('altitude-indicator');
+        const controlsHint = document.getElementById('controls-hint');
+        const seatbeltSign = document.getElementById('seatbelt-sign');
+        const warningText = document.getElementById('warning-text');
+        const fadeOverlay = document.getElementById('fade-overlay');
+
+        // ============== PHASE TRANSITIONS ==============
+        function showPrompt(text, duration = 3000) {
+            introText.textContent = text;
+            introText.classList.add('visible');
+            setTimeout(() => introText.classList.remove('visible'), duration);
+        }
+
+        function transitionToPhase(phase) {
+            State.phase = phase;
+            State.canInteract = false;
+
+            switch (phase) {
+                case 'boarding':
+                    phaseIndicator.textContent = 'Boarding';
+                    showPrompt('Please board the aircraft...', 2000);
+                    setTimeout(() => {
+                        // Fade to interior
+                        fadeOverlay.classList.add('visible');
+                        setTimeout(() => {
+                            airportGroup.visible = false;
+                            planeExteriorGroup.visible = false;
+                            planeInteriorGroup.visible = true;
+                            groundGroup.visible = false;
+
+                            // Position camera in aisle
+                            camera.position.set(-8, 1.5, 0);
+                            camera.rotation.set(0, 0, 0);
+
+                            fadeOverlay.classList.remove('visible');
+                            transitionToPhase('interior');
+                        }, 2000);
+                    }, 2500);
+                    break;
+
+                case 'interior':
+                    phaseIndicator.textContent = 'Finding Your Seat';
+                    showPrompt('Find your seat and prepare for departure...', 3000);
+                    controlsHint.textContent = 'Click to take your seat';
+                    State.canInteract = true;
+                    break;
+
+                case 'seated':
+                    phaseIndicator.textContent = 'Seated';
+                    // Move to window seat position
+                    camera.position.set(-4, 1.3, 1.6);
+                    camera.rotation.set(0, Math.PI / 2, 0);
+                    showPrompt('Please fasten your seatbelt...', 2000);
+                    controlsHint.textContent = 'Click when ready for departure';
+                    State.canInteract = true;
+                    break;
+
+                case 'taxiing':
+                    phaseIndicator.textContent = 'Taxiing to Runway';
+                    seatbeltSign.classList.add('visible');
+                    controlsHint.style.opacity = '0';
+                    showPrompt('Taxiing to runway...', 3000);
+
+                    // Slight engine vibration
+                    State.shakeIntensity = 0.002;
+
+                    setTimeout(() => transitionToPhase('takeoff'), 5000);
+                    break;
+
+                case 'takeoff':
+                    phaseIndicator.textContent = 'Takeoff';
+                    showPrompt('Prepare for takeoff...', 2000);
+                    altitudeIndicator.classList.add('visible');
+                    State.speed = 0;
+
+                    // Accelerate
+                    const takeoffInterval = setInterval(() => {
+                        State.speed += 2;
+                        State.shakeIntensity = 0.005 + State.speed * 0.0001;
+
+                        if (State.speed > 150) {
+                            clearInterval(takeoffInterval);
+                            transitionToPhase('climbing');
+                        }
+                    }, 100);
+                    break;
+
+                case 'climbing':
+                    phaseIndicator.textContent = 'Climbing';
+                    showPrompt('We are now climbing to cruising altitude...', 3000);
+
+                    // Show sky through window, hide ground
+                    scene.background = new THREE.Color(0x6699cc);
+
+                    const climbInterval = setInterval(() => {
+                        State.altitude += 500;
+                        altitudeIndicator.textContent = `Altitude: ${State.altitude.toLocaleString()} ft`;
+
+                        // Gradually decrease shake
+                        State.shakeIntensity = Math.max(0.001, State.shakeIntensity - 0.0002);
+
+                        // Change sky color with altitude
+                        const altFactor = Math.min(State.altitude / 35000, 1);
+                        const skyColor = new THREE.Color().lerpColors(
+                            new THREE.Color(0x87CEEB),
+                            new THREE.Color(0x1a3a6e),
+                            altFactor
+                        );
+                        scene.background = skyColor;
+
+                        if (State.altitude >= 35000) {
+                            clearInterval(climbInterval);
+                            transitionToPhase('flying');
+                        }
+                    }, 200);
+                    break;
+
+                case 'flying':
+                    phaseIndicator.textContent = 'Cruising at 35,000 ft';
+                    seatbeltSign.classList.remove('visible');
+                    showPrompt('You may now move about the cabin...', 3000);
+                    State.shakeIntensity = 0.0005;
+
+                    // After some time, trigger turbulence
+                    setTimeout(() => transitionToPhase('turbulence'), 8000);
+                    break;
+
+                case 'turbulence':
+                    phaseIndicator.textContent = 'Turbulence';
+                    seatbeltSign.classList.add('visible');
+                    showPrompt('Please return to your seat...', 2000);
+
+                    // Increasing turbulence
+                    let turbulenceLevel = 0;
+                    const turbulenceInterval = setInterval(() => {
+                        turbulenceLevel += 0.1;
+                        State.shakeIntensity = 0.005 + turbulenceLevel * 0.01;
+
+                        if (turbulenceLevel > 3) {
+                            clearInterval(turbulenceInterval);
+                            transitionToPhase('crash');
+                        }
+                    }, 500);
+                    break;
+
+                case 'crash':
+                    phaseIndicator.textContent = 'EMERGENCY';
+                    phaseIndicator.style.background = 'rgba(200,0,0,0.8)';
+
+                    warningText.textContent = 'BRACE FOR IMPACT';
+                    warningText.classList.add('visible');
+
+                    // Drop oxygen masks
+                    dropOxygenMasks();
+
+                    // Violent shaking
+                    State.shakeIntensity = 0.05;
+
+                    // Descend
+                    const crashInterval = setInterval(() => {
+                        State.altitude -= 2000;
+                        altitudeIndicator.textContent = `Altitude: ${Math.max(0, State.altitude).toLocaleString()} ft`;
+
+                        // Increase shake as we descend
+                        State.shakeIntensity = 0.05 + (35000 - State.altitude) / 35000 * 0.1;
+
+                        // Sky color changes
+                        const crashFactor = Math.max(0, State.altitude) / 35000;
+                        scene.background.lerpColors(
+                            new THREE.Color(0x331111),
+                            new THREE.Color(0x1a3a6e),
+                            crashFactor
+                        );
+
+                        if (State.altitude <= 0) {
+                            clearInterval(crashInterval);
+                            transitionToPhase('end');
+                        }
+                    }, 100);
+                    break;
+
+                case 'end':
+                    State.shakeIntensity = 0;
+                    fadeOverlay.classList.add('visible');
+
+                    setTimeout(() => {
+                        warningText.textContent = 'This was a simulation.\n\nFlying is statistically the safest form of travel.';
+                        warningText.style.color = '#ffffff';
+                        warningText.style.fontSize = '1.5rem';
+                        warningText.style.lineHeight = '2';
+                    }, 2000);
+                    break;
+            }
+        }
+
+        function dropOxygenMasks() {
+            const maskPositions = [
+                { left: '30%', top: '-80px' },
+                { left: '50%', top: '-80px' },
+                { left: '70%', top: '-80px' }
+            ];
+
+            maskPositions.forEach((pos, i) => {
+                setTimeout(() => {
+                    const mask = document.createElement('div');
+                    mask.className = 'oxygen-mask';
+                    mask.style.left = pos.left;
+                    mask.style.top = pos.top;
+                    document.body.appendChild(mask);
+
+                    setTimeout(() => {
+                        mask.style.opacity = '1';
+                        mask.style.transform = 'translateY(150px)';
+                    }, 50);
+                }, i * 200);
+            });
+        }
+
+        // ============== INPUT HANDLING ==============
+        document.addEventListener('click', () => {
+            if (!State.canInteract) return;
+
+            switch (State.phase) {
+                case 'airport':
+                    transitionToPhase('boarding');
+                    break;
+                case 'interior':
+                    transitionToPhase('seated');
+                    break;
+                case 'seated':
+                    transitionToPhase('taxiing');
+                    break;
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            const k = e.key.toLowerCase();
+            if (k === 'w') State.keys.w = true;
+            if (k === 'a') State.keys.a = true;
+            if (k === 's') State.keys.s = true;
+            if (k === 'd') State.keys.d = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const k = e.key.toLowerCase();
+            if (k === 'w') State.keys.w = false;
+            if (k === 'a') State.keys.a = false;
+            if (k === 's') State.keys.s = false;
+            if (k === 'd') State.keys.d = false;
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (State.phase === 'airport' || State.phase === 'interior') {
+                State.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.5;
+                State.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.3;
+            }
+        });
+
+        // ============== ANIMATION LOOP ==============
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = Math.min(clock.getDelta(), 0.1);
+            State.time += delta;
+
+            // Smooth camera look
+            State.lookX += (State.targetLookX - State.lookX) * 0.05;
+            State.lookY += (State.targetLookY - State.lookY) * 0.05;
+
+            // Apply camera shake
+            if (State.shakeIntensity > 0) {
+                camera.position.x += (Math.random() - 0.5) * State.shakeIntensity;
+                camera.position.y += (Math.random() - 0.5) * State.shakeIntensity;
+                camera.rotation.z = (Math.random() - 0.5) * State.shakeIntensity * 0.5;
+            }
+
+            // Update based on phase
+            if (State.phase === 'airport') {
+                camera.rotation.y = -Math.PI / 4 + State.lookX;
+                camera.rotation.x = State.lookY;
+            }
+
+            if (State.phase === 'interior') {
+                camera.rotation.y = State.lookX * 2;
+                camera.rotation.x = State.lookY;
+            }
+
+            // Animate clouds
+            cloudsGroup.children.forEach(cloud => {
+                cloud.position.x -= cloud.userData.speed * delta * State.speed * 0.1;
+                if (cloud.position.x < -200) {
+                    cloud.position.x = 200;
+                    cloud.position.z = (Math.random() - 0.5) * 400;
+                }
+            });
+
+            // Window view during flight
+            if (['climbing', 'flying', 'turbulence', 'crash'].includes(State.phase)) {
+                // Looking out window - subtle movement
+                if (State.phase !== 'crash') {
+                    camera.rotation.y = Math.PI / 2 + Math.sin(State.time * 0.2) * 0.02 + State.lookX * 0.3;
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        // ============== WINDOW RESIZE ==============
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ============== START ==============
+        setTimeout(() => {
+            showPrompt('Welcome to the airport...', 3000);
+            controlsHint.textContent = 'Click to board the plane';
+        }, 1000);
+
+        animate();
+    </script>
+</body>
+</html>
