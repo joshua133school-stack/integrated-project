@@ -53,8 +53,9 @@ const translations = {
             withdraw: "Withdraw",
             done: "Done!",
             // Breathing exercise
-            inhale: "Inhale",
-            exhale: "Exhale"
+            inhale: "Breathe In",
+            hold: "Hold",
+            exhale: "Breathe Out"
         },
 
         // Knife safety experience
@@ -375,6 +376,7 @@ const translations = {
             done: "완료!",
             // Breathing exercise
             inhale: "들이쉬기",
+            hold: "참기",
             exhale: "내쉬기"
         },
 
