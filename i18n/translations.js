@@ -22,7 +22,12 @@ const translations = {
             kmlaProject: "This is a KMLA project"
         },
 
-        // Injection experience
+        // Footer (main home screen)
+        footer: {
+            aboutFaah: "about FAaH",
+            fullscreen: "fullscreen",
+            exitFullscreen: "exit fullscreen"
+        },
         injection: {
             holdToClear: "Hold to Clear",
             injectionTypes: "Injection Types",
@@ -334,6 +339,13 @@ const translations = {
             website: "웹사이트",
             copyright: "Copyright © 2025 cute centipede . All rights reserved.",
             kmlaProject: "이것은 KMLA 프로젝트입니다"
+        },
+
+        // Footer (main home screen)
+        footer: {
+            aboutFaah: "FAaH에 대하여",
+            fullscreen: "전체화면",
+            exitFullscreen: "전체화면 나가기"
         },
 
         // Injection experience
