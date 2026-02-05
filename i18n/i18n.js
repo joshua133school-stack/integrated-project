@@ -1,10 +1,10 @@
-// i18n - Internationalization utility for Oasis
+// i18n - Internationalization utility for FAAH
 // Supports English (en) and Korean (ko)
 
 (function() {
     'use strict';
 
-    const STORAGE_KEY = 'oasis-language';
+    const STORAGE_KEY = 'faah-language';
     const DEFAULT_LANG = 'en';
     const SUPPORTED_LANGS = ['en', 'ko'];
 

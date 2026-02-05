@@ -1,5 +1,5 @@
 /**
- * Oasis Account System
+ * FAAH Account System
  * User authentication, diagnostic tracking, and personal dashboard
  * Design: Doctor's note aesthetic - minimal, clean, professional
  *
@@ -9,8 +9,8 @@
 var OasisAccount = (function() {
     'use strict';
 
-    var STORAGE_KEY = 'oasis_user';
-    var HISTORY_KEY = 'oasis_history';
+    var STORAGE_KEY = 'faah_user';
+    var HISTORY_KEY = 'faah_history';
 
     // Firebase configuration
     var firebaseConfig = {
