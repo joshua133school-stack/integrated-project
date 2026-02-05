@@ -11,16 +11,6 @@
             background: #87CEEB;
             font-family: 'Georgia', serif;
         }
-        #background-image {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            object-fit: cover;
-            z-index: 0;
-            opacity: 1;
-            transition: opacity 1s ease;
-        }
-        #background-image.hidden { opacity: 0; }
         #continue-btn {
             position: fixed;
             bottom: 30%;
@@ -165,7 +155,6 @@
     </style>
 </head>
 <body>
-    <img id="background-image" src="../data/images/background.webp" alt="">
     <div id="canvas-container"></div>
     <div id="phase-indicator">Airport Terminal</div>
     <div id="altitude-indicator">Altitude: 0 ft</div>
@@ -180,17 +169,16 @@
     <script>
         // ============== SCENE SETUP ==============
         const scene = new THREE.Scene();
-        scene.background = null; // Transparent to show background image initially
+        scene.background = new THREE.Color(0x87CEEB);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
         camera.position.set(0, 1.7, 0);
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.setClearColor(0x000000, 0); // Transparent initially
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
         // ============== GAME STATE ==============
@@ -689,9 +677,6 @@
             switch (phase) {
                 case 'boarding':
                     phaseIndicator.textContent = 'Boarding';
-                    // Hide background image and show 3D scene background
-                    document.getElementById('background-image').classList.add('hidden');
-                    scene.background = new THREE.Color(0x87CEEB);
                     showPrompt('Please board the aircraft...', 2000);
                     setTimeout(() => {
                         // Fade to interior
