@@ -18,7 +18,7 @@ const translations = {
             description: 'The <span class="about-bold">FAAH</span> project is a collection of "interactive experiences", each experience has its own unique design and functionality. The project intends to help alleviate symptoms and reduce reactions of specific phobias on the website, with each interactive experience represented by a poster. By clicking on a poster, an interactive experience opens up specialized to a certain type of phobia.',
             contact: "If you want to contact me check out my",
             website: "website",
-            copyright: "Copyright © 2025 cute centipede . All rights reserved.",
+            copyright: "Copyright © 2025 teamcutiejinae . All rights reserved.",
             kmlaProject: "This is a KMLA project"
         },
 
@@ -337,7 +337,7 @@ const translations = {
             description: '<span class="about-bold">FAAH</span> 프로젝트는 "인터랙티브 경험"의 모음입니다. 각 경험은 고유한 디자인과 기능을 가지고 있습니다. 이 프로젝트는 웹사이트에서 특정 공포증의 증상을 완화하고 반응을 줄이는 것을 목표로 하며, 각 인터랙티브 경험은 포스터로 표현됩니다. 포스터를 클릭하면 특정 유형의 공포증에 특화된 인터랙티브 경험이 열립니다.',
             contact: "연락을 원하시면",
             website: "웹사이트",
-            copyright: "Copyright © 2025 cute centipede . All rights reserved.",
+            copyright: "Copyright © 2025 teamcutiejinae . All rights reserved.",
             kmlaProject: "이것은 KMLA 프로젝트입니다"
         },
 
