@@ -2173,6 +2173,8 @@ var airplane = airplane || function() {
     var flipLog = [];
     var isFlipping = false;
     var historyScreenEl, saferRevealEl;
+    var simulationPhase = true;
+    var simulationIframe = null;
 
     function formatNumber(num) {
         return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
@@ -2183,6 +2185,16 @@ var airplane = airplane || function() {
             var style = document.createElement('style');
             style.id = 'airplane-styles';
             style.innerHTML = '\
+                .airplane-simulation-container {\
+                    width: 100%;\
+                    height: 100%;\
+                    position: relative;\
+                }\
+                .airplane-simulation-container iframe {\
+                    width: 100%;\
+                    height: 100%;\
+                    border: none;\
+                }\
                 .airplane-game {\
                     width: 100%;\
                     height: 100%;\
@@ -2700,102 +2712,130 @@ var airplane = airplane || function() {
         document.getElementById('airplane-timeline-hint').classList.add('hide');
     }
 
+    function showStatisticsPhase() {
+        simulationPhase = false;
+        container.innerHTML = '\
+            <div class="airplane-game">\
+                <div class="airplane-title">Chances of Death on a Plane</div>\
+                <div class="airplane-title-kr">비행기 탑승 중 사망 확률</div>\
+                <div class="airplane-fraction" id="airplane-value">\
+                    <span class="frac-num">1</span>\
+                    <span class="frac-line"></span>\
+                    <span class="frac-denom" id="airplane-denom">25,000,000</span>\
+                </div>\
+                <div class="airplane-slider-container">\
+                    <input type="range" class="airplane-slider" id="airplane-slider" min="1" max="50000000" value="25000000">\
+                </div>\
+                <div class="airplane-range-labels">\
+                    <span>1</span>\
+                    <span>50,000,000</span>\
+                </div>\
+                <div class="airplane-hint" id="airplane-hint">Slide to guess, then check!</div>\
+                <button class="airplane-check-btn" id="airplane-check">Check</button>\
+                <div class="airplane-result" id="airplane-result">\
+                    <div class="airplane-result-text">The answer is</div>\
+                    <div class="airplane-result-number">\
+                        <span class="frac-num">1</span>\
+                        <span class="frac-line"></span>\
+                        <span class="frac-denom">13,700,000</span>\
+                    </div>\
+                    <div class="airplane-result-desc">Flying is one of the safest forms of transportation.<br>비행기는 가장 안전한 교통수단 중 하나입니다.</div>\
+                    <div class="airplane-coin-explain">That\'s the same odds as flipping a coin and getting heads 23 times in a row!<br>동전을 던져서 23번 연속으로 앞면이 나올 확률과 같습니다!</div>\
+                    <button class="airplane-try-btn" id="airplane-try">Try It Yourself →</button>\
+                </div>\
+                <div class="airplane-coin-game" id="airplane-coin-game">\
+                    <div class="airplane-coin-title">Can you flip 23 heads in a row?</div>\
+                    <div class="airplane-compare">\
+                        <div class="airplane-frac">\
+                            <span class="num">1</span>\
+                            <span class="line"></span>\
+                            <span class="denom">13,700,000</span>\
+                            <span class="airplane-frac-label">plane crash</span>\
+                        </div>\
+                        <div class="airplane-compare-symbol" id="airplane-comparison"><</div>\
+                        <div class="airplane-frac">\
+                            <span class="num">1</span>\
+                            <span class="line"></span>\
+                            <span class="denom" id="airplane-user-frac">1</span>\
+                            <span class="airplane-frac-label">your odds</span>\
+                        </div>\
+                    </div>\
+                    <div class="airplane-coin" id="airplane-coin"></div>\
+                    <button class="airplane-flip-btn" id="airplane-flip">Flip</button>\
+                    <div class="airplane-history" id="airplane-history"></div>\
+                    <button class="airplane-try-btn" id="airplane-next" style="margin-top:30px;">How did we get here? →</button>\
+                </div>\
+                <div class="airplane-timeline" id="airplane-timeline">\
+                    <div class="airplane-timeline-title">Aviation safety over time</div>\
+                    <div class="airplane-timeline-compare">\
+                        <div class="airplane-era old">\
+                            <div class="airplane-era-years">1968 — 1977</div>\
+                            <div class="airplane-era-frac">\
+                                <span class="num">1</span>\
+                                <span class="line"></span>\
+                                <span class="denom">350,000</span>\
+                            </div>\
+                        </div>\
+                        <div class="airplane-arrow">→</div>\
+                        <div class="airplane-era new">\
+                            <div class="airplane-era-years">2018 — 2022</div>\
+                            <div class="airplane-era-frac">\
+                                <span class="num">1</span>\
+                                <span class="line"></span>\
+                                <span class="denom">13,700,000</span>\
+                            </div>\
+                        </div>\
+                    </div>\
+                    <div class="airplane-safer" id="airplane-safer">30×</div>\
+                    <div class="airplane-safer-label" id="airplane-safer-label">safer than 50 years ago</div>\
+                    <div class="airplane-timeline-hint" id="airplane-timeline-hint">click anywhere to reveal</div>\
+                </div>\
+            </div>\
+        ';
+
+        sliderEl = document.getElementById('airplane-slider');
+        valueDisplay = document.getElementById('airplane-value');
+        hintText = document.getElementById('airplane-hint');
+        resultScreen = document.getElementById('airplane-result');
+        coinGameEl = document.getElementById('airplane-coin-game');
+        coinEl = document.getElementById('airplane-coin');
+        userFracEl = document.getElementById('airplane-user-frac');
+        comparisonEl = document.getElementById('airplane-comparison');
+        flipBtn = document.getElementById('airplane-flip');
+        historyEl = document.getElementById('airplane-history');
+        historyScreenEl = document.getElementById('airplane-timeline');
+        saferRevealEl = document.getElementById('airplane-safer');
+
+        // Add event listeners for statistics phase
+        sliderEl.addEventListener('input', onSliderChange);
+        document.getElementById('airplane-check').addEventListener('click', checkGuess);
+        document.getElementById('airplane-try').addEventListener('click', showCoinGame);
+        flipBtn.addEventListener('click', flipCoin);
+        document.getElementById('airplane-next').addEventListener('click', showTimeline);
+        historyScreenEl.addEventListener('click', revealSafer);
+    }
+
+    function onSimulationMessage(event) {
+        if (event.data === 'simulation-complete') {
+            showStatisticsPhase();
+        }
+    }
+
     return {
         init: function(parentElement) {
             container = parentElement;
             addStyles();
+            simulationPhase = true;
 
+            // Show Three.js simulation first
             container.innerHTML = '\
-                <div class="airplane-game">\
-                    <div class="airplane-title">Chances of Death on a Plane</div>\
-                    <div class="airplane-title-kr">비행기 탑승 중 사망 확률</div>\
-                    <div class="airplane-fraction" id="airplane-value">\
-                        <span class="frac-num">1</span>\
-                        <span class="frac-line"></span>\
-                        <span class="frac-denom" id="airplane-denom">25,000,000</span>\
-                    </div>\
-                    <div class="airplane-slider-container">\
-                        <input type="range" class="airplane-slider" id="airplane-slider" min="1" max="50000000" value="25000000">\
-                    </div>\
-                    <div class="airplane-range-labels">\
-                        <span>1</span>\
-                        <span>50,000,000</span>\
-                    </div>\
-                    <div class="airplane-hint" id="airplane-hint">Slide to guess, then check!</div>\
-                    <button class="airplane-check-btn" id="airplane-check">Check</button>\
-                    <div class="airplane-result" id="airplane-result">\
-                        <div class="airplane-result-text">The answer is</div>\
-                        <div class="airplane-result-number">\
-                            <span class="frac-num">1</span>\
-                            <span class="frac-line"></span>\
-                            <span class="frac-denom">13,700,000</span>\
-                        </div>\
-                        <div class="airplane-result-desc">Flying is one of the safest forms of transportation.<br>비행기는 가장 안전한 교통수단 중 하나입니다.</div>\
-                        <div class="airplane-coin-explain">That\'s the same odds as flipping a coin and getting heads 23 times in a row!<br>동전을 던져서 23번 연속으로 앞면이 나올 확률과 같습니다!</div>\
-                        <button class="airplane-try-btn" id="airplane-try">Try It Yourself →</button>\
-                    </div>\
-                    <div class="airplane-coin-game" id="airplane-coin-game">\
-                        <div class="airplane-coin-title">Can you flip 23 heads in a row?</div>\
-                        <div class="airplane-compare">\
-                            <div class="airplane-frac">\
-                                <span class="num">1</span>\
-                                <span class="line"></span>\
-                                <span class="denom">13,700,000</span>\
-                                <span class="airplane-frac-label">plane crash</span>\
-                            </div>\
-                            <div class="airplane-compare-symbol" id="airplane-comparison"><</div>\
-                            <div class="airplane-frac">\
-                                <span class="num">1</span>\
-                                <span class="line"></span>\
-                                <span class="denom" id="airplane-user-frac">1</span>\
-                                <span class="airplane-frac-label">your odds</span>\
-                            </div>\
-                        </div>\
-                        <div class="airplane-coin" id="airplane-coin"></div>\
-                        <button class="airplane-flip-btn" id="airplane-flip">Flip</button>\
-                        <div class="airplane-history" id="airplane-history"></div>\
-                        <button class="airplane-try-btn" id="airplane-next" style="margin-top:30px;">How did we get here? →</button>\
-                    </div>\
-                    <div class="airplane-timeline" id="airplane-timeline">\
-                        <div class="airplane-timeline-title">Aviation safety over time</div>\
-                        <div class="airplane-timeline-compare">\
-                            <div class="airplane-era old">\
-                                <div class="airplane-era-years">1968 — 1977</div>\
-                                <div class="airplane-era-frac">\
-                                    <span class="num">1</span>\
-                                    <span class="line"></span>\
-                                    <span class="denom">350,000</span>\
-                                </div>\
-                            </div>\
-                            <div class="airplane-arrow">→</div>\
-                            <div class="airplane-era new">\
-                                <div class="airplane-era-years">2018 — 2022</div>\
-                                <div class="airplane-era-frac">\
-                                    <span class="num">1</span>\
-                                    <span class="line"></span>\
-                                    <span class="denom">13,700,000</span>\
-                                </div>\
-                            </div>\
-                        </div>\
-                        <div class="airplane-safer" id="airplane-safer">30×</div>\
-                        <div class="airplane-safer-label" id="airplane-safer-label">safer than 50 years ago</div>\
-                        <div class="airplane-timeline-hint" id="airplane-timeline-hint">click anywhere to reveal</div>\
-                    </div>\
+                <div class="airplane-simulation-container">\
+                    <iframe id="airplane-simulation-iframe" src="minify/planesimulation.html" allowfullscreen></iframe>\
                 </div>\
             ';
 
-            sliderEl = document.getElementById('airplane-slider');
-            valueDisplay = document.getElementById('airplane-value');
-            hintText = document.getElementById('airplane-hint');
-            resultScreen = document.getElementById('airplane-result');
-            coinGameEl = document.getElementById('airplane-coin-game');
-            coinEl = document.getElementById('airplane-coin');
-            userFracEl = document.getElementById('airplane-user-frac');
-            comparisonEl = document.getElementById('airplane-comparison');
-            flipBtn = document.getElementById('airplane-flip');
-            historyEl = document.getElementById('airplane-history');
-            historyScreenEl = document.getElementById('airplane-timeline');
-            saferRevealEl = document.getElementById('airplane-safer');
+            simulationIframe = document.getElementById('airplane-simulation-iframe');
+            window.addEventListener('message', onSimulationMessage);
         },
 
         start: function() {
@@ -2805,16 +2845,11 @@ var airplane = airplane || function() {
             flipLog = [];
             isFlipping = false;
             saferRevealed = false;
-
-            sliderEl.addEventListener('input', onSliderChange);
-            document.getElementById('airplane-check').addEventListener('click', checkGuess);
-            document.getElementById('airplane-try').addEventListener('click', showCoinGame);
-            flipBtn.addEventListener('click', flipCoin);
-            document.getElementById('airplane-next').addEventListener('click', showTimeline);
-            historyScreenEl.addEventListener('click', revealSafer);
+            // Event listeners are now added in showStatisticsPhase
         },
 
         dispose: function() {
+            window.removeEventListener('message', onSimulationMessage);
             if (sliderEl) sliderEl.removeEventListener('input', onSliderChange);
             var checkBtn = document.getElementById('airplane-check');
             if (checkBtn) checkBtn.removeEventListener('click', checkGuess);
@@ -2837,11 +2872,13 @@ var airplane = airplane || function() {
             historyEl = null;
             historyScreenEl = null;
             saferRevealEl = null;
+            simulationIframe = null;
             gameOver = false;
             userOdds = 1;
             flipLog = [];
             isFlipping = false;
             saferRevealed = false;
+            simulationPhase = true;
         },
 
         pause: function() {},
