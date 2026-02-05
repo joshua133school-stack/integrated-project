@@ -3720,19 +3720,41 @@ var injection = injection || function() {
         var t = window.i18n ? window.i18n.t : function(k) { return k; };
         const textEl = container.querySelector('#breathing-text');
         const counterEl = container.querySelector('#breathing-counter');
+        const cycleEl = container.querySelector('#breathing-cycle');
         if (!textEl || !counterEl) return;
 
-        let isInhale = true;
-        let count = 3;
+        // 3s breathe in, 2s hold, 5s breathe out = 10s cycle
+        var phases = [
+            { label: 'injection.inhale', duration: 3 },
+            { label: 'injection.hold', duration: 2 },
+            { label: 'injection.exhale', duration: 5 }
+        ];
+        var phaseIndex = 0;
+        var count = phases[0].duration;
+        var cycle = 1;
+        var totalCycles = 5;
+
+        if (cycleEl) cycleEl.textContent = cycle + '/' + totalCycles;
 
         function updateBreathing() {
             counterEl.textContent = count;
-            textEl.textContent = isInhale ? t('injection.inhale') : t('injection.exhale');
-
+            textEl.textContent = t(phases[phaseIndex].label);
             count--;
             if (count < 1) {
-                count = 3;
-                isInhale = !isInhale;
+                phaseIndex++;
+                if (phaseIndex >= phases.length) {
+                    phaseIndex = 0;
+                    cycle++;
+                    if (cycle > totalCycles) {
+                        stopBreathingAnimation();
+                        textEl.textContent = '';
+                        counterEl.textContent = '';
+                        if (cycleEl) cycleEl.textContent = totalCycles + '/' + totalCycles;
+                        return;
+                    }
+                    if (cycleEl) cycleEl.textContent = cycle + '/' + totalCycles;
+                }
+                count = phases[phaseIndex].duration;
             }
         }
 
@@ -4355,7 +4377,7 @@ var injection = injection || function() {
                     border-radius: 50%;
                     background: radial-gradient(circle at 30% 30%, #f5d0c5, #e8c4b8, #ddb5a5);
                     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-                    animation: breathe 6s ease-in-out infinite;
+                    animation: breathe 10s ease-in-out infinite;
                 }
 
                 .breathing-guide {
@@ -4380,12 +4402,26 @@ var injection = injection || function() {
                     font-variant-numeric: tabular-nums;
                 }
 
+                .breathing-cycle-counter {
+                    font-family: 'Roboto', sans-serif;
+                    font-size: 14px;
+                    font-weight: 300;
+                    color: #999;
+                    letter-spacing: 2px;
+                }
+
                 @keyframes breathe {
-                    0%, 100% {
+                    0% {
                         transform: scale(1);
+                    }
+                    30% {
+                        transform: scale(1.6);
                     }
                     50% {
                         transform: scale(1.6);
+                    }
+                    100% {
+                        transform: scale(1);
                     }
                 }
 
@@ -4481,6 +4517,7 @@ var injection = injection || function() {
                     <!-- Step 6: Breathing Exercise -->
                     <div class="injection-step" style="display: none;">
                         <div class="breathing-container">
+                            <div class="breathing-cycle-counter" id="breathing-cycle">1/5</div>
                             <div class="breathing-circle"></div>
                             <div class="breathing-guide">
                                 <div class="breathing-text" id="breathing-text" data-i18n="injection.inhale">${t('injection.inhale')}</div>
