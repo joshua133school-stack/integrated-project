@@ -1406,7 +1406,7 @@ var darknessDiagnostic = darknessDiagnostic || function() {
     };
 }();
 
-// Heights Diagnostic Module - wraps the Ocean experience (renamed to Heights)
+// Heights Diagnostic Module - acrophobia diagnostic and Glass Skywalk experience
 var heightsDiagnostic = heightsDiagnostic || function() {
     var container;
     var diagnosticScreen, mainContent, questionsPanel;
@@ -1648,8 +1648,8 @@ var heightsDiagnostic = heightsDiagnostic || function() {
         setTimeout(function() {
             diagnosticScreen.style.display = 'none';
             mainContent.classList.add('visible');
-            Ocean.init(mainContent);
-            Ocean.start();
+            Heights.init(mainContent);
+            Heights.start();
         }, 500);
     }
 
@@ -1687,8 +1687,8 @@ var heightsDiagnostic = heightsDiagnostic || function() {
             if (typeof OasisAccount !== 'undefined' && (!OasisAccount.isLoggedIn() || OasisAccount.hasDiagnostic('heights'))) {
                 diagnosticScreen.style.display = 'none';
                 mainContent.classList.add('visible');
-                Ocean.init(mainContent);
-                Ocean.start();
+                Heights.init(mainContent);
+                Heights.start();
                 return;
             }
             container.querySelectorAll('.heights-diag-option').forEach(function(opt) {
@@ -1704,7 +1704,7 @@ var heightsDiagnostic = heightsDiagnostic || function() {
         },
         dispose: function() {
             if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-            if (Ocean && Ocean.dispose) Ocean.dispose();
+            if (Heights && Heights.dispose) Heights.dispose();
             if (container) container.innerHTML = '';
             clouds = [];
             birds = [];
@@ -1712,11 +1712,11 @@ var heightsDiagnostic = heightsDiagnostic || function() {
         },
         pause: function() {
             if (animationFrameId) { cancelAnimationFrame(animationFrameId); animationFrameId = null; }
-            if (Ocean && Ocean.pause) Ocean.pause();
+            if (Heights && Heights.pause) Heights.pause();
         },
         resume: function() {
             if (!animationFrameId && diagnosticScreen && diagnosticScreen.style.display !== 'none') animate();
-            if (Ocean && Ocean.resume) Ocean.resume();
+            if (Heights && Heights.resume) Heights.resume();
         }
     };
 }();
@@ -6694,24 +6694,24 @@ function handleResize(){}
 return{init:init,start:start,dispose:dispose,pause:pause,resume:resume,resize:handleResize};
 }();
 
-var Ocean=Ocean||function(){
+var Heights=Heights||function(){
 var container,iframe;
 
 function init(parentElement){
     container=parentElement;
-    parentElement.innerHTML='<div id="ocean-con" class="contents-data" style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;background:#006994;"></div>';
+    parentElement.innerHTML='<div id="heights-con" class="contents-data" style="position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;background:#1a2a3a;"></div>';
 }
 
 function start(){
-    var con=document.getElementById('ocean-con');
+    var con=document.getElementById('heights-con');
     if(!con)return;
 
     iframe=document.createElement('iframe');
-    iframe.src='minify/oceanexperience.html';
+    iframe.src='minify/heightsexperience.html';
     iframe.style.cssText='width:100%;height:100%;border:none;position:absolute;top:0;left:0;z-index:5;';
     con.appendChild(iframe);
 
-    // Hide language switcher during ocean experience
+    // Hide language switcher during heights experience
     var langSwitcher=document.getElementById('language-switcher');
     if(langSwitcher)langSwitcher.style.display='none';
 }
@@ -6720,7 +6720,6 @@ function dispose(){
     if(iframe&&iframe.parentNode)iframe.parentNode.removeChild(iframe);
     iframe=null;
     container=null;
-    // Show language switcher if hidden
     var langSwitcher=document.getElementById('language-switcher');
     if(langSwitcher)langSwitcher.style.display='';
 }
@@ -6828,10 +6827,9 @@ title:"Plane",date:"Fear of Airplanes",img:"data/poster/plane",itemcolor:"#4a42a
 title:"Injection",date:"Fear of Injections",img:"data/poster/injection",itemcolor:"#544cbb",bgcolor:"#1a1a2e",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"wipertypo",classfn:thunderDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
 title:"Thunder",date:"Fear of Lightning & Thunder",img:"data/poster/thunder",itemcolor:"#5f57ca",bgcolor:"#000",preload:["data/images/1.webp","data/images/2.webp","data/images/3.webp","data/images/4.webp","data/images/5.webp","data/images/6.webp"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"darkness",classfn:darknessDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Darkness",date:"Fear of Darkness",img:"data/poster/darkness",itemcolor:"#2291a9",bgcolor:"#000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"surfacewaves",classfn:heightsDiagnostic,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L89,90 L100,100 L190,100 L90,190"/>',
-title:"Heights",date:"Fear of Heights",img:"data/poster/ocean",itemcolor:"#259ab3",bgcolor:"#87CEEB",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Heights",date:"Fear of Heights",img:"data/poster/height",itemcolor:"#5b7db1",bgcolor:"#1a2a3a",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"rainingmen",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"circles",date:"Fear of Circles",img:"data/poster/circle",itemcolor:"#29a5c0",bgcolor:"#ddd",preload:["contents/rainingmen/rain.png"],browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"ripples",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Insects",date:"Fear of Insects",img:"data/poster/insect",itemcolor:"#80b23c",bgcolor:"#8fc600",preload:["contents/ripple/ripple-mask.png","contents/ripple/ripple1.png","contents/ripple/ripple2.png"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"flipclock",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
-title:"Heights",date:"Fear of Heights",img:"data/poster/lock",itemcolor:"#83ba3a",bgcolor:"#111",preload:["contents/flipclock/flipbg.png","contents/flipclock/flipbg2.png"],white:1,browser:["ch","ff","sf","ie10"]}},{poster:{id:"triangulation",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
+title:"Insects",date:"Fear of Insects",img:"data/poster/insect",itemcolor:"#80b23c",bgcolor:"#8fc600",preload:["contents/ripple/ripple-mask.png","contents/ripple/ripple1.png","contents/ripple/ripple2.png"],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"triangulation",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Knives",date:"Fear of Knives",img:"data/poster/lock",itemcolor:"#e1b000",bgcolor:"#ffb700",preload:["contents/triangulation/ny1.jpg"],white:0,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"spiders",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Spiders",date:"Fear of Spiders",img:"data/poster/lock",itemcolor:"#8b4513",bgcolor:"#654321",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"clowns",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Clowns",date:"Fear of Clowns",img:"data/poster/lock",itemcolor:"#ff4444",bgcolor:"#cc0000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"crowds",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
@@ -6840,6 +6838,6 @@ title:"Dogs",date:"Fear of Dogs",img:"data/poster/lock",itemcolor:"#996633",bgco
 title:"Blood",date:"Fear of Blood",img:"data/poster/lock",itemcolor:"#8b0000",bgcolor:"#4a0000",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}},{poster:{id:"snakes",classfn:Developing,svg:'<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>',
 title:"Snakes",date:"Fear of Snakes",img:"data/poster/lock",itemcolor:"#228b22",bgcolor:"#006400",preload:[],white:1,browser:["ch","ff","sf","ie","ie10"]}}];g.load=function(a,b,c,f){k.style.display="block";k.style.backgroundColor=ConfigModel.configArr[b].poster.bgcolor;TweenLite.set(k,{css:{x:-StageController.stageWidth}});TweenLite.to(k,1,{css:{x:0},ease:Cubic.easeInOut,onComplete:d,onCompleteParams:[a,b,c,f]})};g.init=function(){g.configArr=[];g.screensaverArr=[];g.imgArr=[];g.screensaverID=[];g.sectionID=
 [];k=document.getElementById("pantone-loading");q=document.getElementById("preloader");g.configArr=f;g.screensaverArr=c;g.total=g.configArr.length;g.screensaverTotal=g.screensaverArr.length;var a=[],b,d=g.total;for(b=0;b<g.screensaverTotal;b++){var h=g.screensaverArr[b].item.id;g.screensaverID[b]=h}for(b=0;b<d;b++)h=g.configArr[b].poster.img,g.imgArr[b]=h,a[b]='<img src="'+h+'_c.png">',h=g.configArr[b].poster.id,g.sectionID[b]=h;a.push('<img src="images/about-press@2x.png">');a.push('<img src="images/buttons@2x.png">');
-a.push('<img src="images/guide@2x.png">');CMDetect.isDevice||a.push('<img src="images/cinema.png">');a.push('<img src="data/poster/airplanetile.webp">');a.push('<img src="data/poster/injectiontile.webp">');a.push('<img src="data/poster/thundertile.webp">');a.push('<img src="data/poster/darknesstile.webp">');a.push('<img src="data/poster/oceantile.webp">');a.push('<img src="data/poster/lock.webp">');a.push('<img src="data/images/background.webp">');return a};g.convertIdToOrder=function(a){if(""==a)return 0;var b,c=g.total;for(b=0;b<c;b++)if(a==g.configArr[b].poster.id)return b;return 0};g.convertSaverIdToOrder=function(a){if(""==a)return 0;var b,c=g.screensaverTotal;for(b=0;b<c;b++)if(a==g.screensaverArr[b].item.id)return b;return 0};g.svgHeader='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 700 986" enable-background="new 0 0 700 986" xml:space="preserve">';
+a.push('<img src="images/guide@2x.png">');CMDetect.isDevice||a.push('<img src="images/cinema.png">');a.push('<img src="data/poster/airplanetile.webp">');a.push('<img src="data/poster/injectiontile.webp">');a.push('<img src="data/poster/thundertile.webp">');a.push('<img src="data/poster/darknesstile.webp">');a.push('<img src="data/poster/heighttile.webp">');a.push('<img src="data/poster/lock.webp">');a.push('<img src="data/images/background.webp">');return a};g.convertIdToOrder=function(a){if(""==a)return 0;var b,c=g.total;for(b=0;b<c;b++)if(a==g.configArr[b].poster.id)return b;return 0};g.convertSaverIdToOrder=function(a){if(""==a)return 0;var b,c=g.screensaverTotal;for(b=0;b<c;b++)if(a==g.screensaverArr[b].item.id)return b;return 0};g.svgHeader='<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" width="100%" height="100%" viewBox="0 0 700 986" enable-background="new 0 0 700 986" xml:space="preserve">';
 g.svgTxt='<path fill="#FFFFFF" d="M100,100 L200,200 L210,190 L110,90 L210,90 L200,100 L110,100 L200,190 M200,100 L100,200 L90,190 L190,90 L90,90 L100,100 L190,100 L90,190"/>';
 return g}();

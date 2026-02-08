@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Heights - Glass Skywalk</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #1a2a3a; font-family: 'Georgia', serif; }
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .prompt-overlay {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: white; font-size: 1.8rem; text-align: center;
+            pointer-events: none; z-index: 50; opacity: 0; transition: opacity 1s ease;
+            text-shadow: 0 2px 20px rgba(0,0,0,0.8); max-width: 80%; line-height: 1.6;
+        }
+        .prompt-overlay.visible { opacity: 1; }
+        #crosshair { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 20px; height: 20px; z-index: 40; pointer-events: none; opacity: 0.4; }
+        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: rgba(255,255,255,0.5); }
+        #crosshair::before { width: 2px; height: 20px; left: 9px; }
+        #crosshair::after { width: 20px; height: 2px; top: 9px; }
+        #height-indicator {
+            position: fixed; top: 30px; right: 30px;
+            color: rgba(255,255,255,0.9); font-size: 1.1rem; z-index: 50;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+            background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 6px;
+        }
+        #controls-hint {
+            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
+            color: rgba(255,255,255,0.6); font-size: 0.9rem; z-index: 50;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8); transition: opacity 1s;
+        }
+        #fade-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 100; opacity: 0;
+            pointer-events: none; transition: opacity 2s ease;
+        }
+        #fade-overlay.visible { opacity: 1; pointer-events: all; }
+        #phase-label {
+            position: fixed; top: 20px; left: 20px;
+            color: #fff; font-size: 13px; z-index: 50;
+            background: rgba(0,0,0,0.4); padding: 6px 14px; border-radius: 5px;
+            text-transform: uppercase; letter-spacing: 2px;
+            pointer-events: none; opacity: 0; transition: opacity 0.8s;
+        }
+        #phase-label.visible { opacity: 1; }
+        #wind-indicator {
+            position: fixed; top: 70px; right: 30px;
+            color: rgba(255,255,255,0.6); font-size: 0.85rem; z-index: 50;
+            font-family: 'Courier New', monospace;
+            opacity: 0; transition: opacity 0.8s;
+        }
+        #wind-indicator.visible { opacity: 1; }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="crosshair"></div>
+    <div class="prompt-overlay" id="intro-text"></div>
+    <div id="height-indicator">Floor: Lobby</div>
+    <div id="controls-hint">WASD to walk | Mouse to look</div>
+    <div id="phase-label"></div>
+    <div id="wind-indicator"></div>
+    <div id="fade-overlay"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+    (function() {
+        'use strict';
+
+        // ═══════════════════════════════════════════════════
+        //  SCENE SETUP
+        // ═══════════════════════════════════════════════════
+        var scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB);
+        scene.fog = new THREE.Fog(0x87CEEB, 100, 600);
+
+        var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 1.7, 0); // Eye height
+
+        var renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+        var clock = new THREE.Clock();
+        var time = 0;
+
+        // ═══════════════════════════════════════════════════
+        //  GAME STATE
+        // ═══════════════════════════════════════════════════
+        var State = {
+            phase: 'lobby',       // lobby, elevator_up, observation, glass_floor, skywalk, edge, return, ended
+            playerHeight: 0,      // Ground level floor number (in meters above ground)
+            elevatorFloor: 0,     // Current elevator floor display
+            targetFloor: 250,     // 250 meters = ~83 floors
+            elevatorSpeed: 0,
+            elevatorAccel: 0.08,
+            elevatorMaxSpeed: 2.5,
+            playerOnGlass: false,
+            windStrength: 0,
+            swayAmount: 0,
+            lookingDown: false,
+            walkSpeed: 3.0,
+            mouseSensitivity: 0.002,
+            canMove: false,
+            canClick: false,
+            transitioning: false
+        };
+
+        // Mouse / keyboard
+        var mouse = { x: 0, y: 0 };
+        var keys = {};
+        var euler = new THREE.Euler(0, 0, 0, 'YXZ');
+        var isPointerLocked = false;
+
+        // DOM refs
+        var introText = document.getElementById('intro-text');
+        var heightIndicator = document.getElementById('height-indicator');
+        var controlsHint = document.getElementById('controls-hint');
+        var fadeOverlay = document.getElementById('fade-overlay');
+        var phaseLabel = document.getElementById('phase-label');
+        var windIndicator = document.getElementById('wind-indicator');
+
+        // ═══════════════════════════════════════════════════
+        //  AUDIO
+        // ═══════════════════════════════════════════════════
+        var audioCtx = null;
+        var masterGain = null;
+        var windNode = null;
+        var elevatorHum = null;
+
+        function initAudio() {
+            if (audioCtx) return;
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                masterGain = audioCtx.createGain();
+                masterGain.gain.value = 0.3;
+                masterGain.connect(audioCtx.destination);
+            } catch (e) {}
+        }
+
+        function startWindSound() {
+            if (!audioCtx || windNode) return;
+            var buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 4, audioCtx.sampleRate);
+            var d = buf.getChannelData(0);
+            for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1);
+            windNode = audioCtx.createBufferSource();
+            windNode.buffer = buf;
+            windNode.loop = true;
+            var filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 400;
+            var g = audioCtx.createGain();
+            g.gain.value = 0;
+            windNode.connect(filter);
+            filter.connect(g);
+            g.connect(masterGain);
+            windNode.start();
+            windNode._gain = g;
+            windNode._filter = filter;
+        }
+
+        function updateWindVolume(vol) {
+            if (windNode && windNode._gain) {
+                windNode._gain.gain.setTargetAtTime(Math.min(vol, 0.6), audioCtx.currentTime, 0.5);
+            }
+        }
+
+        function playDing() {
+            if (!audioCtx) return;
+            var osc = audioCtx.createOscillator();
+            var g = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 1400;
+            g.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.0);
+            osc.connect(g);
+            g.connect(masterGain);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 1.0);
+        }
+
+        function startElevatorHum() {
+            if (!audioCtx || elevatorHum) return;
+            var osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.value = 55;
+            var g = audioCtx.createGain();
+            g.gain.value = 0;
+            var filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.value = 120;
+            osc.connect(filter);
+            filter.connect(g);
+            g.connect(masterGain);
+            osc.start();
+            elevatorHum = { osc: osc, gain: g };
+        }
+
+        function stopElevatorHum() {
+            if (elevatorHum) {
+                elevatorHum.gain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.3);
+                var h = elevatorHum;
+                setTimeout(function() { h.osc.stop(); }, 1000);
+                elevatorHum = null;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  MATERIALS
+        // ═══════════════════════════════════════════════════
+        var MAT = {
+            concrete: new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 }),
+            marble: new THREE.MeshStandardMaterial({ color: 0xe8e0d0, roughness: 0.3, metalness: 0.05 }),
+            metal: new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.2, metalness: 0.9 }),
+            darkMetal: new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.3, metalness: 0.85 }),
+            glass: new THREE.MeshPhysicalMaterial({ color: 0x88ccff, transparent: true, opacity: 0.15, roughness: 0.02, metalness: 0.0, transmission: 0.85, side: THREE.DoubleSide }),
+            glassPanel: new THREE.MeshPhysicalMaterial({ color: 0xaaddff, transparent: true, opacity: 0.08, roughness: 0.01, transmission: 0.92, side: THREE.DoubleSide }),
+            glassFence: new THREE.MeshPhysicalMaterial({ color: 0xccddee, transparent: true, opacity: 0.2, roughness: 0.05, transmission: 0.8, side: THREE.DoubleSide }),
+            building: new THREE.MeshStandardMaterial({ color: 0x556677, roughness: 0.7 }),
+            buildingDark: new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.8 }),
+            sky: new THREE.MeshBasicMaterial({ color: 0x87CEEB }),
+            white: new THREE.MeshStandardMaterial({ color: 0xf0f0f0, roughness: 0.6 }),
+            carpet: new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.95 }),
+            wood: new THREE.MeshStandardMaterial({ color: 0x8b6b3d, roughness: 0.8 }),
+            railing: new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.15, metalness: 0.95 }),
+            ground: new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.9 }),
+            road: new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.95 }),
+            grass: new THREE.MeshStandardMaterial({ color: 0x3d7a1a, roughness: 0.95 })
+        };
+
+        // ═══════════════════════════════════════════════════
+        //  SCENE GROUPS
+        // ═══════════════════════════════════════════════════
+        var lobbyGroup = new THREE.Group();
+        var elevatorGroup = new THREE.Group();
+        var observationGroup = new THREE.Group();
+        var skywalkGroup = new THREE.Group();
+        var cityGroup = new THREE.Group();
+        var cloudsGroup = new THREE.Group();
+        scene.add(lobbyGroup, elevatorGroup, observationGroup, skywalkGroup, cityGroup, cloudsGroup);
+
+        // ═══════════════════════════════════════════════════
+        //  LIGHTING
+        // ═══════════════════════════════════════════════════
+        var ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        var sunLight = new THREE.DirectionalLight(0xfffff0, 1.0);
+        sunLight.position.set(50, 300, 80);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.width = 2048;
+        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.camera.near = 0.5;
+        sunLight.shadow.camera.far = 600;
+        sunLight.shadow.camera.left = -100;
+        sunLight.shadow.camera.right = 100;
+        sunLight.shadow.camera.top = 100;
+        sunLight.shadow.camera.bottom = -100;
+        scene.add(sunLight);
+
+        var hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x444444, 0.4);
+        scene.add(hemiLight);
+
+        // ═══════════════════════════════════════════════════
+        //  CITY (visible below from observation deck)
+        // ═══════════════════════════════════════════════════
+        function buildCity() {
+            // Ground plane far below
+            var groundGeo = new THREE.PlaneGeometry(2000, 2000);
+            var ground = new THREE.Mesh(groundGeo, MAT.ground);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = 0;
+            ground.receiveShadow = true;
+            cityGroup.add(ground);
+
+            // Grid of roads
+            var roadMat = MAT.road;
+            for (var rx = -400; rx <= 400; rx += 80) {
+                var road = new THREE.Mesh(new THREE.PlaneGeometry(12, 800), roadMat);
+                road.rotation.x = -Math.PI / 2;
+                road.position.set(rx, 0.05, 0);
+                cityGroup.add(road);
+            }
+            for (var rz = -400; rz <= 400; rz += 80) {
+                var roadZ = new THREE.Mesh(new THREE.PlaneGeometry(800, 12), roadMat);
+                roadZ.rotation.x = -Math.PI / 2;
+                roadZ.position.set(0, 0.05, rz);
+                cityGroup.add(roadZ);
+            }
+
+            // Buildings (random heights, around the area)
+            var buildingColors = [0x556677, 0x667788, 0x445566, 0x778899, 0x5a6a7a, 0x4a5a6a];
+            for (var bx = -380; bx <= 380; bx += 40) {
+                for (var bz = -380; bz <= 380; bz += 40) {
+                    // Skip the center where our tower is
+                    if (Math.abs(bx) < 30 && Math.abs(bz) < 30) continue;
+                    var bHeight = 15 + Math.random() * 120;
+                    var bWidth = 12 + Math.random() * 20;
+                    var bDepth = 12 + Math.random() * 20;
+                    // Add some variation in position within the block
+                    var offX = (Math.random() - 0.5) * 15;
+                    var offZ = (Math.random() - 0.5) * 15;
+                    var bMat = new THREE.MeshStandardMaterial({
+                        color: buildingColors[Math.floor(Math.random() * buildingColors.length)],
+                        roughness: 0.7 + Math.random() * 0.2
+                    });
+                    var bGeo = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
+                    var bMesh = new THREE.Mesh(bGeo, bMat);
+                    bMesh.position.set(bx + offX, bHeight / 2, bz + offZ);
+                    bMesh.castShadow = true;
+                    bMesh.receiveShadow = true;
+                    cityGroup.add(bMesh);
+
+                    // Windows (simple grid of emissive spots)
+                    if (bHeight > 30) {
+                        var winRows = Math.floor(bHeight / 4);
+                        var winCols = Math.floor(bWidth / 3);
+                        var winGeo = new THREE.PlaneGeometry(1.2, 1.8);
+                        for (var wr = 0; wr < winRows; wr++) {
+                            for (var wc = 0; wc < winCols; wc++) {
+                                if (Math.random() > 0.5) continue; // only some windows lit
+                                var winMat = new THREE.MeshBasicMaterial({
+                                    color: Math.random() > 0.3 ? 0xffffcc : 0xaaccff
+                                });
+                                var win = new THREE.Mesh(winGeo, winMat);
+                                var wx = -bWidth / 2 + 1.5 + wc * 3;
+                                var wy = 2 + wr * 4;
+                                win.position.set(bx + offX + bWidth / 2 + 0.01, wy, bz + offZ - bDepth / 2 + 1.5 + Math.random() * (bDepth - 3));
+                                win.rotation.y = Math.PI / 2;
+                                cityGroup.add(win);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Small cars on roads (colored boxes)
+            var carColors = [0xff3333, 0x3333ff, 0xffff33, 0x33ff33, 0xffffff, 0x333333];
+            for (var ci = 0; ci < 100; ci++) {
+                var carGeo = new THREE.BoxGeometry(2, 1.2, 4);
+                var carMat = new THREE.MeshStandardMaterial({
+                    color: carColors[Math.floor(Math.random() * carColors.length)],
+                    roughness: 0.4, metalness: 0.3
+                });
+                var car = new THREE.Mesh(carGeo, carMat);
+                // Place on roads
+                var onRoadX = Math.random() > 0.5;
+                if (onRoadX) {
+                    var roadIdx = Math.floor(Math.random() * 11) - 5;
+                    car.position.set(roadIdx * 80 + (Math.random() - 0.5) * 4, 0.6, (Math.random() - 0.5) * 700);
+                    car.rotation.y = 0;
+                } else {
+                    var roadIdxZ = Math.floor(Math.random() * 11) - 5;
+                    car.position.set((Math.random() - 0.5) * 700, 0.6, roadIdxZ * 80 + (Math.random() - 0.5) * 4);
+                    car.rotation.y = Math.PI / 2;
+                }
+                cityGroup.add(car);
+            }
+
+            // Parks (green patches)
+            for (var pi = 0; pi < 8; pi++) {
+                var parkGeo = new THREE.PlaneGeometry(25 + Math.random() * 20, 25 + Math.random() * 20);
+                var park = new THREE.Mesh(parkGeo, MAT.grass);
+                park.rotation.x = -Math.PI / 2;
+                park.position.set((Math.random() - 0.5) * 500, 0.1, (Math.random() - 0.5) * 500);
+                cityGroup.add(park);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  OUR SKYSCRAPER (center of the city)
+        // ═══════════════════════════════════════════════════
+        var TOWER_HEIGHT = 250; // meters
+        var TOWER_WIDTH = 24;
+        var OBSERVATION_Y = TOWER_HEIGHT; // observation deck at top
+
+        function buildTower() {
+            // Main tower shaft
+            var towerGeo = new THREE.BoxGeometry(TOWER_WIDTH, TOWER_HEIGHT, TOWER_WIDTH);
+            var towerMat = new THREE.MeshStandardMaterial({ color: 0x6688aa, roughness: 0.4, metalness: 0.3 });
+            var tower = new THREE.Mesh(towerGeo, towerMat);
+            tower.position.set(0, TOWER_HEIGHT / 2, 0);
+            tower.castShadow = true;
+            cityGroup.add(tower);
+
+            // Tower windows (vertical strips)
+            var stripMat = new THREE.MeshPhysicalMaterial({ color: 0x88bbdd, transparent: true, opacity: 0.4, roughness: 0.05, metalness: 0.2 });
+            for (var side = 0; side < 4; side++) {
+                for (var s = 0; s < 6; s++) {
+                    var stripGeo = new THREE.PlaneGeometry(1.5, TOWER_HEIGHT - 10);
+                    var strip = new THREE.Mesh(stripGeo, stripMat);
+                    var sx = (s - 2.5) * 3.5;
+                    switch (side) {
+                        case 0: strip.position.set(sx, TOWER_HEIGHT / 2, TOWER_WIDTH / 2 + 0.05); break;
+                        case 1: strip.position.set(sx, TOWER_HEIGHT / 2, -TOWER_WIDTH / 2 - 0.05); strip.rotation.y = Math.PI; break;
+                        case 2: strip.position.set(TOWER_WIDTH / 2 + 0.05, TOWER_HEIGHT / 2, sx); strip.rotation.y = Math.PI / 2; break;
+                        case 3: strip.position.set(-TOWER_WIDTH / 2 - 0.05, TOWER_HEIGHT / 2, sx); strip.rotation.y = -Math.PI / 2; break;
+                    }
+                    cityGroup.add(strip);
+                }
+            }
+
+            // Tower crown / antenna
+            var antennaGeo = new THREE.CylinderGeometry(0.3, 0.5, 20, 8);
+            var antenna = new THREE.Mesh(antennaGeo, MAT.metal);
+            antenna.position.set(0, TOWER_HEIGHT + 10, 0);
+            cityGroup.add(antenna);
+
+            var antLight = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            antLight.position.set(0, TOWER_HEIGHT + 20, 0);
+            cityGroup.add(antLight);
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  LOBBY (ground floor interior)
+        // ═══════════════════════════════════════════════════
+        function buildLobby() {
+            var LW = 20, LD = 20, LH = 6; // lobby dimensions
+
+            // Floor
+            var floor = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), MAT.marble);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = 0.01;
+            lobbyGroup.add(floor);
+
+            // Ceiling
+            var ceiling = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), MAT.white);
+            ceiling.rotation.x = Math.PI / 2;
+            ceiling.position.y = LH;
+            lobbyGroup.add(ceiling);
+
+            // Walls (3 sides, front is open/glass)
+            var wallMat = MAT.marble;
+            // Back wall
+            var backWall = new THREE.Mesh(new THREE.PlaneGeometry(LW, LH), wallMat);
+            backWall.position.set(0, LH / 2, -LD / 2);
+            lobbyGroup.add(backWall);
+            // Side walls
+            var leftWall = new THREE.Mesh(new THREE.PlaneGeometry(LD, LH), wallMat);
+            leftWall.position.set(-LW / 2, LH / 2, 0);
+            leftWall.rotation.y = Math.PI / 2;
+            lobbyGroup.add(leftWall);
+            var rightWall = new THREE.Mesh(new THREE.PlaneGeometry(LD, LH), wallMat);
+            rightWall.position.set(LW / 2, LH / 2, 0);
+            rightWall.rotation.y = -Math.PI / 2;
+            lobbyGroup.add(rightWall);
+
+            // Front glass wall
+            var frontGlass = new THREE.Mesh(new THREE.PlaneGeometry(LW, LH), MAT.glass);
+            frontGlass.position.set(0, LH / 2, LD / 2);
+            frontGlass.rotation.y = Math.PI;
+            lobbyGroup.add(frontGlass);
+
+            // Elevator doors (on back wall)
+            var doorMat = MAT.darkMetal;
+            var doorL = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 3), doorMat);
+            doorL.position.set(-0.62, 1.5, -LD / 2 + 0.05);
+            lobbyGroup.add(doorL);
+            var doorR = new THREE.Mesh(new THREE.PlaneGeometry(1.2, 3), doorMat);
+            doorR.position.set(0.62, 1.5, -LD / 2 + 0.05);
+            lobbyGroup.add(doorR);
+
+            // "Elevator" label
+            var elevLabel = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 0.4), new THREE.MeshBasicMaterial({ color: 0x333333 }));
+            elevLabel.position.set(0, 3.3, -LD / 2 + 0.05);
+            lobbyGroup.add(elevLabel);
+
+            // Reception desk
+            var deskGeo = new THREE.BoxGeometry(5, 1.1, 1.5);
+            var desk = new THREE.Mesh(deskGeo, MAT.wood);
+            desk.position.set(5, 0.55, 0);
+            lobbyGroup.add(desk);
+
+            // Potted plants
+            for (var pp = -1; pp <= 1; pp += 2) {
+                var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.25, 0.5, 12), MAT.concrete);
+                pot.position.set(pp * 3, 0.25, -LD / 2 + 2);
+                lobbyGroup.add(pot);
+                var plant = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), new THREE.MeshStandardMaterial({ color: 0x2d6b2d }));
+                plant.position.set(pp * 3, 0.8, -LD / 2 + 2);
+                lobbyGroup.add(plant);
+            }
+
+            // Ceiling lights
+            for (var lx = -6; lx <= 6; lx += 6) {
+                var light = new THREE.Mesh(new THREE.BoxGeometry(2, 0.1, 2), new THREE.MeshBasicMaterial({ color: 0xffffee }));
+                light.position.set(lx, LH - 0.05, 0);
+                lobbyGroup.add(light);
+                var pl = new THREE.PointLight(0xffffee, 0.5, 10);
+                pl.position.set(lx, LH - 0.5, 0);
+                lobbyGroup.add(pl);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  ELEVATOR (glass box that rises)
+        // ═══════════════════════════════════════════════════
+        var ELEV = { w: 3, d: 3, h: 3.2 };
+
+        function buildElevator() {
+            // Floor
+            var eFloor = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.d), MAT.darkMetal);
+            eFloor.rotation.x = -Math.PI / 2;
+            eFloor.position.y = 0.01;
+            elevatorGroup.add(eFloor);
+
+            // Ceiling
+            var eCeil = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.d), MAT.metal);
+            eCeil.rotation.x = Math.PI / 2;
+            eCeil.position.y = ELEV.h;
+            elevatorGroup.add(eCeil);
+
+            // Glass walls (3 sides, back is solid)
+            // Back wall (metal)
+            var backW = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.darkMetal);
+            backW.position.set(0, ELEV.h / 2, -ELEV.d / 2);
+            elevatorGroup.add(backW);
+
+            // Side glass walls
+            var sideL = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.d, ELEV.h), MAT.glass);
+            sideL.position.set(-ELEV.w / 2, ELEV.h / 2, 0);
+            sideL.rotation.y = Math.PI / 2;
+            elevatorGroup.add(sideL);
+
+            var sideR = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.d, ELEV.h), MAT.glass);
+            sideR.position.set(ELEV.w / 2, ELEV.h / 2, 0);
+            sideR.rotation.y = -Math.PI / 2;
+            elevatorGroup.add(sideR);
+
+            // Front glass wall
+            var frontW = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.glass);
+            frontW.position.set(0, ELEV.h / 2, ELEV.d / 2);
+            frontW.rotation.y = Math.PI;
+            elevatorGroup.add(frontW);
+
+            // Handrail
+            for (var hs = -1; hs <= 1; hs += 2) {
+                var rail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, ELEV.d - 0.4, 8), MAT.railing);
+                rail.rotation.x = Math.PI / 2;
+                rail.position.set(hs * (ELEV.w / 2 - 0.1), 1.0, 0);
+                elevatorGroup.add(rail);
+            }
+
+            // Ceiling light
+            var eLight = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.05, 1.5), new THREE.MeshBasicMaterial({ color: 0xffffee }));
+            eLight.position.set(0, ELEV.h - 0.05, 0);
+            elevatorGroup.add(eLight);
+            var ePL = new THREE.PointLight(0xffffee, 0.6, 5);
+            ePL.position.set(0, ELEV.h - 0.3, 0);
+            elevatorGroup.add(ePL);
+
+            elevatorGroup.visible = false;
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  OBSERVATION DECK (top floor)
+        // ═══════════════════════════════════════════════════
+        var OBS = { w: 22, d: 22, h: 4 };
+
+        function buildObservationDeck() {
+            // Solid floor around the edges
+            var floorGeo = new THREE.PlaneGeometry(OBS.w, OBS.d);
+            var solidFloor = new THREE.Mesh(floorGeo, MAT.carpet);
+            solidFloor.rotation.x = -Math.PI / 2;
+            solidFloor.position.y = OBSERVATION_Y + 0.01;
+            observationGroup.add(solidFloor);
+
+            // Glass floor sections (4 square patches near each side)
+            var glassFloorSize = 5;
+            var glassPositions = [
+                { x: 0, z: OBS.d / 2 - glassFloorSize / 2 - 1 },   // front
+                { x: 0, z: -OBS.d / 2 + glassFloorSize / 2 + 1 },  // back
+                { x: OBS.w / 2 - glassFloorSize / 2 - 1, z: 0 },   // right
+                { x: -OBS.w / 2 + glassFloorSize / 2 + 1, z: 0 }   // left
+            ];
+            for (var gi = 0; gi < glassPositions.length; gi++) {
+                var gf = new THREE.Mesh(new THREE.PlaneGeometry(glassFloorSize, glassFloorSize), MAT.glassPanel);
+                gf.rotation.x = -Math.PI / 2;
+                gf.position.set(glassPositions[gi].x, OBSERVATION_Y + 0.02, glassPositions[gi].z);
+                observationGroup.add(gf);
+                // Faint edge outline
+                var edge = new THREE.Mesh(new THREE.PlaneGeometry(glassFloorSize + 0.1, glassFloorSize + 0.1),
+                    new THREE.MeshBasicMaterial({ color: 0x66aacc, transparent: true, opacity: 0.15 }));
+                edge.rotation.x = -Math.PI / 2;
+                edge.position.set(glassPositions[gi].x, OBSERVATION_Y + 0.015, glassPositions[gi].z);
+                observationGroup.add(edge);
+            }
+
+            // Ceiling
+            var ceil = new THREE.Mesh(new THREE.PlaneGeometry(OBS.w, OBS.d), MAT.white);
+            ceil.rotation.x = Math.PI / 2;
+            ceil.position.y = OBSERVATION_Y + OBS.h;
+            observationGroup.add(ceil);
+
+            // Glass walls (all 4 sides - floor to ceiling)
+            var wallSpecs = [
+                { pos: [0, OBSERVATION_Y + OBS.h / 2, OBS.d / 2], rot: [0, Math.PI, 0], size: [OBS.w, OBS.h] },
+                { pos: [0, OBSERVATION_Y + OBS.h / 2, -OBS.d / 2], rot: [0, 0, 0], size: [OBS.w, OBS.h] },
+                { pos: [OBS.w / 2, OBSERVATION_Y + OBS.h / 2, 0], rot: [0, -Math.PI / 2, 0], size: [OBS.d, OBS.h] },
+                { pos: [-OBS.w / 2, OBSERVATION_Y + OBS.h / 2, 0], rot: [0, Math.PI / 2, 0], size: [OBS.d, OBS.h] }
+            ];
+            for (var wi = 0; wi < wallSpecs.length; wi++) {
+                var ws = wallSpecs[wi];
+                var wall = new THREE.Mesh(new THREE.PlaneGeometry(ws.size[0], ws.size[1]), MAT.glass);
+                wall.position.set(ws.pos[0], ws.pos[1], ws.pos[2]);
+                wall.rotation.set(ws.rot[0], ws.rot[1], ws.rot[2]);
+                observationGroup.add(wall);
+            }
+
+            // Metal frame beams
+            var beamMat = MAT.darkMetal;
+            // Vertical corner beams
+            var corners = [
+                [-OBS.w / 2, OBS.d / 2], [OBS.w / 2, OBS.d / 2],
+                [-OBS.w / 2, -OBS.d / 2], [OBS.w / 2, -OBS.d / 2]
+            ];
+            for (var ci = 0; ci < corners.length; ci++) {
+                var beam = new THREE.Mesh(new THREE.BoxGeometry(0.3, OBS.h, 0.3), beamMat);
+                beam.position.set(corners[ci][0], OBSERVATION_Y + OBS.h / 2, corners[ci][1]);
+                observationGroup.add(beam);
+            }
+
+            // Ceiling lights
+            for (var lx = -6; lx <= 6; lx += 6) {
+                for (var lz = -6; lz <= 6; lz += 6) {
+                    var lt = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.08, 1.5), new THREE.MeshBasicMaterial({ color: 0xffffee }));
+                    lt.position.set(lx, OBSERVATION_Y + OBS.h - 0.04, lz);
+                    observationGroup.add(lt);
+                    var ptLight = new THREE.PointLight(0xffffee, 0.3, 12);
+                    ptLight.position.set(lx, OBSERVATION_Y + OBS.h - 0.5, lz);
+                    observationGroup.add(ptLight);
+                }
+            }
+
+            // Info signs / displays along walls
+            for (var si = -1; si <= 1; si += 2) {
+                var sign = new THREE.Mesh(new THREE.PlaneGeometry(3, 1.5),
+                    new THREE.MeshBasicMaterial({ color: 0x111122 }));
+                sign.position.set(si * 8, OBSERVATION_Y + 2.5, -OBS.d / 2 + 0.05);
+                observationGroup.add(sign);
+            }
+
+            observationGroup.visible = false;
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  GLASS SKYWALK (extends from observation deck)
+        // ═══════════════════════════════════════════════════
+        var SKYWALK = { length: 20, width: 3 };
+
+        function buildSkywalk() {
+            // Glass floor (the main terrifying element)
+            var swFloor = new THREE.Mesh(
+                new THREE.PlaneGeometry(SKYWALK.width, SKYWALK.length),
+                MAT.glassPanel
+            );
+            swFloor.rotation.x = -Math.PI / 2;
+            swFloor.position.set(0, OBSERVATION_Y + 0.02, OBS.d / 2 + SKYWALK.length / 2);
+            skywalkGroup.add(swFloor);
+
+            // Glass side barriers
+            for (var side = -1; side <= 1; side += 2) {
+                var barrier = new THREE.Mesh(
+                    new THREE.PlaneGeometry(SKYWALK.length, 1.5),
+                    MAT.glassFence
+                );
+                barrier.position.set(side * SKYWALK.width / 2, OBSERVATION_Y + 0.75, OBS.d / 2 + SKYWALK.length / 2);
+                barrier.rotation.y = side * (-Math.PI / 2);
+                skywalkGroup.add(barrier);
+
+                // Metal railing on top of glass barrier
+                var railGeo = new THREE.CylinderGeometry(0.025, 0.025, SKYWALK.length, 8);
+                var rail = new THREE.Mesh(railGeo, MAT.railing);
+                rail.rotation.x = Math.PI / 2;
+                rail.position.set(side * SKYWALK.width / 2, OBSERVATION_Y + 1.5, OBS.d / 2 + SKYWALK.length / 2);
+                skywalkGroup.add(rail);
+
+                // Vertical supports for railing
+                for (var vs = 0; vs < SKYWALK.length; vs += 2.5) {
+                    var support = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.5, 6), MAT.railing);
+                    support.position.set(side * SKYWALK.width / 2, OBSERVATION_Y + 0.75, OBS.d / 2 + 1 + vs);
+                    skywalkGroup.add(support);
+                }
+            }
+
+            // End platform (the furthest point - "the edge")
+            var endPlatform = new THREE.Mesh(
+                new THREE.CircleGeometry(2.5, 24),
+                MAT.glassPanel
+            );
+            endPlatform.rotation.x = -Math.PI / 2;
+            endPlatform.position.set(0, OBSERVATION_Y + 0.02, OBS.d / 2 + SKYWALK.length + 2.5);
+            skywalkGroup.add(endPlatform);
+
+            // End railing (semicircle)
+            var endRailGeo = new THREE.TorusGeometry(2.5, 0.025, 8, 24, Math.PI);
+            var endRail = new THREE.Mesh(endRailGeo, MAT.railing);
+            endRail.position.set(0, OBSERVATION_Y + 1.5, OBS.d / 2 + SKYWALK.length + 2.5);
+            endRail.rotation.x = -Math.PI / 2;
+            endRail.rotation.z = -Math.PI / 2;
+            skywalkGroup.add(endRail);
+
+            // Semicircle glass barrier
+            var endBarrier = new THREE.Mesh(
+                new THREE.TorusGeometry(2.5, 0.75, 4, 24, Math.PI),
+                MAT.glassFence
+            );
+            endBarrier.position.set(0, OBSERVATION_Y + 0.75, OBS.d / 2 + SKYWALK.length + 2.5);
+            endBarrier.rotation.x = -Math.PI / 2;
+            endBarrier.rotation.z = -Math.PI / 2;
+            skywalkGroup.add(endBarrier);
+
+            // Support beams underneath (structural steel)
+            for (var bi = 0; bi < 4; bi++) {
+                var supportBeam = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.15, 0.15, SKYWALK.length + 5),
+                    MAT.darkMetal
+                );
+                var bx = (bi % 2 === 0 ? -1 : 1) * (SKYWALK.width / 2 - 0.2);
+                var by = bi < 2 ? -0.5 : -1.5;
+                supportBeam.position.set(bx, OBSERVATION_Y + by, OBS.d / 2 + SKYWALK.length / 2);
+                skywalkGroup.add(supportBeam);
+            }
+
+            skywalkGroup.visible = false;
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  CLOUDS (at altitude)
+        // ═══════════════════════════════════════════════════
+        var cloudMeshes = [];
+        function buildClouds() {
+            var cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+            for (var i = 0; i < 30; i++) {
+                var cGroup = new THREE.Group();
+                var numPuffs = 3 + Math.floor(Math.random() * 4);
+                for (var p = 0; p < numPuffs; p++) {
+                    var puffSize = 8 + Math.random() * 15;
+                    var puff = new THREE.Mesh(new THREE.SphereGeometry(puffSize, 8, 6), cloudMat);
+                    puff.position.set(
+                        (Math.random() - 0.5) * puffSize * 2,
+                        (Math.random() - 0.5) * puffSize * 0.5,
+                        (Math.random() - 0.5) * puffSize * 2
+                    );
+                    puff.scale.y = 0.4;
+                    cGroup.add(puff);
+                }
+                cGroup.position.set(
+                    (Math.random() - 0.5) * 800,
+                    180 + Math.random() * 120,
+                    (Math.random() - 0.5) * 800
+                );
+                cGroup.userData = { speed: 0.5 + Math.random() * 1.0 };
+                cloudsGroup.add(cGroup);
+                cloudMeshes.push(cGroup);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  BUILD EVERYTHING
+        // ═══════════════════════════════════════════════════
+        buildCity();
+        buildTower();
+        buildLobby();
+        buildElevator();
+        buildObservationDeck();
+        buildSkywalk();
+        buildClouds();
+
+        // ═══════════════════════════════════════════════════
+        //  HELPERS
+        // ═══════════════════════════════════════════════════
+        function showPrompt(text, duration) {
+            introText.textContent = text;
+            introText.classList.add('visible');
+            if (duration) {
+                setTimeout(function() { introText.classList.remove('visible'); }, duration);
+            }
+        }
+
+        function setPhaseLabel(text) {
+            phaseLabel.textContent = text;
+            phaseLabel.classList.add('visible');
+        }
+
+        function fadeIn(dur) {
+            fadeOverlay.style.transition = 'opacity ' + dur + 's ease';
+            fadeOverlay.classList.add('visible');
+        }
+
+        function fadeOut(dur) {
+            fadeOverlay.style.transition = 'opacity ' + dur + 's ease';
+            fadeOverlay.classList.remove('visible');
+        }
+
+        function pt(fn, delay) { setTimeout(fn, delay); }
+
+        // ═══════════════════════════════════════════════════
+        //  PHASE SYSTEM
+        // ═══════════════════════════════════════════════════
+        function goPhase(phase) {
+            if (State.transitioning) return;
+            State.transitioning = true;
+            State.phase = phase;
+            State.canClick = false;
+            State.canMove = false;
+
+            switch (phase) {
+
+            // ─── LOBBY ───
+            case 'lobby':
+                setPhaseLabel('Lobby');
+                lobbyGroup.visible = true;
+                elevatorGroup.visible = false;
+                observationGroup.visible = false;
+                skywalkGroup.visible = false;
+                cityGroup.visible = true;
+                camera.position.set(0, 1.7, 5);
+                euler.set(0, Math.PI, 0); // face the back wall (elevator)
+                camera.quaternion.setFromEuler(euler);
+                heightIndicator.textContent = 'Floor: Lobby';
+                showPrompt('Welcome to Skyline Tower.', 3000);
+                pt(function() {
+                    showPrompt('Walk toward the elevator.', 3000);
+                    State.canMove = true;
+                    State.canClick = true;
+                    State.transitioning = false;
+                }, 3500);
+                break;
+
+            // ─── ELEVATOR RIDE ───
+            case 'elevator_up':
+                initAudio();
+                setPhaseLabel('Elevator');
+                fadeIn(1);
+                pt(function() {
+                    lobbyGroup.visible = false;
+                    elevatorGroup.visible = true;
+                    elevatorGroup.position.y = 0;
+                    camera.position.set(0, 1.7, 0.5);
+                    euler.set(0, Math.PI, 0); // facing back wall
+                    camera.quaternion.setFromEuler(euler);
+                    State.canMove = false;
+                    State.elevatorFloor = 0;
+                    State.elevatorSpeed = 0;
+                    fadeOut(1);
+                    startElevatorHum();
+                    startWindSound();
+                    pt(function() {
+                        showPrompt('Going up...', 2000);
+                        playDing();
+                        // Let the player look around
+                        euler.set(-0.1, 0, 0); // slightly looking forward/down
+                        camera.quaternion.setFromEuler(euler);
+                        State.transitioning = false;
+                    }, 1500);
+                }, 1500);
+                break;
+
+            // ─── OBSERVATION DECK ───
+            case 'observation':
+                setPhaseLabel('Observation Deck');
+                fadeIn(1.2);
+                stopElevatorHum();
+                playDing();
+                pt(function() {
+                    elevatorGroup.visible = false;
+                    observationGroup.visible = true;
+                    skywalkGroup.visible = true;
+                    camera.position.set(0, OBSERVATION_Y + 1.7, -OBS.d / 2 + 2);
+                    euler.set(0, 0, 0);
+                    camera.quaternion.setFromEuler(euler);
+                    State.playerHeight = OBSERVATION_Y;
+                    heightIndicator.textContent = TOWER_HEIGHT + 'm — Floor ' + Math.floor(TOWER_HEIGHT / 3);
+                    controlsHint.textContent = 'WASD to walk | Mouse to look around';
+                    fadeOut(1.2);
+                    showPrompt('Observation Deck — ' + TOWER_HEIGHT + ' meters above the city.', 4000);
+                    pt(function() {
+                        showPrompt('Explore the deck. Walk toward the glass floor sections.', 4000);
+                        State.canMove = true;
+                        State.transitioning = false;
+                        updateWindVolume(0.15);
+                    }, 4500);
+                }, 1500);
+                break;
+
+            // ─── GLASS FLOOR (triggered by stepping on glass) ───
+            case 'glass_floor':
+                setPhaseLabel('Glass Floor');
+                showPrompt('You\'re standing on glass... ' + TOWER_HEIGHT + ' meters above ground.', 4000);
+                State.playerOnGlass = true;
+                State.canMove = true;
+                pt(function() {
+                    showPrompt('Look down.', 3000);
+                    State.transitioning = false;
+                }, 4500);
+                break;
+
+            // ─── SKYWALK ───
+            case 'skywalk':
+                setPhaseLabel('Glass Skywalk');
+                showPrompt('Step onto the Glass Skywalk...', 3000);
+                updateWindVolume(0.3);
+                windIndicator.textContent = 'Wind: 25 km/h';
+                windIndicator.classList.add('visible');
+                State.canMove = true;
+                pt(function() {
+                    showPrompt('Nothing between you and the city below but glass.', 4000);
+                    State.transitioning = false;
+                }, 3500);
+                break;
+
+            // ─── THE EDGE ───
+            case 'edge':
+                setPhaseLabel('The Edge');
+                State.windStrength = 1.0;
+                State.swayAmount = 0.003;
+                updateWindVolume(0.5);
+                windIndicator.textContent = 'Wind: 40 km/h';
+                showPrompt('The edge. ' + TOWER_HEIGHT + ' meters of nothing beneath your feet.', 5000);
+                State.canMove = true;
+                pt(function() {
+                    showPrompt('Look down... if you dare.', 4000);
+                    pt(function() {
+                        State.transitioning = false;
+                    }, 4500);
+                }, 5500);
+                break;
+
+            // ─── RETURN (walk back) ───
+            case 'return':
+                setPhaseLabel('Return');
+                State.windStrength = 0.3;
+                updateWindVolume(0.1);
+                showPrompt('You faced the height. Walk back inside.', 4000);
+                State.canMove = true;
+                pt(function() {
+                    State.transitioning = false;
+                }, 2000);
+                break;
+
+            // ─── ENDED ───
+            case 'ended':
+                State.canMove = false;
+                fadeIn(2);
+                pt(function() {
+                    showPrompt('You conquered the heights.', 0);
+                    introText.style.zIndex = '101';
+                    introText.classList.add('visible');
+                    pt(function() {
+                        try { window.parent.postMessage('simulation-complete', '*'); } catch (e) {}
+                    }, 4000);
+                }, 2500);
+                break;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  PLAYER MOVEMENT
+        // ═══════════════════════════════════════════════════
+        function updatePlayer(delta) {
+            if (!State.canMove) return;
+
+            var speed = State.walkSpeed * delta;
+            var direction = new THREE.Vector3();
+
+            // Forward/back based on camera direction (only horizontal)
+            var forward = new THREE.Vector3(0, 0, -1);
+            forward.applyQuaternion(camera.quaternion);
+            forward.y = 0;
+            forward.normalize();
+
+            var right = new THREE.Vector3(1, 0, 0);
+            right.applyQuaternion(camera.quaternion);
+            right.y = 0;
+            right.normalize();
+
+            if (keys['w'] || keys['arrowup']) direction.add(forward);
+            if (keys['s'] || keys['arrowdown']) direction.sub(forward);
+            if (keys['a'] || keys['arrowleft']) direction.sub(right);
+            if (keys['d'] || keys['arrowright']) direction.add(right);
+
+            if (direction.length() > 0) {
+                direction.normalize().multiplyScalar(speed);
+                camera.position.add(direction);
+            }
+
+            // Keep player at correct height
+            if (State.phase === 'lobby') {
+                camera.position.y = 1.7;
+                // Boundary: lobby
+                camera.position.x = Math.max(-9, Math.min(9, camera.position.x));
+                camera.position.z = Math.max(-9, Math.min(9, camera.position.z));
+            } else if (State.phase === 'observation' || State.phase === 'glass_floor') {
+                camera.position.y = OBSERVATION_Y + 1.7;
+                camera.position.x = Math.max(-OBS.w / 2 + 0.5, Math.min(OBS.w / 2 - 0.5, camera.position.x));
+                camera.position.z = Math.max(-OBS.d / 2 + 0.5, Math.min(OBS.d / 2 - 0.5, camera.position.z));
+            } else if (State.phase === 'skywalk' || State.phase === 'edge') {
+                camera.position.y = OBSERVATION_Y + 1.7;
+                // Allow walking the full observation deck + skywalk
+                camera.position.x = Math.max(-OBS.w / 2 + 0.5, Math.min(OBS.w / 2 - 0.5, camera.position.x));
+                // On the skywalk, constrain X to skywalk width
+                if (camera.position.z > OBS.d / 2) {
+                    camera.position.x = Math.max(-SKYWALK.width / 2 + 0.3, Math.min(SKYWALK.width / 2 - 0.3, camera.position.x));
+                }
+                camera.position.z = Math.max(-OBS.d / 2 + 0.5, Math.min(OBS.d / 2 + SKYWALK.length + 4.5, camera.position.z));
+            } else if (State.phase === 'return') {
+                camera.position.y = OBSERVATION_Y + 1.7;
+                camera.position.x = Math.max(-OBS.w / 2 + 0.5, Math.min(OBS.w / 2 - 0.5, camera.position.x));
+                if (camera.position.z > OBS.d / 2) {
+                    camera.position.x = Math.max(-SKYWALK.width / 2 + 0.3, Math.min(SKYWALK.width / 2 - 0.3, camera.position.x));
+                }
+                camera.position.z = Math.max(-OBS.d / 2 + 0.5, Math.min(OBS.d / 2 + SKYWALK.length + 4.5, camera.position.z));
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  ELEVATOR ANIMATION
+        // ═══════════════════════════════════════════════════
+        function updateElevator(delta) {
+            if (State.phase !== 'elevator_up') return;
+
+            // Accelerate then cruise then decelerate
+            var currentY = elevatorGroup.position.y;
+            var remaining = OBSERVATION_Y - currentY;
+
+            if (remaining > 30) {
+                State.elevatorSpeed = Math.min(State.elevatorSpeed + State.elevatorAccel * delta, State.elevatorMaxSpeed);
+            } else if (remaining > 0) {
+                State.elevatorSpeed = Math.max(0.3, State.elevatorSpeed * 0.99);
+            }
+
+            if (remaining > 0.5) {
+                elevatorGroup.position.y += State.elevatorSpeed;
+                camera.position.y = elevatorGroup.position.y + 1.7;
+                State.elevatorFloor = Math.floor(elevatorGroup.position.y);
+
+                // Update floor indicator
+                var floor = Math.floor(elevatorGroup.position.y / 3);
+                heightIndicator.textContent = Math.floor(elevatorGroup.position.y) + 'm — Floor ' + floor;
+
+                // Update elevator hum pitch
+                if (elevatorHum) {
+                    elevatorHum.gain.gain.setTargetAtTime(0.08 + State.elevatorSpeed * 0.04, audioCtx.currentTime, 0.1);
+                }
+
+                // Wind gets louder as we rise
+                var windVol = (elevatorGroup.position.y / OBSERVATION_Y) * 0.1;
+                updateWindVolume(windVol);
+
+                // Subtle camera shake at high speed
+                if (State.elevatorSpeed > 1.5) {
+                    camera.position.x = Math.sin(time * 15) * 0.003;
+                    camera.position.z = 0.5 + Math.cos(time * 12) * 0.002;
+                }
+            } else {
+                // Arrived
+                elevatorGroup.position.y = OBSERVATION_Y;
+                camera.position.y = OBSERVATION_Y + 1.7;
+                State.elevatorSpeed = 0;
+                heightIndicator.textContent = TOWER_HEIGHT + 'm — Floor ' + Math.floor(TOWER_HEIGHT / 3);
+                showPrompt('Floor ' + Math.floor(TOWER_HEIGHT / 3) + ' — Observation Deck', 2500);
+                playDing();
+                pt(function() {
+                    goPhase('observation');
+                }, 3000);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  PHASE TRIGGERS (position-based)
+        // ═══════════════════════════════════════════════════
+        function checkPhaseTriggers() {
+            var px = camera.position.x;
+            var pz = camera.position.z;
+
+            // Lobby → Elevator: walk to back wall (near elevator doors)
+            if (State.phase === 'lobby' && pz < -7 && Math.abs(px) < 2) {
+                if (State.canClick) goPhase('elevator_up');
+            }
+
+            // Observation → Glass floor: step onto a glass section
+            if (State.phase === 'observation' && !State.transitioning) {
+                var onGlass = false;
+                // Check if near front glass section
+                if (Math.abs(px) < 2.5 && pz > OBS.d / 2 - 4.5 && pz < OBS.d / 2 - 0.5) onGlass = true;
+                if (onGlass && !State.playerOnGlass) {
+                    goPhase('glass_floor');
+                }
+            }
+
+            // Glass floor / Observation → Skywalk: walk onto the skywalk
+            if ((State.phase === 'glass_floor' || State.phase === 'observation') && !State.transitioning) {
+                if (pz > OBS.d / 2 + 1 && Math.abs(px) < SKYWALK.width / 2) {
+                    goPhase('skywalk');
+                }
+            }
+
+            // Skywalk → Edge: reach the end of the skywalk
+            if (State.phase === 'skywalk' && !State.transitioning) {
+                if (pz > OBS.d / 2 + SKYWALK.length - 1) {
+                    goPhase('edge');
+                }
+            }
+
+            // Edge → Return: stand at the edge for a while, then start return
+            if (State.phase === 'edge' && !State.transitioning) {
+                // If player walks back inside
+                if (pz < OBS.d / 2 - 1) {
+                    goPhase('return');
+                }
+            }
+
+            // Return → Ended: walk back inside the observation deck center
+            if (State.phase === 'return' && !State.transitioning) {
+                if (pz < 0 && Math.abs(px) < 5) {
+                    goPhase('ended');
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  EFFECTS
+        // ═══════════════════════════════════════════════════
+        function updateEffects(delta) {
+            // Wind sway (on skywalk / edge)
+            if (State.swayAmount > 0) {
+                var sway = Math.sin(time * 1.5) * State.swayAmount;
+                camera.position.x += sway;
+                camera.rotation.z = sway * 0.5;
+            }
+
+            // Looking down detection (for glass floor / skywalk)
+            if (State.phase === 'glass_floor' || State.phase === 'skywalk' || State.phase === 'edge') {
+                var lookDir = new THREE.Vector3(0, 0, -1);
+                lookDir.applyQuaternion(camera.quaternion);
+                State.lookingDown = lookDir.y < -0.5;
+            }
+
+            // Clouds movement
+            for (var ci = 0; ci < cloudMeshes.length; ci++) {
+                var c = cloudMeshes[ci];
+                c.position.x += c.userData.speed * delta;
+                if (c.position.x > 500) c.position.x = -500;
+            }
+
+            // Wind indicator update
+            if (State.phase === 'skywalk' || State.phase === 'edge') {
+                var windKmh = 20 + Math.sin(time * 0.3) * 10 + State.windStrength * 15;
+                windIndicator.textContent = 'Wind: ' + Math.floor(windKmh) + ' km/h';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
+        //  CONTROLS
+        // ═══════════════════════════════════════════════════
+        document.addEventListener('keydown', function(e) {
+            keys[e.key.toLowerCase()] = true;
+        });
+        document.addEventListener('keyup', function(e) {
+            keys[e.key.toLowerCase()] = false;
+        });
+
+        document.addEventListener('click', function() {
+            initAudio();
+            if (!isPointerLocked) {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+
+        document.addEventListener('pointerlockchange', function() {
+            isPointerLocked = document.pointerLockElement === renderer.domElement;
+            if (isPointerLocked) {
+                controlsHint.style.opacity = '0';
+            }
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isPointerLocked) return;
+            var movX = e.movementX || 0;
+            var movY = e.movementY || 0;
+
+            euler.setFromQuaternion(camera.quaternion);
+            euler.y -= movX * State.mouseSensitivity;
+            euler.x -= movY * State.mouseSensitivity;
+            euler.x = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, euler.x));
+            camera.quaternion.setFromEuler(euler);
+        });
+
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // ═══════════════════════════════════════════════════
+        //  MAIN LOOP
+        // ═══════════════════════════════════════════════════
+        function animate() {
+            requestAnimationFrame(animate);
+            var delta = Math.min(clock.getDelta(), 0.1);
+            time += delta;
+
+            updatePlayer(delta);
+            updateElevator(delta);
+            checkPhaseTriggers();
+            updateEffects(delta);
+
+            renderer.render(scene, camera);
+        }
+
+        // ─── START ───
+        goPhase('lobby');
+        animate();
+
+    })();
+    </script>
+</body>
+</html>
