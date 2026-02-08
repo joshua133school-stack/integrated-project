@@ -348,17 +348,22 @@
                     roughness: 0.4, metalness: 0.3
                 });
                 var car = new THREE.Mesh(carGeo, carMat);
-                // Place on roads
+                var cx, cz;
                 var onRoadX = Math.random() > 0.5;
                 if (onRoadX) {
                     var roadIdx = Math.floor(Math.random() * 11) - 5;
-                    car.position.set(roadIdx * 80 + (Math.random() - 0.5) * 4, 0.6, (Math.random() - 0.5) * 700);
+                    cx = roadIdx * 80 + (Math.random() - 0.5) * 4;
+                    cz = (Math.random() - 0.5) * 700;
                     car.rotation.y = 0;
                 } else {
                     var roadIdxZ = Math.floor(Math.random() * 11) - 5;
-                    car.position.set((Math.random() - 0.5) * 700, 0.6, roadIdxZ * 80 + (Math.random() - 0.5) * 4);
+                    cx = (Math.random() - 0.5) * 700;
+                    cz = roadIdxZ * 80 + (Math.random() - 0.5) * 4;
                     car.rotation.y = Math.PI / 2;
                 }
+                // Skip cars inside tower footprint
+                if (Math.abs(cx) < 16 && Math.abs(cz) < 16) continue;
+                car.position.set(cx, 0.6, cz);
                 cityGroup.add(car);
             }
 
@@ -422,10 +427,10 @@
         function buildLobby() {
             var LW = 20, LD = 20, LH = 6; // lobby dimensions
 
-            // Floor
+            // Floor (raised above city ground to avoid z-fighting)
             var floor = new THREE.Mesh(new THREE.PlaneGeometry(LW, LD), MAT.marble);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.y = 0.01;
+            floor.position.y = 0.1;
             lobbyGroup.add(floor);
 
             // Ceiling
@@ -450,11 +455,11 @@
             rightWall.rotation.y = -Math.PI / 2;
             lobbyGroup.add(rightWall);
 
-            // Front glass wall
-            var frontGlass = new THREE.Mesh(new THREE.PlaneGeometry(LW, LH), MAT.glass);
-            frontGlass.position.set(0, LH / 2, LD / 2);
-            frontGlass.rotation.y = Math.PI;
-            lobbyGroup.add(frontGlass);
+            // Front wall (solid, behind player's starting position)
+            var frontWall = new THREE.Mesh(new THREE.PlaneGeometry(LW, LH), wallMat);
+            frontWall.position.set(0, LH / 2, LD / 2);
+            frontWall.rotation.y = Math.PI;
+            lobbyGroup.add(frontWall);
 
             // Elevator doors (on back wall)
             var doorMat = MAT.darkMetal;
