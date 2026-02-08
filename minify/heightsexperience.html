@@ -74,9 +74,9 @@
         // ═══════════════════════════════════════════════════
         var scene = new THREE.Scene();
         scene.background = new THREE.Color(0x87CEEB);
-        scene.fog = new THREE.Fog(0x87CEEB, 100, 600);
+        scene.fog = new THREE.Fog(0x87CEEB, 200, 1200);
 
-        var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+        var camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 2000);
         camera.position.set(0, 1.7, 0); // Eye height
 
         var renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -256,7 +256,7 @@
         sunLight.shadow.mapSize.width = 2048;
         sunLight.shadow.mapSize.height = 2048;
         sunLight.shadow.camera.near = 0.5;
-        sunLight.shadow.camera.far = 600;
+        sunLight.shadow.camera.far = 1200;
         sunLight.shadow.camera.left = -100;
         sunLight.shadow.camera.right = 100;
         sunLight.shadow.camera.top = 100;
@@ -293,46 +293,113 @@
                 cityGroup.add(roadZ);
             }
 
-            // Buildings (random heights, around the area)
-            var buildingColors = [0x556677, 0x667788, 0x445566, 0x778899, 0x5a6a7a, 0x4a5a6a];
+            // Buildings (varied heights with some supertall skyscrapers)
+            var buildingColors = [0x556677, 0x667788, 0x445566, 0x778899, 0x5a6a7a, 0x4a5a6a, 0x3d4d5d, 0x6a7a8a];
+            var glassColors = [0x88bbdd, 0x77aacc, 0x99ccee, 0x6699bb];
+            var winGeo = new THREE.PlaneGeometry(1.2, 1.8);
+            var winLitColors = [0xffffcc, 0xaaccff, 0xffeedd, 0xccddff];
+
             for (var bx = -380; bx <= 380; bx += 40) {
                 for (var bz = -380; bz <= 380; bz += 40) {
                     // Skip the center where our tower is
-                    if (Math.abs(bx) < 30 && Math.abs(bz) < 30) continue;
-                    var bHeight = 15 + Math.random() * 120;
-                    var bWidth = 12 + Math.random() * 20;
-                    var bDepth = 12 + Math.random() * 20;
-                    // Add some variation in position within the block
+                    if (Math.abs(bx) < 35 && Math.abs(bz) < 35) continue;
+
+                    var dist = Math.sqrt(bx * bx + bz * bz);
+                    // Buildings near center are taller (downtown effect)
+                    var maxH = dist < 120 ? 350 : dist < 250 ? 200 : 100;
+                    var minH = dist < 120 ? 40 : 15;
+                    var bHeight = minH + Math.random() * (maxH - minH);
+                    var bWidth = 10 + Math.random() * 22;
+                    var bDepth = 10 + Math.random() * 22;
                     var offX = (Math.random() - 0.5) * 15;
                     var offZ = (Math.random() - 0.5) * 15;
+
+                    var colorIdx = Math.floor(Math.random() * buildingColors.length);
                     var bMat = new THREE.MeshStandardMaterial({
-                        color: buildingColors[Math.floor(Math.random() * buildingColors.length)],
-                        roughness: 0.7 + Math.random() * 0.2
+                        color: buildingColors[colorIdx],
+                        roughness: 0.5 + Math.random() * 0.3,
+                        metalness: 0.1 + Math.random() * 0.2
                     });
                     var bGeo = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
                     var bMesh = new THREE.Mesh(bGeo, bMat);
-                    bMesh.position.set(bx + offX, bHeight / 2, bz + offZ);
+                    var bPosX = bx + offX, bPosZ = bz + offZ;
+                    bMesh.position.set(bPosX, bHeight / 2, bPosZ);
                     bMesh.castShadow = true;
                     bMesh.receiveShadow = true;
                     cityGroup.add(bMesh);
 
-                    // Windows (simple grid of emissive spots)
-                    if (bHeight > 30) {
-                        var winRows = Math.floor(bHeight / 4);
-                        var winCols = Math.floor(bWidth / 3);
-                        var winGeo = new THREE.PlaneGeometry(1.2, 1.8);
-                        for (var wr = 0; wr < winRows; wr++) {
-                            for (var wc = 0; wc < winCols; wc++) {
-                                if (Math.random() > 0.5) continue; // only some windows lit
-                                var winMat = new THREE.MeshBasicMaterial({
-                                    color: Math.random() > 0.3 ? 0xffffcc : 0xaaccff
-                                });
-                                var win = new THREE.Mesh(winGeo, winMat);
-                                var wx = -bWidth / 2 + 1.5 + wc * 3;
-                                var wy = 2 + wr * 4;
-                                win.position.set(bx + offX + bWidth / 2 + 0.01, wy, bz + offZ - bDepth / 2 + 1.5 + Math.random() * (bDepth - 3));
-                                win.rotation.y = Math.PI / 2;
-                                cityGroup.add(win);
+                    // Tall buildings get a narrower upper section (setback)
+                    if (bHeight > 150 && Math.random() > 0.4) {
+                        var upperH = bHeight * 0.3;
+                        var upperW = bWidth * 0.65;
+                        var upperD = bDepth * 0.65;
+                        var upper = new THREE.Mesh(
+                            new THREE.BoxGeometry(upperW, upperH, upperD),
+                            new THREE.MeshStandardMaterial({ color: buildingColors[(colorIdx + 1) % buildingColors.length], roughness: 0.4, metalness: 0.25 })
+                        );
+                        upper.position.set(bPosX, bHeight + upperH / 2, bPosZ);
+                        upper.castShadow = true;
+                        cityGroup.add(upper);
+                        bHeight += upperH; // total height for rooftop features
+                    }
+
+                    // Rooftop details for tall buildings
+                    if (bHeight > 80) {
+                        var roofRand = Math.random();
+                        if (roofRand > 0.6) {
+                            // Antenna/spire
+                            var antH = 8 + Math.random() * 15;
+                            var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.4, antH, 6), MAT.metal);
+                            ant.position.set(bPosX, bHeight + antH / 2, bPosZ);
+                            cityGroup.add(ant);
+                        } else if (roofRand > 0.35) {
+                            // Rooftop mechanical box
+                            var mechW = bWidth * 0.3, mechH = 3 + Math.random() * 4;
+                            var mech = new THREE.Mesh(
+                                new THREE.BoxGeometry(mechW, mechH, mechW),
+                                new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 })
+                            );
+                            mech.position.set(bPosX, bHeight + mechH / 2, bPosZ);
+                            cityGroup.add(mech);
+                        } else {
+                            // Helipad (flat circle on roof)
+                            var pad = new THREE.Mesh(new THREE.CylinderGeometry(bWidth * 0.3, bWidth * 0.3, 0.2, 16), new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.6 }));
+                            pad.position.set(bPosX, bHeight + 0.1, bPosZ);
+                            cityGroup.add(pad);
+                            // H marking
+                            var hMark = new THREE.Mesh(new THREE.PlaneGeometry(bWidth * 0.15, bWidth * 0.2), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+                            hMark.rotation.x = -Math.PI / 2;
+                            hMark.position.set(bPosX, bHeight + 0.22, bPosZ);
+                            cityGroup.add(hMark);
+                        }
+                    }
+
+                    // Windows on two faces (front + side) for buildings taller than 25m
+                    if (bHeight > 25) {
+                        var winRows = Math.min(Math.floor(bHeight / 5), 40); // cap rows for performance
+                        var winColsW = Math.floor(bWidth / 3.5);
+                        var winColsD = Math.floor(bDepth / 3.5);
+                        var faces = [
+                            { axis: 'x', offset: bWidth / 2 + 0.05, cols: winColsD, span: bDepth, rotY: Math.PI / 2 },
+                            { axis: 'z', offset: bDepth / 2 + 0.05, cols: winColsW, span: bWidth, rotY: 0 }
+                        ];
+                        for (var fi = 0; fi < faces.length; fi++) {
+                            var face = faces[fi];
+                            for (var wr = 0; wr < winRows; wr++) {
+                                for (var wc = 0; wc < face.cols; wc++) {
+                                    if (Math.random() > 0.45) continue;
+                                    var winMat = new THREE.MeshBasicMaterial({ color: winLitColors[Math.floor(Math.random() * winLitColors.length)] });
+                                    var win = new THREE.Mesh(winGeo, winMat);
+                                    var wy = 3 + wr * 5;
+                                    var wOffset = -face.span / 2 + 2 + wc * 3.5;
+                                    if (face.axis === 'x') {
+                                        win.position.set(bPosX + face.offset, wy, bPosZ + wOffset);
+                                    } else {
+                                        win.position.set(bPosX + wOffset, wy, bPosZ + face.offset);
+                                    }
+                                    win.rotation.y = face.rotY;
+                                    cityGroup.add(win);
+                                }
                             }
                         }
                     }
@@ -362,7 +429,7 @@
                     car.rotation.y = Math.PI / 2;
                 }
                 // Skip cars inside tower footprint
-                if (Math.abs(cx) < 16 && Math.abs(cz) < 16) continue;
+                if (Math.abs(cx) < 20 && Math.abs(cz) < 20) continue;
                 car.position.set(cx, 0.6, cz);
                 cityGroup.add(car);
             }
@@ -372,7 +439,7 @@
                 var px = (Math.random() - 0.5) * 500;
                 var pz = (Math.random() - 0.5) * 500;
                 // Skip parks inside tower/lobby footprint
-                if (Math.abs(px) < 25 && Math.abs(pz) < 25) continue;
+                if (Math.abs(px) < 30 && Math.abs(pz) < 30) continue;
                 var parkGeo = new THREE.PlaneGeometry(25 + Math.random() * 20, 25 + Math.random() * 20);
                 var park = new THREE.Mesh(parkGeo, MAT.grass);
                 park.rotation.x = -Math.PI / 2;
@@ -384,45 +451,97 @@
         // ═══════════════════════════════════════════════════
         //  OUR SKYSCRAPER (center of the city)
         // ═══════════════════════════════════════════════════
-        var TOWER_HEIGHT = 250; // meters
-        var TOWER_WIDTH = 24;
+        var TOWER_HEIGHT = 550; // meters (supertall skyscraper)
+        var TOWER_WIDTH = 30;
         var OBSERVATION_Y = TOWER_HEIGHT; // observation deck at top
 
         function buildTower() {
-            // Main tower shaft
-            var towerGeo = new THREE.BoxGeometry(TOWER_WIDTH, TOWER_HEIGHT, TOWER_WIDTH);
-            var towerMat = new THREE.MeshStandardMaterial({ color: 0x6688aa, roughness: 0.4, metalness: 0.3 });
-            var tower = new THREE.Mesh(towerGeo, towerMat);
-            tower.position.set(0, TOWER_HEIGHT / 2, 0);
-            tower.castShadow = true;
-            cityGroup.add(tower);
+            var towerMat = new THREE.MeshStandardMaterial({ color: 0x6688aa, roughness: 0.3, metalness: 0.4 });
+            var towerAccent = new THREE.MeshStandardMaterial({ color: 0x556688, roughness: 0.2, metalness: 0.5 });
 
-            // Tower windows (vertical strips)
+            // Lower section (0-350m) — full width
+            var sec1H = 350;
+            var sec1 = new THREE.Mesh(new THREE.BoxGeometry(TOWER_WIDTH, sec1H, TOWER_WIDTH), towerMat);
+            sec1.position.set(0, sec1H / 2, 0);
+            sec1.castShadow = true;
+            cityGroup.add(sec1);
+
+            // Middle setback (350-460m) — narrower
+            var sec2H = 110, sec2W = TOWER_WIDTH - 6;
+            var sec2 = new THREE.Mesh(new THREE.BoxGeometry(sec2W, sec2H, sec2W), towerAccent);
+            sec2.position.set(0, sec1H + sec2H / 2, 0);
+            sec2.castShadow = true;
+            cityGroup.add(sec2);
+
+            // Upper setback (460-520m) — narrower still
+            var sec3H = 60, sec3W = TOWER_WIDTH - 14;
+            var sec3 = new THREE.Mesh(new THREE.BoxGeometry(sec3W, sec3H, sec3W), towerMat);
+            sec3.position.set(0, sec1H + sec2H + sec3H / 2, 0);
+            sec3.castShadow = true;
+            cityGroup.add(sec3);
+
+            // Crown (520-550m) — glass crown
+            var crownH = 30, crownW = sec3W + 4;
+            var crownMat = new THREE.MeshPhysicalMaterial({ color: 0xaaccee, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.3, transmission: 0.4 });
+            var crown = new THREE.Mesh(new THREE.BoxGeometry(crownW, crownH, crownW), crownMat);
+            crown.position.set(0, sec1H + sec2H + sec3H + crownH / 2, 0);
+            cityGroup.add(crown);
+
+            // Horizontal band details at setback transitions
+            var bandMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
+            var bands = [
+                { y: sec1H, w: TOWER_WIDTH + 2 },
+                { y: sec1H + sec2H, w: sec2W + 2 },
+                { y: sec1H + sec2H + sec3H, w: sec3W + 2 }
+            ];
+            for (var bi = 0; bi < bands.length; bi++) {
+                var band = new THREE.Mesh(new THREE.BoxGeometry(bands[bi].w, 2, bands[bi].w), bandMat);
+                band.position.set(0, bands[bi].y, 0);
+                cityGroup.add(band);
+            }
+
+            // Window strips on all sections and all 4 faces
             var stripMat = new THREE.MeshPhysicalMaterial({ color: 0x88bbdd, transparent: true, opacity: 0.4, roughness: 0.05, metalness: 0.2 });
-            for (var side = 0; side < 4; side++) {
-                for (var s = 0; s < 6; s++) {
-                    var stripGeo = new THREE.PlaneGeometry(1.5, TOWER_HEIGHT - 10);
-                    var strip = new THREE.Mesh(stripGeo, stripMat);
-                    var sx = (s - 2.5) * 3.5;
-                    switch (side) {
-                        case 0: strip.position.set(sx, TOWER_HEIGHT / 2, TOWER_WIDTH / 2 + 0.05); break;
-                        case 1: strip.position.set(sx, TOWER_HEIGHT / 2, -TOWER_WIDTH / 2 - 0.05); strip.rotation.y = Math.PI; break;
-                        case 2: strip.position.set(TOWER_WIDTH / 2 + 0.05, TOWER_HEIGHT / 2, sx); strip.rotation.y = Math.PI / 2; break;
-                        case 3: strip.position.set(-TOWER_WIDTH / 2 - 0.05, TOWER_HEIGHT / 2, sx); strip.rotation.y = -Math.PI / 2; break;
+            var sections = [
+                { h: sec1H, w: TOWER_WIDTH, yOff: 0 },
+                { h: sec2H, w: sec2W, yOff: sec1H },
+                { h: sec3H, w: sec3W, yOff: sec1H + sec2H }
+            ];
+            for (var si = 0; si < sections.length; si++) {
+                var sec = sections[si];
+                var numStrips = Math.floor(sec.w / 4);
+                for (var side = 0; side < 4; side++) {
+                    for (var s = 0; s < numStrips; s++) {
+                        var stripGeo = new THREE.PlaneGeometry(1.5, sec.h - 6);
+                        var strip = new THREE.Mesh(stripGeo, stripMat);
+                        var sx = (s - (numStrips - 1) / 2) * 3.5;
+                        var sy = sec.yOff + sec.h / 2;
+                        switch (side) {
+                            case 0: strip.position.set(sx, sy, sec.w / 2 + 0.05); break;
+                            case 1: strip.position.set(sx, sy, -sec.w / 2 - 0.05); strip.rotation.y = Math.PI; break;
+                            case 2: strip.position.set(sec.w / 2 + 0.05, sy, sx); strip.rotation.y = Math.PI / 2; break;
+                            case 3: strip.position.set(-sec.w / 2 - 0.05, sy, sx); strip.rotation.y = -Math.PI / 2; break;
+                        }
+                        cityGroup.add(strip);
                     }
-                    cityGroup.add(strip);
                 }
             }
 
-            // Tower crown / antenna
-            var antennaGeo = new THREE.CylinderGeometry(0.3, 0.5, 20, 8);
-            var antenna = new THREE.Mesh(antennaGeo, MAT.metal);
-            antenna.position.set(0, TOWER_HEIGHT + 10, 0);
-            cityGroup.add(antenna);
+            // Spire (above crown)
+            var spireBase = sec1H + sec2H + sec3H + crownH;
+            var spire = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 1.5, 40, 8), MAT.metal);
+            spire.position.set(0, spireBase + 20, 0);
+            cityGroup.add(spire);
 
-            var antLight = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
-            antLight.position.set(0, TOWER_HEIGHT + 20, 0);
+            // Antenna light
+            var antLight = new THREE.Mesh(new THREE.SphereGeometry(0.6, 8, 8), new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+            antLight.position.set(0, spireBase + 40, 0);
             cityGroup.add(antLight);
+
+            // Secondary blinking light mid-spire
+            var midLight = new THREE.Mesh(new THREE.SphereGeometry(0.3, 6, 6), new THREE.MeshBasicMaterial({ color: 0xff4444 }));
+            midLight.position.set(0, spireBase + 20, 0);
+            cityGroup.add(midLight);
         }
 
         // ═══════════════════════════════════════════════════
