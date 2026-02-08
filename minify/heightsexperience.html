@@ -369,10 +369,14 @@
 
             // Parks (green patches)
             for (var pi = 0; pi < 8; pi++) {
+                var px = (Math.random() - 0.5) * 500;
+                var pz = (Math.random() - 0.5) * 500;
+                // Skip parks inside tower/lobby footprint
+                if (Math.abs(px) < 25 && Math.abs(pz) < 25) continue;
                 var parkGeo = new THREE.PlaneGeometry(25 + Math.random() * 20, 25 + Math.random() * 20);
                 var park = new THREE.Mesh(parkGeo, MAT.grass);
                 park.rotation.x = -Math.PI / 2;
-                park.position.set((Math.random() - 0.5) * 500, 0.1, (Math.random() - 0.5) * 500);
+                park.position.set(px, 0.1, pz);
                 cityGroup.add(park);
             }
         }
