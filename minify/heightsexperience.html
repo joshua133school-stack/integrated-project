@@ -520,8 +520,7 @@
             eCeil.position.y = ELEV.h;
             elevatorGroup.add(eCeil);
 
-            // Glass walls (3 sides, back is solid)
-            // Back wall (metal)
+            // Back wall (solid metal, behind player)
             var backW = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.darkMetal);
             backW.position.set(0, ELEV.h / 2, -ELEV.d / 2);
             elevatorGroup.add(backW);
@@ -537,18 +536,70 @@
             sideR.rotation.y = -Math.PI / 2;
             elevatorGroup.add(sideR);
 
-            // Front glass wall
+            // Front glass wall (view outward)
             var frontW = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.glass);
             frontW.position.set(0, ELEV.h / 2, ELEV.d / 2);
             frontW.rotation.y = Math.PI;
             elevatorGroup.add(frontW);
 
-            // Handrail
+            // ── Elevator doors (on front wall, split left/right) ──
+            var doorW = ELEV.w / 2 - 0.05;
+            var doorH = ELEV.h - 0.3;
+            var doorMat = new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.2, metalness: 0.9 });
+            var doorL = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.04), doorMat);
+            doorL.position.set(-doorW / 2 - 0.02, doorH / 2 + 0.1, ELEV.d / 2 - 0.03);
+            elevatorGroup.add(doorL);
+            var doorR = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.04), doorMat);
+            doorR.position.set(doorW / 2 + 0.02, doorH / 2 + 0.1, ELEV.d / 2 - 0.03);
+            elevatorGroup.add(doorR);
+
+            // Door frame
+            var frameMat = MAT.darkMetal;
+            var frameTop = new THREE.Mesh(new THREE.BoxGeometry(ELEV.w + 0.1, 0.15, 0.08), frameMat);
+            frameTop.position.set(0, ELEV.h - 0.1, ELEV.d / 2 - 0.02);
+            elevatorGroup.add(frameTop);
+            for (var fs = -1; fs <= 1; fs += 2) {
+                var frameSide = new THREE.Mesh(new THREE.BoxGeometry(0.08, ELEV.h, 0.08), frameMat);
+                frameSide.position.set(fs * (ELEV.w / 2 + 0.02), ELEV.h / 2, ELEV.d / 2 - 0.02);
+                elevatorGroup.add(frameSide);
+            }
+
+            // ── Handrails (three sides: left, right, and back) ──
+            // Side rails (along Z)
             for (var hs = -1; hs <= 1; hs += 2) {
-                var rail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, ELEV.d - 0.4, 8), MAT.railing);
-                rail.rotation.x = Math.PI / 2;
-                rail.position.set(hs * (ELEV.w / 2 - 0.1), 1.0, 0);
-                elevatorGroup.add(rail);
+                var sideRail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, ELEV.d - 0.4, 8), MAT.railing);
+                sideRail.rotation.x = Math.PI / 2;
+                sideRail.position.set(hs * (ELEV.w / 2 - 0.1), 1.0, 0);
+                elevatorGroup.add(sideRail);
+                // Vertical supports for side rails
+                for (var sv = -1; sv <= 1; sv += 2) {
+                    var support = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.0, 6), MAT.railing);
+                    support.position.set(hs * (ELEV.w / 2 - 0.1), 0.5, sv * (ELEV.d / 2 - 0.3));
+                    elevatorGroup.add(support);
+                }
+            }
+            // Back rail (along X)
+            var backRail = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, ELEV.w - 0.4, 8), MAT.railing);
+            backRail.rotation.z = Math.PI / 2;
+            backRail.position.set(0, 1.0, -ELEV.d / 2 + 0.1);
+            elevatorGroup.add(backRail);
+            // Back rail vertical supports
+            for (var bs = -1; bs <= 1; bs += 2) {
+                var bSupport = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.0, 6), MAT.railing);
+                bSupport.position.set(bs * (ELEV.w / 2 - 0.3), 0.5, -ELEV.d / 2 + 0.1);
+                elevatorGroup.add(bSupport);
+            }
+
+            // ── Control panel (on back wall) ──
+            var panel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.04), MAT.metal);
+            panel.position.set(ELEV.w / 2 - 0.3, 1.3, -ELEV.d / 2 + 0.03);
+            elevatorGroup.add(panel);
+            // Buttons on panel
+            for (var btn = 0; btn < 4; btn++) {
+                var button = new THREE.Mesh(new THREE.CircleGeometry(0.03, 8),
+                    new THREE.MeshBasicMaterial({ color: btn === 3 ? 0xff4444 : 0xffffcc }));
+                button.position.set(ELEV.w / 2 - 0.3, 1.1 + btn * 0.12, -ELEV.d / 2 + 0.055);
+                elevatorGroup.add(button);
             }
 
             // Ceiling light
@@ -848,7 +899,7 @@
                     elevatorGroup.visible = true;
                     elevatorGroup.position.y = 0;
                     camera.position.set(0, 1.7, -0.5);
-                    euler.set(0, 0, 0); // facing glass front wall (outward view)
+                    euler.set(0, Math.PI, 0); // facing +Z through glass front wall (outward view)
                     camera.quaternion.setFromEuler(euler);
                     State.canMove = false;
                     State.elevatorFloor = 0;
@@ -860,7 +911,7 @@
                         showPrompt('Going up...', 2000);
                         playDing();
                         // Let the player look around
-                        euler.set(-0.15, 0, 0); // slightly looking down to see city falling away
+                        euler.set(-0.15, Math.PI, 0); // slightly looking down to see city falling away
                         camera.quaternion.setFromEuler(euler);
                         State.transitioning = false;
                     }, 1500);
