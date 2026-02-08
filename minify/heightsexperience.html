@@ -821,7 +821,7 @@
                 skywalkGroup.visible = false;
                 cityGroup.visible = true;
                 camera.position.set(0, 1.7, 5);
-                euler.set(0, Math.PI, 0); // face the back wall (elevator)
+                euler.set(0, 0, 0); // face -Z toward the back wall (elevator)
                 camera.quaternion.setFromEuler(euler);
                 heightIndicator.textContent = 'Floor: Lobby';
                 showPrompt('Welcome to Skyline Tower.', 3000);
@@ -842,8 +842,8 @@
                     lobbyGroup.visible = false;
                     elevatorGroup.visible = true;
                     elevatorGroup.position.y = 0;
-                    camera.position.set(0, 1.7, 0.5);
-                    euler.set(0, Math.PI, 0); // facing back wall
+                    camera.position.set(0, 1.7, -0.5);
+                    euler.set(0, 0, 0); // facing glass front wall (outward view)
                     camera.quaternion.setFromEuler(euler);
                     State.canMove = false;
                     State.elevatorFloor = 0;
@@ -855,7 +855,7 @@
                         showPrompt('Going up...', 2000);
                         playDing();
                         // Let the player look around
-                        euler.set(-0.1, 0, 0); // slightly looking forward/down
+                        euler.set(-0.15, 0, 0); // slightly looking down to see city falling away
                         camera.quaternion.setFromEuler(euler);
                         State.transitioning = false;
                     }, 1500);
