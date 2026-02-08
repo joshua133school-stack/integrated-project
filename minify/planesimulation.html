@@ -536,38 +536,38 @@
         taxiway.position.set(15, 0.02, 0);
         airportGroup.add(taxiway);
 
-        // Terminal building (large)
-        var termGeo = new THREE.BoxGeometry(80, 18, 40);
+        // Terminal building (smaller, set further back)
+        var termGeo = new THREE.BoxGeometry(50, 12, 25);
         var terminal = new THREE.Mesh(termGeo, MAT.concrete);
-        terminal.position.set(-25, 9, 0);
+        terminal.position.set(-25, 6, 0);
         terminal.castShadow = true;
         terminal.receiveShadow = true;
         airportGroup.add(terminal);
 
-        // Terminal windows - large glass facade
-        var facadeGeo = new THREE.PlaneGeometry(78, 12);
+        // Terminal windows - glass facade
+        var facadeGeo = new THREE.PlaneGeometry(48, 8);
         var facade = new THREE.Mesh(facadeGeo, MAT.glass);
-        facade.position.set(-25, 10, 20.01);
+        facade.position.set(-25, 7, 12.51);
         airportGroup.add(facade);
 
         // Terminal entrance canopy
-        var canopyGeo = new THREE.BoxGeometry(30, 0.5, 8);
+        var canopyGeo = new THREE.BoxGeometry(20, 0.4, 6);
         var canopy = new THREE.Mesh(canopyGeo, MAT.metal);
-        canopy.position.set(-25, 5, 24);
+        canopy.position.set(-25, 4, 15);
         airportGroup.add(canopy);
 
-        // Control tower
-        var towerBase = new THREE.Mesh(new THREE.CylinderGeometry(4, 5, 30, 12), MAT.concrete);
-        towerBase.position.set(-60, 15, -40);
+        // Control tower (proportional to smaller terminal)
+        var towerBase = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.5, 22, 12), MAT.concrete);
+        towerBase.position.set(-55, 11, -35);
         towerBase.castShadow = true;
         airportGroup.add(towerBase);
 
-        var towerCab = new THREE.Mesh(new THREE.CylinderGeometry(8, 5, 7, 12), MAT.glass);
-        towerCab.position.set(-60, 33, -40);
+        var towerCab = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 3.5, 5, 12), MAT.glass);
+        towerCab.position.set(-55, 24.5, -35);
         airportGroup.add(towerCab);
 
-        var towerRoof = new THREE.Mesh(new THREE.ConeGeometry(9, 3, 12), MAT.metal);
-        towerRoof.position.set(-60, 38, -40);
+        var towerRoof = new THREE.Mesh(new THREE.ConeGeometry(6.5, 2.5, 12), MAT.metal);
+        towerRoof.position.set(-55, 28, -35);
         airportGroup.add(towerRoof);
 
         // Jet bridge (extends from terminal toward plane door, along X)
@@ -647,11 +647,13 @@
         stripe.rotation.x = Math.PI / 2;
         planeExtGroup.add(stripe);
 
-        // ── Nose cone ──
+        // ── Nose cone (ellipsoidal, smooth blend with fuselage) ──
+        // Use a hemisphere scaled along Z for a rounded-but-elongated nose
         var noseGeo = new THREE.SphereGeometry(R, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
         var nose = new THREE.Mesh(noseGeo, MAT.white);
         nose.rotation.x = -Math.PI / 2; // hemisphere pointing +Z
-        nose.position.z = halfLen;
+        nose.scale.set(1, 1, 2.0);      // stretch along Z for elongated airliner nose
+        nose.position.z = halfLen;       // flush with cylinder end
         planeExtGroup.add(nose);
 
         // ── Cockpit windows (on nose, angled) ──
@@ -664,12 +666,18 @@
             planeExtGroup.add(cWin);
         }
 
-        // ── Tail cone ──
-        var tailConeGeo = new THREE.ConeGeometry(R, 7, 32);
+        // ── Tail cone (gradual taper, not a sharp point) ──
+        var tailConeGeo = new THREE.CylinderGeometry(0.3, R, 8, 32);
         var tailCone = new THREE.Mesh(tailConeGeo, MAT.white);
-        tailCone.rotation.x = Math.PI / 2; // point toward -Z
-        tailCone.position.z = -halfLen - 3.5;
+        tailCone.rotation.x = Math.PI / 2; // align along Z, narrow end toward -Z
+        tailCone.position.z = -halfLen - 4;
         planeExtGroup.add(tailCone);
+        // APU exhaust at very tip
+        var apuGeo = new THREE.CylinderGeometry(0.18, 0.3, 0.5, 12);
+        var apu = new THREE.Mesh(apuGeo, MAT.darkPlastic);
+        apu.rotation.x = Math.PI / 2;
+        apu.position.z = -halfLen - 8.1;
+        planeExtGroup.add(apu);
 
         // ── Passenger windows (both sides) ──
         var wGeo = new THREE.CircleGeometry(0.15, 10);
@@ -686,33 +694,74 @@
             planeExtGroup.add(wR);
         }
 
-        // ── Wings (flat boxes, swept back slightly) ──
-        // Wing shape: root at fuselage, extends outward on X, swept back on Z
+        // ── Wings (tapered airfoil shape, white) ──
+        // Wing uses a custom ExtrudeGeometry for proper airfoil cross-section with taper
         function makeWing(side) {
             // side: 1 = left(+X), -1 = right(-X)
             var wGroup = new THREE.Group();
-            var span = PLANE.wingSpan / 2 - R;
-            // Main wing spar
-            var wingGeo = new THREE.BoxGeometry(span, 0.25, PLANE.wingChord);
-            var wingMesh = new THREE.Mesh(wingGeo, MAT.metal);
-            wingMesh.position.set(side * (R + span / 2), 0, 0);
+            var span = PLANE.wingSpan / 2 - R; // ~15m per side
+            var rootChord = PLANE.wingChord;     // 5m at root
+            var tipChord = rootChord * 0.35;     // 1.75m at tip (tapered)
+            var thickness = 0.5;                  // airfoil max thickness at root
+            var tipThickness = 0.18;              // thinner at tip
+
+            // Build wing as a custom BufferGeometry (tapered box)
+            // 8 vertices: 4 at root, 4 at tip
+            var rootX = side * R;           // root starts at fuselage edge
+            var tipX = side * (R + span);   // tip at full span
+            var rootLE = rootChord * 0.3;   // leading edge forward of spar
+            var rootTE = -rootChord * 0.7;  // trailing edge behind spar
+            var tipLE = tipChord * 0.3;     // tip leading edge (swept back)
+            var tipTE = -tipChord * 0.7;    // tip trailing edge
+            var sweep = -2.0;               // sweep: tip is 2m further aft than root
+
+            var verts = new Float32Array([
+                // Root: top-LE, top-TE, bot-LE, bot-TE
+                rootX, thickness / 2, rootLE,
+                rootX, thickness / 2, rootTE,
+                rootX, -thickness / 2, rootLE,
+                rootX, -thickness / 2, rootTE,
+                // Tip: top-LE, top-TE, bot-LE, bot-TE
+                tipX, tipThickness / 2, tipLE + sweep,
+                tipX, tipThickness / 2, tipTE + sweep,
+                tipX, -tipThickness / 2, tipLE + sweep,
+                tipX, -tipThickness / 2, tipTE + sweep
+            ]);
+
+            // 12 triangles (6 faces, 2 tri each)
+            var indices = [
+                // Top face (LE-root, TE-root, TE-tip, LE-tip)
+                0, 1, 5, 0, 5, 4,
+                // Bottom face
+                2, 6, 7, 2, 7, 3,
+                // Leading edge (front face)
+                0, 4, 6, 0, 6, 2,
+                // Trailing edge (back face)
+                1, 3, 7, 1, 7, 5,
+                // Root cap
+                0, 2, 3, 0, 3, 1,
+                // Tip cap
+                4, 5, 7, 4, 7, 6
+            ];
+
+            var wingGeo = new THREE.BufferGeometry();
+            wingGeo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+            wingGeo.setIndex(indices);
+            wingGeo.computeVertexNormals();
+
+            var wingMat = new THREE.MeshStandardMaterial({ color: 0xe8e8e8, roughness: 0.4, metalness: 0.1, side: THREE.DoubleSide });
+            var wingMesh = new THREE.Mesh(wingGeo, wingMat);
             wingMesh.castShadow = true;
             wGroup.add(wingMesh);
 
-            // Wing tip (tapered)
-            var tipGeo = new THREE.BoxGeometry(1.5, 0.2, PLANE.wingChord * 0.5);
-            var tip = new THREE.Mesh(tipGeo, MAT.metal);
-            tip.position.set(side * (R + span + 0.75), 0, -0.5);
-            wGroup.add(tip);
-
-            // Winglet (small vertical fin at tip)
-            var wingletGeo = new THREE.BoxGeometry(0.08, 1.0, 0.8);
+            // Winglet (blended, curves up at the tip)
+            var wingletGeo = new THREE.BoxGeometry(0.12, 1.4, tipChord * 0.5);
             var winglet = new THREE.Mesh(wingletGeo, MAT.white);
-            winglet.position.set(side * (R + span + 1.4), 0.5, -0.3);
+            winglet.position.set(tipX + side * 0.06, 0.7, tipLE + sweep - tipChord * 0.15);
+            winglet.rotation.z = side * 0.15; // slight outward cant
             wGroup.add(winglet);
 
-            wGroup.position.set(0, -R * 0.4, -2); // wings slightly behind center, below center
-            wGroup.rotation.y = side * 0.04; // slight sweep
+            wGroup.position.set(0, -R * 0.35, 0); // wings below fuselage center
             return wGroup;
         }
         planeExtGroup.add(makeWing(1));
@@ -742,21 +791,32 @@
             pylon.position.y = 0.7;
             eGroup.add(pylon);
 
-            eGroup.position.set(xPos, -R - 0.8, -1);
+            eGroup.position.set(xPos, -R - 0.6, 0);
             return eGroup;
         }
-        planeExtGroup.add(makeEngine(5.5));
-        planeExtGroup.add(makeEngine(-5.5));
+        planeExtGroup.add(makeEngine(6.0));
+        planeExtGroup.add(makeEngine(-6.0));
 
-        // ── Vertical Stabilizer (tail fin) ──
+        // ── Vertical Stabilizer (swept tail fin) ──
+        // Build as a thin tapered shape lying in XY, then rotate to stand upright on the tail
+        // Shape drawn in a local 2D plane: X = fore/aft, Y = height
         var vfinShape = new THREE.Shape();
-        vfinShape.moveTo(0, 0);
-        vfinShape.lineTo(1.5, 5.5);
-        vfinShape.lineTo(-2, 5.5);
-        vfinShape.lineTo(-4, 0);
-        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: 0.2, bevelEnabled: false });
+        // Base (on fuselage top): from tail end forward along fuselage
+        vfinShape.moveTo(0, 0);        // trailing edge base (tail tip)
+        vfinShape.lineTo(6, 0);        // leading edge base (forward on fuselage)
+        // Sweep up: leading edge rises steeply
+        vfinShape.lineTo(2.5, 6);      // tip - leading edge (swept back)
+        // Tip curves back
+        vfinShape.lineTo(0.5, 6);      // tip - trailing edge
+        // Trailing edge back down
+        vfinShape.lineTo(0, 0);        // close
+        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: 0.15, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2 });
         var vfin = new THREE.Mesh(vfinGeo, MAT.blue);
-        vfin.position.set(-0.1, R, -halfLen + 2);
+        // Rotate so the shape stands upright: the local Y (height) becomes world Y, local X (fore/aft) aligns with Z
+        vfin.rotation.x = Math.PI / 2;   // stand up from XY-plane to XZ
+        vfin.rotation.y = Math.PI / 2;   // rotate so fore/aft aligns with Z
+        // Position: on top of fuselage, at the tail
+        vfin.position.set(-0.075, R, -halfLen + 2);
         planeExtGroup.add(vfin);
 
         // ── Horizontal Stabilizers ──
@@ -1247,9 +1307,9 @@
             survivalGroup.visible = false;
             scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0008);
-            // Camera in front of terminal looking at plane (plane at x=18)
-            camera.position.set(-5, 3.0, 18);
-            camera.lookAt(new THREE.Vector3(18, 4, 0));
+            // Camera offset showing the plane prominently with terminal in background
+            camera.position.set(5, 5.0, 28);
+            camera.lookAt(new THREE.Vector3(18, 3.5, 0));
             G.cameraBasePos.copy(camera.position);
             showPrompt('Welcome to the airport.', 3500);
             pt(function() {
