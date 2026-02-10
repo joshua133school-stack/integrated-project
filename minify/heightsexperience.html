@@ -478,9 +478,9 @@
             var SHAFT = 4;
 
             // Helper: build a tower section as 4 walls (hollow with shaft gap)
-            function addTowerSection(secW, secH, yOff, mat) {
+            function addTowerSection(secW, secH, yOff, mat, customShaft) {
                 var halfW = secW / 2;
-                var halfS = SHAFT / 2;
+                var halfS = (customShaft || SHAFT) / 2;
                 // Front wall (full width, from shaft edge to building edge in Z)
                 var frontDepth = halfW - halfS;
                 if (frontDepth > 0) {
@@ -507,9 +507,16 @@
                 }
             }
 
-            // Lower section (0-350m) — full width with shaft
+            // Lower section — split into ground floor (lobby cutout) and upper shaft
             var sec1H = 350;
-            addTowerSection(TOWER_WIDTH, sec1H, 0, towerMat);
+            var LOBBY_H = 7; // lobby ceiling + margin
+            var LOBBY_GAP = 22; // lobby-sized opening at ground floor
+
+            // Ground floor base (0 to LOBBY_H) — large opening for lobby
+            addTowerSection(TOWER_WIDTH, LOBBY_H, 0, towerMat, LOBBY_GAP);
+
+            // Tower shaft above lobby (LOBBY_H to 350m) — narrow elevator shaft
+            addTowerSection(TOWER_WIDTH, sec1H - LOBBY_H, LOBBY_H, towerMat);
 
             // Middle setback (350-460m) — narrower with shaft
             var sec2H = 110, sec2W = TOWER_WIDTH - 6;
