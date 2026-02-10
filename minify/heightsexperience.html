@@ -473,35 +473,57 @@
             var towerMat = new THREE.MeshStandardMaterial({ color: 0x6688aa, roughness: 0.3, metalness: 0.4 });
             var towerAccent = new THREE.MeshStandardMaterial({ color: 0x556688, roughness: 0.2, metalness: 0.5 });
 
-            // Lower section (0-350m) — full width
+            // Elevator shaft gap (slightly larger than elevator for clearance)
+            var SHAFT = 4;
+
+            // Helper: build a tower section as 4 walls (hollow with shaft gap)
+            function addTowerSection(secW, secH, yOff, mat) {
+                var halfW = secW / 2;
+                var halfS = SHAFT / 2;
+                // Front wall (full width, from shaft edge to building edge in Z)
+                var frontDepth = halfW - halfS;
+                if (frontDepth > 0) {
+                    var front = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, frontDepth), mat);
+                    front.position.set(0, yOff + secH / 2, halfS + frontDepth / 2);
+                    front.castShadow = true;
+                    cityGroup.add(front);
+                    var back = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, frontDepth), mat);
+                    back.position.set(0, yOff + secH / 2, -(halfS + frontDepth / 2));
+                    back.castShadow = true;
+                    cityGroup.add(back);
+                }
+                // Side walls (only spanning the shaft gap in Z, from shaft edge to building edge in X)
+                var sideWidth = halfW - halfS;
+                if (sideWidth > 0) {
+                    var left = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, secH, SHAFT), mat);
+                    left.position.set(-(halfS + sideWidth / 2), yOff + secH / 2, 0);
+                    left.castShadow = true;
+                    cityGroup.add(left);
+                    var right = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, secH, SHAFT), mat);
+                    right.position.set(halfS + sideWidth / 2, yOff + secH / 2, 0);
+                    right.castShadow = true;
+                    cityGroup.add(right);
+                }
+            }
+
+            // Lower section (0-350m) — full width with shaft
             var sec1H = 350;
-            var sec1 = new THREE.Mesh(new THREE.BoxGeometry(TOWER_WIDTH, sec1H, TOWER_WIDTH), towerMat);
-            sec1.position.set(0, sec1H / 2, 0);
-            sec1.castShadow = true;
-            cityGroup.add(sec1);
+            addTowerSection(TOWER_WIDTH, sec1H, 0, towerMat);
 
-            // Middle setback (350-460m) — narrower
+            // Middle setback (350-460m) — narrower with shaft
             var sec2H = 110, sec2W = TOWER_WIDTH - 6;
-            var sec2 = new THREE.Mesh(new THREE.BoxGeometry(sec2W, sec2H, sec2W), towerAccent);
-            sec2.position.set(0, sec1H + sec2H / 2, 0);
-            sec2.castShadow = true;
-            cityGroup.add(sec2);
+            addTowerSection(sec2W, sec2H, sec1H, towerAccent);
 
-            // Upper setback (460-520m) — narrower still
+            // Upper setback (460-520m) — narrower still with shaft
             var sec3H = 60, sec3W = TOWER_WIDTH - 14;
-            var sec3 = new THREE.Mesh(new THREE.BoxGeometry(sec3W, sec3H, sec3W), towerMat);
-            sec3.position.set(0, sec1H + sec2H + sec3H / 2, 0);
-            sec3.castShadow = true;
-            cityGroup.add(sec3);
+            addTowerSection(sec3W, sec3H, sec1H + sec2H, towerMat);
 
-            // Crown (520-550m) — glass crown
+            // Crown (520-550m) — glass crown with shaft
             var crownH = 30, crownW = sec3W + 4;
             var crownMat = new THREE.MeshPhysicalMaterial({ color: 0xaaccee, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.3, transmission: 0.4 });
-            var crown = new THREE.Mesh(new THREE.BoxGeometry(crownW, crownH, crownW), crownMat);
-            crown.position.set(0, sec1H + sec2H + sec3H + crownH / 2, 0);
-            cityGroup.add(crown);
+            addTowerSection(crownW, crownH, sec1H + sec2H + sec3H, crownMat);
 
-            // Horizontal band details at setback transitions
+            // Horizontal band details at setback transitions (with shaft gap)
             var bandMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
             var bands = [
                 { y: sec1H, w: TOWER_WIDTH + 2 },
@@ -509,9 +531,28 @@
                 { y: sec1H + sec2H + sec3H, w: sec3W + 2 }
             ];
             for (var bi = 0; bi < bands.length; bi++) {
-                var band = new THREE.Mesh(new THREE.BoxGeometry(bands[bi].w, 2, bands[bi].w), bandMat);
-                band.position.set(0, bands[bi].y, 0);
-                cityGroup.add(band);
+                var bw = bands[bi].w;
+                var by = bands[bi].y;
+                var halfB = bw / 2;
+                var halfS2 = SHAFT / 2;
+                var segDepth = halfB - halfS2;
+                if (segDepth > 0) {
+                    // Front/back segments
+                    var bf = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, segDepth), bandMat);
+                    bf.position.set(0, by, halfS2 + segDepth / 2);
+                    cityGroup.add(bf);
+                    var bb = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, segDepth), bandMat);
+                    bb.position.set(0, by, -(halfS2 + segDepth / 2));
+                    cityGroup.add(bb);
+                    // Side segments
+                    var sideLen = halfB - halfS2;
+                    var bsl = new THREE.Mesh(new THREE.BoxGeometry(sideLen, 2, SHAFT), bandMat);
+                    bsl.position.set(-(halfS2 + sideLen / 2), by, 0);
+                    cityGroup.add(bsl);
+                    var bsr = new THREE.Mesh(new THREE.BoxGeometry(sideLen, 2, SHAFT), bandMat);
+                    bsr.position.set(halfS2 + sideLen / 2, by, 0);
+                    cityGroup.add(bsr);
+                }
             }
 
             // Window strips on all sections and all 4 faces
