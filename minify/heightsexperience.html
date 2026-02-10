@@ -329,10 +329,13 @@
                     cityGroup.add(bMesh);
 
                     // Tall buildings get a narrower upper section (setback)
-                    if (bHeight > 150 && Math.random() > 0.4) {
-                        var upperH = bHeight * 0.3;
-                        var upperW = bWidth * 0.65;
-                        var upperD = bDepth * 0.65;
+                    var hasSetback = bHeight > 150 && Math.random() > 0.4;
+                    var baseHeight = bHeight; // save for window placement
+                    var upperW, upperD, upperH;
+                    if (hasSetback) {
+                        upperH = bHeight * 0.3;
+                        upperW = bWidth * 0.65;
+                        upperD = bDepth * 0.65;
                         var upper = new THREE.Mesh(
                             new THREE.BoxGeometry(upperW, upperH, upperD),
                             new THREE.MeshStandardMaterial({ color: buildingColors[(colorIdx + 1) % buildingColors.length], roughness: 0.4, metalness: 0.25 })
@@ -374,36 +377,45 @@
                         }
                     }
 
-                    // Windows on all 4 faces for buildings taller than 25m
-                    if (bHeight > 25) {
-                        var winRows = Math.min(Math.floor(bHeight / 5), 40); // cap rows for performance
-                        var winColsW = Math.floor(bWidth / 3.5);
-                        var winColsD = Math.floor(bDepth / 3.5);
-                        var faces = [
-                            { axis: 'x', offset: bWidth / 2 + 0.05, cols: winColsD, span: bDepth, rotY: Math.PI / 2 },
-                            { axis: 'x', offset: -(bWidth / 2 + 0.05), cols: winColsD, span: bDepth, rotY: -Math.PI / 2 },
-                            { axis: 'z', offset: bDepth / 2 + 0.05, cols: winColsW, span: bWidth, rotY: 0 },
-                            { axis: 'z', offset: -(bDepth / 2 + 0.05), cols: winColsW, span: bWidth, rotY: Math.PI }
+                    // Helper to add windows to a building section
+                    function addWindows(cx, cz, secW, secD, secH, yStart) {
+                        var wRows = Math.min(Math.floor(secH / 5), 40);
+                        var wColsW = Math.floor(secW / 3.5);
+                        var wColsD = Math.floor(secD / 3.5);
+                        var secFaces = [
+                            { axis: 'x', offset: secW / 2 + 0.05, cols: wColsD, span: secD, rotY: Math.PI / 2 },
+                            { axis: 'x', offset: -(secW / 2 + 0.05), cols: wColsD, span: secD, rotY: -Math.PI / 2 },
+                            { axis: 'z', offset: secD / 2 + 0.05, cols: wColsW, span: secW, rotY: 0 },
+                            { axis: 'z', offset: -(secD / 2 + 0.05), cols: wColsW, span: secW, rotY: Math.PI }
                         ];
-                        for (var fi = 0; fi < faces.length; fi++) {
-                            var face = faces[fi];
-                            for (var wr = 0; wr < winRows; wr++) {
+                        for (var fi = 0; fi < secFaces.length; fi++) {
+                            var face = secFaces[fi];
+                            for (var wr = 0; wr < wRows; wr++) {
                                 for (var wc = 0; wc < face.cols; wc++) {
                                     if (Math.random() > 0.45) continue;
-                                    var winMat = new THREE.MeshBasicMaterial({ color: winLitColors[Math.floor(Math.random() * winLitColors.length)] });
-                                    var win = new THREE.Mesh(winGeo, winMat);
-                                    var wy = 3 + wr * 5;
-                                    var wOffset = -face.span / 2 + 2 + wc * 3.5;
+                                    var wMat = new THREE.MeshBasicMaterial({ color: winLitColors[Math.floor(Math.random() * winLitColors.length)] });
+                                    var w = new THREE.Mesh(winGeo, wMat);
+                                    var wy = yStart + 3 + wr * 5;
+                                    var wOff = -face.span / 2 + 2 + wc * 3.5;
                                     if (face.axis === 'x') {
-                                        win.position.set(bPosX + face.offset, wy, bPosZ + wOffset);
+                                        w.position.set(cx + face.offset, wy, cz + wOff);
                                     } else {
-                                        win.position.set(bPosX + wOffset, wy, bPosZ + face.offset);
+                                        w.position.set(cx + wOff, wy, cz + face.offset);
                                     }
-                                    win.rotation.y = face.rotY;
-                                    cityGroup.add(win);
+                                    w.rotation.y = face.rotY;
+                                    cityGroup.add(w);
                                 }
                             }
                         }
+                    }
+
+                    // Windows on base section
+                    if (baseHeight > 25) {
+                        addWindows(bPosX, bPosZ, bWidth, bDepth, baseHeight, 0);
+                    }
+                    // Windows on upper setback section (narrower dimensions)
+                    if (hasSetback) {
+                        addWindows(bPosX, bPosZ, upperW, upperD, upperH, baseHeight);
                     }
                 }
             }
@@ -745,14 +757,7 @@
         var OBS = { w: 22, d: 22, h: 4 };
 
         function buildObservationDeck() {
-            // Solid floor around the edges
-            var floorGeo = new THREE.PlaneGeometry(OBS.w, OBS.d);
-            var solidFloor = new THREE.Mesh(floorGeo, MAT.carpet);
-            solidFloor.rotation.x = -Math.PI / 2;
-            solidFloor.position.y = OBSERVATION_Y + 0.01;
-            observationGroup.add(solidFloor);
-
-            // Glass floor sections (4 square patches near each side)
+            // Glass floor section positions
             var glassFloorSize = 5;
             var glassPositions = [
                 { x: 0, z: OBS.d / 2 - glassFloorSize / 2 - 1 },   // front
@@ -760,6 +765,33 @@
                 { x: OBS.w / 2 - glassFloorSize / 2 - 1, z: 0 },   // right
                 { x: -OBS.w / 2 + glassFloorSize / 2 + 1, z: 0 }   // left
             ];
+
+            // Solid floor with holes cut out for glass panels (Shape on XZ plane)
+            var floorShape = new THREE.Shape();
+            var hw = OBS.w / 2, hd = OBS.d / 2;
+            floorShape.moveTo(-hw, -hd);
+            floorShape.lineTo(hw, -hd);
+            floorShape.lineTo(hw, hd);
+            floorShape.lineTo(-hw, hd);
+            floorShape.lineTo(-hw, -hd);
+            // Cut rectangular holes for each glass section
+            var gs = glassFloorSize / 2;
+            for (var gi = 0; gi < glassPositions.length; gi++) {
+                var gp = glassPositions[gi];
+                var hole = new THREE.Path();
+                hole.moveTo(gp.x - gs, gp.z - gs);
+                hole.lineTo(gp.x + gs, gp.z - gs);
+                hole.lineTo(gp.x + gs, gp.z + gs);
+                hole.lineTo(gp.x - gs, gp.z + gs);
+                hole.lineTo(gp.x - gs, gp.z - gs);
+                floorShape.holes.push(hole);
+            }
+            var solidFloor = new THREE.Mesh(new THREE.ShapeGeometry(floorShape), MAT.carpet);
+            solidFloor.rotation.x = -Math.PI / 2;
+            solidFloor.position.y = OBSERVATION_Y + 0.01;
+            observationGroup.add(solidFloor);
+
+            // Glass floor panels (in the holes)
             for (var gi = 0; gi < glassPositions.length; gi++) {
                 var gf = new THREE.Mesh(new THREE.PlaneGeometry(glassFloorSize, glassFloorSize), MAT.glassPanel);
                 gf.rotation.x = -Math.PI / 2;
