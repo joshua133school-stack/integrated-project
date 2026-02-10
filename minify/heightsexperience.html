@@ -374,14 +374,16 @@
                         }
                     }
 
-                    // Windows on two faces (front + side) for buildings taller than 25m
+                    // Windows on all 4 faces for buildings taller than 25m
                     if (bHeight > 25) {
                         var winRows = Math.min(Math.floor(bHeight / 5), 40); // cap rows for performance
                         var winColsW = Math.floor(bWidth / 3.5);
                         var winColsD = Math.floor(bDepth / 3.5);
                         var faces = [
                             { axis: 'x', offset: bWidth / 2 + 0.05, cols: winColsD, span: bDepth, rotY: Math.PI / 2 },
-                            { axis: 'z', offset: bDepth / 2 + 0.05, cols: winColsW, span: bWidth, rotY: 0 }
+                            { axis: 'x', offset: -(bWidth / 2 + 0.05), cols: winColsD, span: bDepth, rotY: -Math.PI / 2 },
+                            { axis: 'z', offset: bDepth / 2 + 0.05, cols: winColsW, span: bWidth, rotY: 0 },
+                            { axis: 'z', offset: -(bDepth / 2 + 0.05), cols: winColsW, span: bWidth, rotY: Math.PI }
                         ];
                         for (var fi = 0; fi < faces.length; fi++) {
                             var face = faces[fi];
@@ -643,8 +645,8 @@
             eCeil.position.y = ELEV.h;
             elevatorGroup.add(eCeil);
 
-            // Back wall (solid metal, behind player)
-            var backW = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.darkMetal);
+            // Back wall (glass — view outward behind player)
+            var backW = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.glass);
             backW.position.set(0, ELEV.h / 2, -ELEV.d / 2);
             elevatorGroup.add(backW);
 
@@ -659,11 +661,11 @@
             sideR.rotation.y = -Math.PI / 2;
             elevatorGroup.add(sideR);
 
-            // Front glass wall (view outward)
-            var frontW = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.glass);
-            frontW.position.set(0, ELEV.h / 2, ELEV.d / 2);
-            frontW.rotation.y = Math.PI;
-            elevatorGroup.add(frontW);
+            // Front wall (door side — solid dark metal frame, no glass)
+            var frontFrame = new THREE.Mesh(new THREE.PlaneGeometry(ELEV.w, ELEV.h), MAT.darkMetal);
+            frontFrame.position.set(0, ELEV.h / 2, ELEV.d / 2);
+            frontFrame.rotation.y = Math.PI;
+            elevatorGroup.add(frontFrame);
 
             // ── Elevator doors (on front wall, split left/right) ──
             var doorW = ELEV.w / 2 - 0.05;
@@ -713,15 +715,16 @@
                 elevatorGroup.add(bSupport);
             }
 
-            // ── Control panel (on back wall) ──
-            var panel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.04), MAT.metal);
-            panel.position.set(ELEV.w / 2 - 0.3, 1.3, -ELEV.d / 2 + 0.03);
+            // ── Control panel (on right side wall, near door) ──
+            var panel = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.6, 0.4), MAT.metal);
+            panel.position.set(ELEV.w / 2 - 0.03, 1.3, ELEV.d / 2 - 0.4);
             elevatorGroup.add(panel);
             // Buttons on panel
             for (var btn = 0; btn < 4; btn++) {
                 var button = new THREE.Mesh(new THREE.CircleGeometry(0.03, 8),
                     new THREE.MeshBasicMaterial({ color: btn === 3 ? 0xff4444 : 0xffffcc }));
-                button.position.set(ELEV.w / 2 - 0.3, 1.1 + btn * 0.12, -ELEV.d / 2 + 0.055);
+                button.position.set(ELEV.w / 2 - 0.055, 1.1 + btn * 0.12, ELEV.d / 2 - 0.4);
+                button.rotation.y = -Math.PI / 2;
                 elevatorGroup.add(button);
             }
 
