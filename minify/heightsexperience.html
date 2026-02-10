@@ -321,7 +321,7 @@
 
             // Window helper — all 4 faces, shared materials for perf
             function addWindows(cx, cz, secW, secD, secH, yStart) {
-                var wRows = Math.min(Math.floor(secH / 5), 30);
+                var wRows = Math.min(Math.floor(secH / 5), 60);
                 var wColsW = Math.floor(secW / 3.5);
                 var wColsD = Math.floor(secD / 3.5);
                 var secFaces = [
@@ -1003,33 +1003,60 @@
                 }
             }
 
-            // End platform (the furthest point - "the edge")
-            var endR = SKYWALK.width / 2 + 1;
-            var endPlatform = new THREE.Mesh(
-                new THREE.CircleGeometry(endR, 24),
-                MAT.glassPanel
+            // Bungee jump platform at end of skywalk
+            var jumpZ = OBS.d / 2 + SKYWALK.length;
+            var jumpPlatform = new THREE.Mesh(
+                new THREE.BoxGeometry(SKYWALK.width + 2, 0.3, 4),
+                MAT.darkMetal
             );
-            endPlatform.rotation.x = -Math.PI / 2;
-            endPlatform.position.set(0, OBSERVATION_Y + 0.02, OBS.d / 2 + SKYWALK.length + endR);
-            skywalkGroup.add(endPlatform);
+            jumpPlatform.position.set(0, OBSERVATION_Y - 0.1, jumpZ + 2);
+            skywalkGroup.add(jumpPlatform);
 
-            // End railing (semicircle)
-            var endRailGeo = new THREE.TorusGeometry(endR, 0.03, 8, 24, Math.PI);
-            var endRail = new THREE.Mesh(endRailGeo, MAT.railing);
-            endRail.position.set(0, OBSERVATION_Y + 1.5, OBS.d / 2 + SKYWALK.length + endR);
-            endRail.rotation.x = -Math.PI / 2;
-            endRail.rotation.z = -Math.PI / 2;
-            skywalkGroup.add(endRail);
+            // Safety railings on 3 sides of jump platform (left, right, front)
+            var jumpRailMat = new THREE.MeshStandardMaterial({ color: 0xdddd00, roughness: 0.4, metalness: 0.6 });
+            var jumpW = SKYWALK.width + 2;
+            // Front rail
+            var frontJumpRail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, jumpW, 8), jumpRailMat);
+            frontJumpRail.rotation.z = Math.PI / 2;
+            frontJumpRail.position.set(0, OBSERVATION_Y + 1.2, jumpZ + 3.8);
+            skywalkGroup.add(frontJumpRail);
+            // Side rails
+            for (var js = -1; js <= 1; js += 2) {
+                var sideJumpRail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4, 8), jumpRailMat);
+                sideJumpRail.rotation.x = Math.PI / 2;
+                sideJumpRail.position.set(js * jumpW / 2, OBSERVATION_Y + 1.2, jumpZ + 2);
+                skywalkGroup.add(sideJumpRail);
+                // Vertical posts
+                for (var jp = 0; jp < 3; jp++) {
+                    var post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6), jumpRailMat);
+                    post.position.set(js * jumpW / 2, OBSERVATION_Y + 0.55, jumpZ + 0.5 + jp * 1.5);
+                    skywalkGroup.add(post);
+                }
+            }
+            // Front vertical posts
+            for (var fp = -1; fp <= 1; fp += 2) {
+                var fPost = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6), jumpRailMat);
+                fPost.position.set(fp * jumpW / 3, OBSERVATION_Y + 0.55, jumpZ + 3.8);
+                skywalkGroup.add(fPost);
+            }
 
-            // Semicircle glass barrier
-            var endBarrier = new THREE.Mesh(
-                new THREE.TorusGeometry(endR, 0.75, 4, 24, Math.PI),
-                MAT.glassFence
-            );
-            endBarrier.position.set(0, OBSERVATION_Y + 0.75, OBS.d / 2 + SKYWALK.length + endR);
-            endBarrier.rotation.x = -Math.PI / 2;
-            endBarrier.rotation.z = -Math.PI / 2;
-            skywalkGroup.add(endBarrier);
+            // "JUMP" sign on the platform
+            var jumpSign = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 0.1),
+                new THREE.MeshBasicMaterial({ color: 0xff2200 }));
+            jumpSign.position.set(0, OBSERVATION_Y + 1.6, jumpZ + 3.75);
+            jumpSign.rotation.y = Math.PI;
+            skywalkGroup.add(jumpSign);
+
+            // Bungee cord anchor point (overhead beam)
+            var anchorBeam = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 0.3), MAT.darkMetal);
+            anchorBeam.position.set(0, OBSERVATION_Y + 3.5, jumpZ + 2);
+            skywalkGroup.add(anchorBeam);
+            // Vertical supports for anchor
+            for (var as = -1; as <= 1; as += 2) {
+                var aSupport = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.6, 8), MAT.darkMetal);
+                aSupport.position.set(as * 1.3, OBSERVATION_Y + 1.7, jumpZ + 2);
+                skywalkGroup.add(aSupport);
+            }
 
             // Support beams underneath (structural steel)
             for (var bi = 0; bi < 4; bi++) {
@@ -1233,21 +1260,36 @@
                 }, 3500);
                 break;
 
-            // ─── THE EDGE ───
+            // ─── THE EDGE (bungee jump point) ───
             case 'edge':
-                setPhaseLabel('The Edge');
+                setPhaseLabel('Bungee Jump');
                 State.windStrength = 1.0;
                 State.swayAmount = 0.003;
                 updateWindVolume(0.5);
                 windIndicator.textContent = 'Wind: 40 km/h';
-                showPrompt('The edge. ' + TOWER_HEIGHT + ' meters of nothing beneath your feet.', 5000);
+                showPrompt('The edge. ' + TOWER_HEIGHT + ' meters of nothing beneath your feet.', 4000);
                 State.canMove = true;
+                State.canClick = true;
                 pt(function() {
-                    showPrompt('Look down... if you dare.', 4000);
-                    pt(function() {
-                        State.transitioning = false;
-                    }, 4500);
-                }, 5500);
+                    showPrompt('Click to BUNGEE JUMP!', 0);
+                    State.transitioning = false;
+                }, 4500);
+                break;
+
+            // ─── BUNGEE JUMP ───
+            case 'bungee':
+                setPhaseLabel('BUNGEE!');
+                State.canMove = false;
+                State.canClick = false;
+                State.bungeeTime = 0;
+                State.bungeePhase = 'falling';
+                State.bungeeStartY = camera.position.y;
+                State.bungeeVelocity = 0;
+                // Face downward
+                euler.set(-Math.PI / 3, Math.PI, 0);
+                camera.quaternion.setFromEuler(euler);
+                showPrompt('', 0);
+                State.transitioning = false;
                 break;
 
             // ─── RETURN (walk back) ───
@@ -1397,6 +1439,87 @@
         }
 
         // ═══════════════════════════════════════════════════
+        //  BUNGEE JUMP ANIMATION
+        // ═══════════════════════════════════════════════════
+        function updateBungee(delta) {
+            if (State.phase !== 'bungee') return;
+            State.bungeeTime += delta;
+            var gravity = 25; // m/s^2
+            var damping = 0.55;
+            var cordLength = 280; // meters of freefall before cord kicks in
+            var startY = State.bungeeStartY;
+            var fallen = startY - camera.position.y;
+
+            if (State.bungeePhase === 'falling') {
+                // Accelerate down
+                State.bungeeVelocity += gravity * delta;
+                camera.position.y -= State.bungeeVelocity * delta;
+
+                // Camera gradually looks more downward during fall
+                var lookDown = Math.min(-Math.PI / 2 + 0.2, -Math.PI / 3 - fallen * 0.002);
+                euler.set(lookDown, Math.PI, 0);
+                camera.quaternion.setFromEuler(euler);
+
+                // Update height display
+                var curHeight = Math.max(0, Math.floor(camera.position.y));
+                heightIndicator.textContent = curHeight + 'm — FALLING!';
+
+                // Wind sound intensifies
+                updateWindVolume(Math.min(0.8, fallen * 0.003));
+
+                // Cord starts pulling when fallen > cordLength
+                if (fallen > cordLength) {
+                    var stretch = fallen - cordLength;
+                    var pullBack = stretch * 1.8; // elastic force
+                    State.bungeeVelocity -= pullBack * delta;
+
+                    if (State.bungeeVelocity <= 0) {
+                        State.bungeePhase = 'bouncing';
+                        State.bungeeVelocity = -State.bungeeVelocity * damping;
+                        State.bounceCount = 0;
+                    }
+                }
+            } else if (State.bungeePhase === 'bouncing') {
+                // Bounce up then fall again
+                camera.position.y += State.bungeeVelocity * delta;
+                State.bungeeVelocity -= gravity * delta;
+
+                var curHeight2 = Math.max(0, Math.floor(camera.position.y));
+                heightIndicator.textContent = curHeight2 + 'm — Bouncing!';
+
+                // Gradually look forward during bounces
+                var lookAngle = -Math.PI / 4 + State.bounceCount * 0.2;
+                euler.set(Math.max(-Math.PI / 2 + 0.1, Math.min(0, lookAngle)), Math.PI, 0);
+                camera.quaternion.setFromEuler(euler);
+
+                // When velocity reverses (going down again)
+                var nowFallen = startY - camera.position.y;
+                if (State.bungeeVelocity < 0 && nowFallen > cordLength) {
+                    State.bungeeVelocity = -State.bungeeVelocity * damping;
+                    State.bounceCount++;
+                    updateWindVolume(Math.max(0.1, 0.5 - State.bounceCount * 0.1));
+
+                    // After 3 bounces, end
+                    if (State.bounceCount >= 3) {
+                        State.bungeePhase = 'done';
+                        showPrompt('You did it!', 3000);
+                        fadeIn(2);
+                        pt(function() {
+                            camera.position.y = OBSERVATION_Y + 1.7;
+                            camera.position.x = 0;
+                            camera.position.z = 0;
+                            euler.set(0, 0, 0);
+                            camera.quaternion.setFromEuler(euler);
+                            updateWindVolume(0.1);
+                            fadeOut(1);
+                            goPhase('return');
+                        }, 3000);
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
         //  PHASE TRIGGERS (position-based)
         // ═══════════════════════════════════════════════════
         function checkPhaseTriggers() {
@@ -1432,9 +1555,9 @@
                 }
             }
 
-            // Edge → Return: stand at the edge for a while, then start return
+            // Edge: player can walk around the jump platform (bungee triggered by click)
+            // If they walk back without jumping, allow return
             if (State.phase === 'edge' && !State.transitioning) {
-                // If player walks back inside
                 if (pz < OBS.d / 2 - 1) {
                     goPhase('return');
                 }
@@ -1495,6 +1618,10 @@
             if (!isPointerLocked) {
                 renderer.domElement.requestPointerLock();
             }
+            // Bungee jump trigger
+            if (isPointerLocked && State.phase === 'edge' && State.canClick && !State.transitioning) {
+                goPhase('bungee');
+            }
         });
 
         document.addEventListener('pointerlockchange', function() {
@@ -1532,6 +1659,7 @@
 
             updatePlayer(delta);
             updateElevator(delta);
+            updateBungee(delta);
             checkPhaseTriggers();
             updateEffects(delta);
 
