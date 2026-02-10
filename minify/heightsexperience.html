@@ -278,16 +278,16 @@
             ground.receiveShadow = true;
             cityGroup.add(ground);
 
-            // Grid of roads
+            // Grid of roads (wider for visibility from height)
             var roadMat = MAT.road;
             for (var rx = -400; rx <= 400; rx += 80) {
-                var road = new THREE.Mesh(new THREE.PlaneGeometry(12, 800), roadMat);
+                var road = new THREE.Mesh(new THREE.PlaneGeometry(18, 800), roadMat);
                 road.rotation.x = -Math.PI / 2;
                 road.position.set(rx, 0.05, 0);
                 cityGroup.add(road);
             }
             for (var rz = -400; rz <= 400; rz += 80) {
-                var roadZ = new THREE.Mesh(new THREE.PlaneGeometry(800, 12), roadMat);
+                var roadZ = new THREE.Mesh(new THREE.PlaneGeometry(800, 18), roadMat);
                 roadZ.rotation.x = -Math.PI / 2;
                 roadZ.position.set(0, 0.05, rz);
                 cityGroup.add(roadZ);
@@ -319,23 +319,25 @@
                 carMats.push(new THREE.MeshStandardMaterial({ color: carColorList[ci], roughness: 0.4, metalness: 0.3 }));
             }
 
-            // Window helper — 2 faces only, capped rows, shared materials
+            // Window helper — all 4 faces, shared materials for perf
             function addWindows(cx, cz, secW, secD, secH, yStart) {
-                var wRows = Math.min(Math.floor(secH / 6), 25);
-                var wColsW = Math.floor(secW / 4);
-                var wColsD = Math.floor(secD / 4);
+                var wRows = Math.min(Math.floor(secH / 5), 30);
+                var wColsW = Math.floor(secW / 3.5);
+                var wColsD = Math.floor(secD / 3.5);
                 var secFaces = [
                     { axis: 'x', offset: secW / 2 + 0.05, cols: wColsD, span: secD, rotY: Math.PI / 2 },
-                    { axis: 'z', offset: secD / 2 + 0.05, cols: wColsW, span: secW, rotY: 0 }
+                    { axis: 'x', offset: -(secW / 2 + 0.05), cols: wColsD, span: secD, rotY: -Math.PI / 2 },
+                    { axis: 'z', offset: secD / 2 + 0.05, cols: wColsW, span: secW, rotY: 0 },
+                    { axis: 'z', offset: -(secD / 2 + 0.05), cols: wColsW, span: secW, rotY: Math.PI }
                 ];
                 for (var fi = 0; fi < secFaces.length; fi++) {
                     var face = secFaces[fi];
                     for (var wr = 0; wr < wRows; wr++) {
                         for (var wc = 0; wc < face.cols; wc++) {
-                            if (Math.random() > 0.35) continue;
+                            if (Math.random() > 0.4) continue;
                             var w = new THREE.Mesh(winGeo, winMats[Math.floor(Math.random() * 4)]);
-                            var wy = yStart + 3 + wr * 6;
-                            var wOff = -face.span / 2 + 2 + wc * 4;
+                            var wy = yStart + 3 + wr * 5;
+                            var wOff = -face.span / 2 + 2 + wc * 3.5;
                             if (face.axis === 'x') {
                                 w.position.set(cx + face.offset, wy, cz + wOff);
                             } else {
@@ -964,7 +966,7 @@
         // ═══════════════════════════════════════════════════
         //  GLASS SKYWALK (extends from observation deck)
         // ═══════════════════════════════════════════════════
-        var SKYWALK = { length: 20, width: 3 };
+        var SKYWALK = { length: 20, width: 6 };
 
         function buildSkywalk() {
             // Glass floor (the main terrifying element)
@@ -1002,28 +1004,29 @@
             }
 
             // End platform (the furthest point - "the edge")
+            var endR = SKYWALK.width / 2 + 1;
             var endPlatform = new THREE.Mesh(
-                new THREE.CircleGeometry(2.5, 24),
+                new THREE.CircleGeometry(endR, 24),
                 MAT.glassPanel
             );
             endPlatform.rotation.x = -Math.PI / 2;
-            endPlatform.position.set(0, OBSERVATION_Y + 0.02, OBS.d / 2 + SKYWALK.length + 2.5);
+            endPlatform.position.set(0, OBSERVATION_Y + 0.02, OBS.d / 2 + SKYWALK.length + endR);
             skywalkGroup.add(endPlatform);
 
             // End railing (semicircle)
-            var endRailGeo = new THREE.TorusGeometry(2.5, 0.025, 8, 24, Math.PI);
+            var endRailGeo = new THREE.TorusGeometry(endR, 0.03, 8, 24, Math.PI);
             var endRail = new THREE.Mesh(endRailGeo, MAT.railing);
-            endRail.position.set(0, OBSERVATION_Y + 1.5, OBS.d / 2 + SKYWALK.length + 2.5);
+            endRail.position.set(0, OBSERVATION_Y + 1.5, OBS.d / 2 + SKYWALK.length + endR);
             endRail.rotation.x = -Math.PI / 2;
             endRail.rotation.z = -Math.PI / 2;
             skywalkGroup.add(endRail);
 
             // Semicircle glass barrier
             var endBarrier = new THREE.Mesh(
-                new THREE.TorusGeometry(2.5, 0.75, 4, 24, Math.PI),
+                new THREE.TorusGeometry(endR, 0.75, 4, 24, Math.PI),
                 MAT.glassFence
             );
-            endBarrier.position.set(0, OBSERVATION_Y + 0.75, OBS.d / 2 + SKYWALK.length + 2.5);
+            endBarrier.position.set(0, OBSERVATION_Y + 0.75, OBS.d / 2 + SKYWALK.length + endR);
             endBarrier.rotation.x = -Math.PI / 2;
             endBarrier.rotation.z = -Math.PI / 2;
             skywalkGroup.add(endBarrier);
@@ -1031,10 +1034,10 @@
             // Support beams underneath (structural steel)
             for (var bi = 0; bi < 4; bi++) {
                 var supportBeam = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.15, 0.15, SKYWALK.length + 5),
+                    new THREE.BoxGeometry(0.25, 0.25, SKYWALK.length + 5),
                     MAT.darkMetal
                 );
-                var bx = (bi % 2 === 0 ? -1 : 1) * (SKYWALK.width / 2 - 0.2);
+                var bx = (bi % 2 === 0 ? -1 : 1) * (SKYWALK.width / 2 - 0.3);
                 var by = bi < 2 ? -0.5 : -1.5;
                 supportBeam.position.set(bx, OBSERVATION_Y + by, OBS.d / 2 + SKYWALK.length / 2);
                 skywalkGroup.add(supportBeam);
