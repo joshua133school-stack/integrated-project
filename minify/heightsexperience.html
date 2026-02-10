@@ -477,60 +477,88 @@
             // Elevator shaft gap (slightly larger than elevator for clearance)
             var SHAFT = 4;
 
-            // Helper: build a tower section as 4 walls (hollow with shaft gap)
-            function addTowerSection(secW, secH, yOff, mat, customShaft) {
+            // Helper: build tower section as exterior-only planes (invisible from inside shaft)
+            // PlaneGeometry faces +Z by default. We orient each wall's normal outward.
+            // From outside: front face visible (tower looks solid).
+            // From inside shaft: backface culled (transparent — city visible through elevator glass).
+            function addTowerShell(secW, secH, yOff, mat) {
                 var halfW = secW / 2;
-                var halfS = (customShaft || SHAFT) / 2;
-                // Front wall (full width, from shaft edge to building edge in Z)
-                var frontDepth = halfW - halfS;
-                if (frontDepth > 0) {
-                    var front = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, frontDepth), mat);
-                    front.position.set(0, yOff + secH / 2, halfS + frontDepth / 2);
-                    front.castShadow = true;
-                    cityGroup.add(front);
-                    var back = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, frontDepth), mat);
-                    back.position.set(0, yOff + secH / 2, -(halfS + frontDepth / 2));
-                    back.castShadow = true;
-                    cityGroup.add(back);
-                }
-                // Side walls (only spanning the shaft gap in Z, from shaft edge to building edge in X)
-                var sideWidth = halfW - halfS;
-                if (sideWidth > 0) {
-                    var left = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, secH, SHAFT), mat);
-                    left.position.set(-(halfS + sideWidth / 2), yOff + secH / 2, 0);
-                    left.castShadow = true;
-                    cityGroup.add(left);
-                    var right = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, secH, SHAFT), mat);
-                    right.position.set(halfS + sideWidth / 2, yOff + secH / 2, 0);
-                    right.castShadow = true;
-                    cityGroup.add(right);
-                }
+                var cy = yOff + secH / 2;
+                // Front (+Z face, normal +Z)
+                var front = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                front.position.set(0, cy, halfW);
+                front.castShadow = true;
+                cityGroup.add(front);
+                // Back (-Z face, normal -Z)
+                var back = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                back.position.set(0, cy, -halfW);
+                back.rotation.y = Math.PI;
+                back.castShadow = true;
+                cityGroup.add(back);
+                // Right (+X face, normal +X)
+                var right = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                right.position.set(halfW, cy, 0);
+                right.rotation.y = Math.PI / 2;
+                right.castShadow = true;
+                cityGroup.add(right);
+                // Left (-X face, normal -X)
+                var left = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                left.position.set(-halfW, cy, 0);
+                left.rotation.y = -Math.PI / 2;
+                left.castShadow = true;
+                cityGroup.add(left);
             }
 
-            // Lower section — split into ground floor (lobby cutout) and upper shaft
+            // Helper: build ground floor base with lobby opening (BoxGeometry for solid walls)
+            function addGroundFloor(secW, secH, yOff, mat, lobbyGap) {
+                var halfW = secW / 2;
+                var halfL = lobbyGap / 2;
+                var wallDepth = halfW - halfL;
+                if (wallDepth <= 0) return;
+                // Front/back solid walls (outside the lobby opening)
+                var front = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, wallDepth), mat);
+                front.position.set(0, yOff + secH / 2, halfL + wallDepth / 2);
+                front.castShadow = true;
+                cityGroup.add(front);
+                var back = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, wallDepth), mat);
+                back.position.set(0, yOff + secH / 2, -(halfL + wallDepth / 2));
+                back.castShadow = true;
+                cityGroup.add(back);
+                // Side solid walls (only spanning the lobby gap in Z)
+                var left = new THREE.Mesh(new THREE.BoxGeometry(wallDepth, secH, lobbyGap), mat);
+                left.position.set(-(halfL + wallDepth / 2), yOff + secH / 2, 0);
+                left.castShadow = true;
+                cityGroup.add(left);
+                var right = new THREE.Mesh(new THREE.BoxGeometry(wallDepth, secH, lobbyGap), mat);
+                right.position.set(halfL + wallDepth / 2, yOff + secH / 2, 0);
+                right.castShadow = true;
+                cityGroup.add(right);
+            }
+
+            // Lower section
             var sec1H = 350;
-            var LOBBY_H = 7; // lobby ceiling + margin
-            var LOBBY_GAP = 22; // lobby-sized opening at ground floor
+            var LOBBY_H = 7;
+            var LOBBY_GAP = 22;
 
-            // Ground floor base (0 to LOBBY_H) — large opening for lobby
-            addTowerSection(TOWER_WIDTH, LOBBY_H, 0, towerMat, LOBBY_GAP);
+            // Ground floor base (0 to LOBBY_H) — solid walls with lobby opening
+            addGroundFloor(TOWER_WIDTH, LOBBY_H, 0, towerMat, LOBBY_GAP);
 
-            // Tower shaft above lobby (LOBBY_H to 350m) — narrow elevator shaft
-            addTowerSection(TOWER_WIDTH, sec1H - LOBBY_H, LOBBY_H, towerMat);
+            // Tower above lobby (LOBBY_H to 350m) — exterior shell only
+            addTowerShell(TOWER_WIDTH, sec1H - LOBBY_H, LOBBY_H, towerMat);
 
-            // Middle setback (350-460m) — narrower with shaft
+            // Middle setback (350-460m) — exterior shell
             var sec2H = 110, sec2W = TOWER_WIDTH - 6;
-            addTowerSection(sec2W, sec2H, sec1H, towerAccent);
+            addTowerShell(sec2W, sec2H, sec1H, towerAccent);
 
-            // Upper setback (460-520m) — narrower still with shaft
+            // Upper setback (460-520m) — exterior shell
             var sec3H = 60, sec3W = TOWER_WIDTH - 14;
-            addTowerSection(sec3W, sec3H, sec1H + sec2H, towerMat);
+            addTowerShell(sec3W, sec3H, sec1H + sec2H, towerMat);
 
-            // Crown (520-TOWER_HEIGHT) — glass crown wrapping the observation deck
-            var crownH = TOWER_HEIGHT - (sec1H + sec2H + sec3H); // 520 to 550 = 30m
-            var crownW = OBS.w + 4; // 26m — wide enough to frame the 22m observation deck
-            var crownMat = new THREE.MeshPhysicalMaterial({ color: 0xaaccee, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.3, transmission: 0.4 });
-            addTowerSection(crownW, crownH, sec1H + sec2H + sec3H, crownMat);
+            // Crown (520-TOWER_HEIGHT) — glass crown, double-sided so visible from observation deck
+            var crownH = TOWER_HEIGHT - (sec1H + sec2H + sec3H);
+            var crownW = OBS.w + 4;
+            var crownMat = new THREE.MeshPhysicalMaterial({ color: 0xaaccee, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.3, transmission: 0.4, side: THREE.DoubleSide });
+            addTowerShell(crownW, crownH, sec1H + sec2H + sec3H, crownMat);
 
             // Structural bands at observation deck floor and ceiling for visual integration
             var ringMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
@@ -554,36 +582,31 @@
                 cityGroup.add(barR);
             }
 
-            // Horizontal band details at setback transitions (with shaft gap)
+            // Horizontal band details at setback transitions (exterior edge bars only)
             var bandMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
             var bands = [
                 { y: sec1H, w: TOWER_WIDTH + 2 },
                 { y: sec1H + sec2H, w: sec2W + 2 },
                 { y: sec1H + sec2H + sec3H, w: sec3W + 2 }
             ];
+            var bandThick = 1.5;
             for (var bi = 0; bi < bands.length; bi++) {
                 var bw = bands[bi].w;
                 var by = bands[bi].y;
-                var halfB = bw / 2;
-                var halfS2 = SHAFT / 2;
-                var segDepth = halfB - halfS2;
-                if (segDepth > 0) {
-                    // Front/back segments
-                    var bf = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, segDepth), bandMat);
-                    bf.position.set(0, by, halfS2 + segDepth / 2);
-                    cityGroup.add(bf);
-                    var bb = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, segDepth), bandMat);
-                    bb.position.set(0, by, -(halfS2 + segDepth / 2));
-                    cityGroup.add(bb);
-                    // Side segments
-                    var sideLen = halfB - halfS2;
-                    var bsl = new THREE.Mesh(new THREE.BoxGeometry(sideLen, 2, SHAFT), bandMat);
-                    bsl.position.set(-(halfS2 + sideLen / 2), by, 0);
-                    cityGroup.add(bsl);
-                    var bsr = new THREE.Mesh(new THREE.BoxGeometry(sideLen, 2, SHAFT), bandMat);
-                    bsr.position.set(halfS2 + sideLen / 2, by, 0);
-                    cityGroup.add(bsr);
-                }
+                var bhw = bw / 2;
+                // 4 exterior edge bars (no center fill — shaft stays clear)
+                var bandF = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, bandThick), bandMat);
+                bandF.position.set(0, by, bhw - bandThick / 2);
+                cityGroup.add(bandF);
+                var bandB = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, bandThick), bandMat);
+                bandB.position.set(0, by, -(bhw - bandThick / 2));
+                cityGroup.add(bandB);
+                var bandL = new THREE.Mesh(new THREE.BoxGeometry(bandThick, 2, bw - bandThick * 2), bandMat);
+                bandL.position.set(-(bhw - bandThick / 2), by, 0);
+                cityGroup.add(bandL);
+                var bandR = new THREE.Mesh(new THREE.BoxGeometry(bandThick, 2, bw - bandThick * 2), bandMat);
+                bandR.position.set(bhw - bandThick / 2, by, 0);
+                cityGroup.add(bandR);
             }
 
             // Window strips on all sections and all 4 faces
