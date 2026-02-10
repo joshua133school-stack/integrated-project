@@ -83,7 +83,7 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.shadowMap.type = THREE.BasicShadowMap;
         document.getElementById('canvas-container').appendChild(renderer.domElement);
 
         var clock = new THREE.Clock();
@@ -253,8 +253,8 @@
         var sunLight = new THREE.DirectionalLight(0xfffff0, 1.0);
         sunLight.position.set(50, 300, 80);
         sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 2048;
-        sunLight.shadow.mapSize.height = 2048;
+        sunLight.shadow.mapSize.width = 1024;
+        sunLight.shadow.mapSize.height = 1024;
         sunLight.shadow.camera.near = 0.5;
         sunLight.shadow.camera.far = 1200;
         sunLight.shadow.camera.left = -100;
@@ -278,34 +278,84 @@
             ground.receiveShadow = true;
             cityGroup.add(ground);
 
-            // Grid of roads
+            // Grid of roads (wider for visibility from height)
             var roadMat = MAT.road;
             for (var rx = -400; rx <= 400; rx += 80) {
-                var road = new THREE.Mesh(new THREE.PlaneGeometry(12, 800), roadMat);
+                var road = new THREE.Mesh(new THREE.PlaneGeometry(18, 800), roadMat);
                 road.rotation.x = -Math.PI / 2;
                 road.position.set(rx, 0.05, 0);
                 cityGroup.add(road);
             }
             for (var rz = -400; rz <= 400; rz += 80) {
-                var roadZ = new THREE.Mesh(new THREE.PlaneGeometry(800, 12), roadMat);
+                var roadZ = new THREE.Mesh(new THREE.PlaneGeometry(800, 18), roadMat);
                 roadZ.rotation.x = -Math.PI / 2;
                 roadZ.position.set(0, 0.05, rz);
                 cityGroup.add(roadZ);
             }
 
-            // Buildings (varied heights with some supertall skyscrapers)
+            // Pre-create shared materials (avoid per-mesh material creation)
             var buildingColors = [0x556677, 0x667788, 0x445566, 0x778899, 0x5a6a7a, 0x4a5a6a, 0x3d4d5d, 0x6a7a8a];
-            var glassColors = [0x88bbdd, 0x77aacc, 0x99ccee, 0x6699bb];
-            var winGeo = new THREE.PlaneGeometry(1.2, 1.8);
-            var winLitColors = [0xffffcc, 0xaaccff, 0xffeedd, 0xccddff];
+            var buildingMats = [];
+            for (var mi = 0; mi < buildingColors.length; mi++) {
+                buildingMats.push(new THREE.MeshStandardMaterial({ color: buildingColors[mi], roughness: 0.65, metalness: 0.2 }));
+            }
+            var setbackMat = new THREE.MeshStandardMaterial({ color: 0x556688, roughness: 0.4, metalness: 0.25 });
+            var mechMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 });
+            var helipadMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.6 });
+            var hMarkMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
 
+            var winGeo = new THREE.PlaneGeometry(1.2, 1.8);
+            var winMats = [
+                new THREE.MeshBasicMaterial({ color: 0xffffcc }),
+                new THREE.MeshBasicMaterial({ color: 0xaaccff }),
+                new THREE.MeshBasicMaterial({ color: 0xffeedd }),
+                new THREE.MeshBasicMaterial({ color: 0xccddff })
+            ];
+
+            // Shared car materials
+            var carColorList = [0xff3333, 0x3333ff, 0xffff33, 0x33ff33, 0xffffff, 0x333333];
+            var carMats = [];
+            for (var ci = 0; ci < carColorList.length; ci++) {
+                carMats.push(new THREE.MeshStandardMaterial({ color: carColorList[ci], roughness: 0.4, metalness: 0.3 }));
+            }
+
+            // Window helper — all 4 faces, shared materials for perf
+            function addWindows(cx, cz, secW, secD, secH, yStart) {
+                var wRows = Math.min(Math.floor(secH / 5), 60);
+                var wColsW = Math.floor(secW / 3.5);
+                var wColsD = Math.floor(secD / 3.5);
+                var secFaces = [
+                    { axis: 'x', offset: secW / 2 + 0.05, cols: wColsD, span: secD, rotY: Math.PI / 2 },
+                    { axis: 'x', offset: -(secW / 2 + 0.05), cols: wColsD, span: secD, rotY: -Math.PI / 2 },
+                    { axis: 'z', offset: secD / 2 + 0.05, cols: wColsW, span: secW, rotY: 0 },
+                    { axis: 'z', offset: -(secD / 2 + 0.05), cols: wColsW, span: secW, rotY: Math.PI }
+                ];
+                for (var fi = 0; fi < secFaces.length; fi++) {
+                    var face = secFaces[fi];
+                    for (var wr = 0; wr < wRows; wr++) {
+                        for (var wc = 0; wc < face.cols; wc++) {
+                            if (Math.random() > 0.4) continue;
+                            var w = new THREE.Mesh(winGeo, winMats[Math.floor(Math.random() * 4)]);
+                            var wy = yStart + 3 + wr * 5;
+                            var wOff = -face.span / 2 + 2 + wc * 3.5;
+                            if (face.axis === 'x') {
+                                w.position.set(cx + face.offset, wy, cz + wOff);
+                            } else {
+                                w.position.set(cx + wOff, wy, cz + face.offset);
+                            }
+                            w.rotation.y = face.rotY;
+                            cityGroup.add(w);
+                        }
+                    }
+                }
+            }
+
+            // Buildings
             for (var bx = -380; bx <= 380; bx += 40) {
                 for (var bz = -380; bz <= 380; bz += 40) {
-                    // Skip the center where our tower is
                     if (Math.abs(bx) < 35 && Math.abs(bz) < 35) continue;
 
                     var dist = Math.sqrt(bx * bx + bz * bz);
-                    // Buildings near center are taller (downtown effect)
                     var maxH = dist < 120 ? 350 : dist < 250 ? 200 : 100;
                     var minH = dist < 120 ? 40 : 15;
                     var bHeight = minH + Math.random() * (maxH - minH);
@@ -315,120 +365,66 @@
                     var offZ = (Math.random() - 0.5) * 15;
 
                     var colorIdx = Math.floor(Math.random() * buildingColors.length);
-                    var bMat = new THREE.MeshStandardMaterial({
-                        color: buildingColors[colorIdx],
-                        roughness: 0.5 + Math.random() * 0.3,
-                        metalness: 0.1 + Math.random() * 0.2
-                    });
                     var bGeo = new THREE.BoxGeometry(bWidth, bHeight, bDepth);
-                    var bMesh = new THREE.Mesh(bGeo, bMat);
+                    var bMesh = new THREE.Mesh(bGeo, buildingMats[colorIdx]);
                     var bPosX = bx + offX, bPosZ = bz + offZ;
                     bMesh.position.set(bPosX, bHeight / 2, bPosZ);
-                    bMesh.castShadow = true;
-                    bMesh.receiveShadow = true;
+                    bMesh.castShadow = dist < 200;
                     cityGroup.add(bMesh);
 
-                    // Tall buildings get a narrower upper section (setback)
+                    // Setback on tall buildings
                     var hasSetback = bHeight > 150 && Math.random() > 0.4;
-                    var baseHeight = bHeight; // save for window placement
+                    var baseHeight = bHeight;
                     var upperW, upperD, upperH;
                     if (hasSetback) {
                         upperH = bHeight * 0.3;
                         upperW = bWidth * 0.65;
                         upperD = bDepth * 0.65;
-                        var upper = new THREE.Mesh(
-                            new THREE.BoxGeometry(upperW, upperH, upperD),
-                            new THREE.MeshStandardMaterial({ color: buildingColors[(colorIdx + 1) % buildingColors.length], roughness: 0.4, metalness: 0.25 })
-                        );
+                        var upper = new THREE.Mesh(new THREE.BoxGeometry(upperW, upperH, upperD), setbackMat);
                         upper.position.set(bPosX, bHeight + upperH / 2, bPosZ);
-                        upper.castShadow = true;
+                        upper.castShadow = dist < 200;
                         cityGroup.add(upper);
-                        bHeight += upperH; // total height for rooftop features
+                        bHeight += upperH;
                     }
 
-                    // Rooftop details for tall buildings
-                    if (bHeight > 80) {
+                    // Rooftop details (only nearby buildings for perf)
+                    if (bHeight > 80 && dist < 300) {
                         var roofRand = Math.random();
                         if (roofRand > 0.6) {
-                            // Antenna/spire
                             var antH = 8 + Math.random() * 15;
-                            var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.4, antH, 6), MAT.metal);
+                            var ant = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.4, antH, 4), MAT.metal);
                             ant.position.set(bPosX, bHeight + antH / 2, bPosZ);
                             cityGroup.add(ant);
                         } else if (roofRand > 0.35) {
-                            // Rooftop mechanical box
                             var mechW = bWidth * 0.3, mechH = 3 + Math.random() * 4;
-                            var mech = new THREE.Mesh(
-                                new THREE.BoxGeometry(mechW, mechH, mechW),
-                                new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 })
-                            );
+                            var mech = new THREE.Mesh(new THREE.BoxGeometry(mechW, mechH, mechW), mechMat);
                             mech.position.set(bPosX, bHeight + mechH / 2, bPosZ);
                             cityGroup.add(mech);
                         } else {
-                            // Helipad (flat circle on roof)
-                            var pad = new THREE.Mesh(new THREE.CylinderGeometry(bWidth * 0.3, bWidth * 0.3, 0.2, 16), new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.6 }));
+                            var pad = new THREE.Mesh(new THREE.CylinderGeometry(bWidth * 0.3, bWidth * 0.3, 0.2, 8), helipadMat);
                             pad.position.set(bPosX, bHeight + 0.1, bPosZ);
                             cityGroup.add(pad);
-                            // H marking
-                            var hMark = new THREE.Mesh(new THREE.PlaneGeometry(bWidth * 0.15, bWidth * 0.2), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+                            var hMark = new THREE.Mesh(new THREE.PlaneGeometry(bWidth * 0.15, bWidth * 0.2), hMarkMat);
                             hMark.rotation.x = -Math.PI / 2;
                             hMark.position.set(bPosX, bHeight + 0.22, bPosZ);
                             cityGroup.add(hMark);
                         }
                     }
 
-                    // Helper to add windows to a building section
-                    function addWindows(cx, cz, secW, secD, secH, yStart) {
-                        var wRows = Math.min(Math.floor(secH / 5), 40);
-                        var wColsW = Math.floor(secW / 3.5);
-                        var wColsD = Math.floor(secD / 3.5);
-                        var secFaces = [
-                            { axis: 'x', offset: secW / 2 + 0.05, cols: wColsD, span: secD, rotY: Math.PI / 2 },
-                            { axis: 'x', offset: -(secW / 2 + 0.05), cols: wColsD, span: secD, rotY: -Math.PI / 2 },
-                            { axis: 'z', offset: secD / 2 + 0.05, cols: wColsW, span: secW, rotY: 0 },
-                            { axis: 'z', offset: -(secD / 2 + 0.05), cols: wColsW, span: secW, rotY: Math.PI }
-                        ];
-                        for (var fi = 0; fi < secFaces.length; fi++) {
-                            var face = secFaces[fi];
-                            for (var wr = 0; wr < wRows; wr++) {
-                                for (var wc = 0; wc < face.cols; wc++) {
-                                    if (Math.random() > 0.45) continue;
-                                    var wMat = new THREE.MeshBasicMaterial({ color: winLitColors[Math.floor(Math.random() * winLitColors.length)] });
-                                    var w = new THREE.Mesh(winGeo, wMat);
-                                    var wy = yStart + 3 + wr * 5;
-                                    var wOff = -face.span / 2 + 2 + wc * 3.5;
-                                    if (face.axis === 'x') {
-                                        w.position.set(cx + face.offset, wy, cz + wOff);
-                                    } else {
-                                        w.position.set(cx + wOff, wy, cz + face.offset);
-                                    }
-                                    w.rotation.y = face.rotY;
-                                    cityGroup.add(w);
-                                }
-                            }
-                        }
-                    }
-
-                    // Windows on base section
-                    if (baseHeight > 25) {
+                    // Windows (only on nearby buildings, 2 faces)
+                    if (baseHeight > 25 && dist < 300) {
                         addWindows(bPosX, bPosZ, bWidth, bDepth, baseHeight, 0);
                     }
-                    // Windows on upper setback section (narrower dimensions)
-                    if (hasSetback) {
+                    if (hasSetback && dist < 300) {
                         addWindows(bPosX, bPosZ, upperW, upperD, upperH, baseHeight);
                     }
                 }
             }
 
-            // Small cars on roads (colored boxes)
-            var carColors = [0xff3333, 0x3333ff, 0xffff33, 0x33ff33, 0xffffff, 0x333333];
-            for (var ci = 0; ci < 100; ci++) {
-                var carGeo = new THREE.BoxGeometry(2, 1.2, 4);
-                var carMat = new THREE.MeshStandardMaterial({
-                    color: carColors[Math.floor(Math.random() * carColors.length)],
-                    roughness: 0.4, metalness: 0.3
-                });
-                var car = new THREE.Mesh(carGeo, carMat);
+            // Small cars on roads (shared materials + geometry)
+            var carGeo = new THREE.BoxGeometry(2, 1.2, 4);
+            for (var ci = 0; ci < 80; ci++) {
+                var car = new THREE.Mesh(carGeo, carMats[Math.floor(Math.random() * carMats.length)]);
                 var cx, cz;
                 var onRoadX = Math.random() > 0.5;
                 if (onRoadX) {
@@ -477,53 +473,88 @@
             // Elevator shaft gap (slightly larger than elevator for clearance)
             var SHAFT = 4;
 
-            // Helper: build a tower section as 4 walls (hollow with shaft gap)
-            function addTowerSection(secW, secH, yOff, mat) {
+            // Helper: build tower section as exterior-only planes (invisible from inside shaft)
+            // PlaneGeometry faces +Z by default. We orient each wall's normal outward.
+            // From outside: front face visible (tower looks solid).
+            // From inside shaft: backface culled (transparent — city visible through elevator glass).
+            function addTowerShell(secW, secH, yOff, mat) {
                 var halfW = secW / 2;
-                var halfS = SHAFT / 2;
-                // Front wall (full width, from shaft edge to building edge in Z)
-                var frontDepth = halfW - halfS;
-                if (frontDepth > 0) {
-                    var front = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, frontDepth), mat);
-                    front.position.set(0, yOff + secH / 2, halfS + frontDepth / 2);
-                    front.castShadow = true;
-                    cityGroup.add(front);
-                    var back = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, frontDepth), mat);
-                    back.position.set(0, yOff + secH / 2, -(halfS + frontDepth / 2));
-                    back.castShadow = true;
-                    cityGroup.add(back);
-                }
-                // Side walls (only spanning the shaft gap in Z, from shaft edge to building edge in X)
-                var sideWidth = halfW - halfS;
-                if (sideWidth > 0) {
-                    var left = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, secH, SHAFT), mat);
-                    left.position.set(-(halfS + sideWidth / 2), yOff + secH / 2, 0);
-                    left.castShadow = true;
-                    cityGroup.add(left);
-                    var right = new THREE.Mesh(new THREE.BoxGeometry(sideWidth, secH, SHAFT), mat);
-                    right.position.set(halfS + sideWidth / 2, yOff + secH / 2, 0);
-                    right.castShadow = true;
-                    cityGroup.add(right);
-                }
+                var cy = yOff + secH / 2;
+                // Front (+Z face, normal +Z)
+                var front = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                front.position.set(0, cy, halfW);
+                front.castShadow = true;
+                cityGroup.add(front);
+                // Back (-Z face, normal -Z)
+                var back = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                back.position.set(0, cy, -halfW);
+                back.rotation.y = Math.PI;
+                back.castShadow = true;
+                cityGroup.add(back);
+                // Right (+X face, normal +X)
+                var right = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                right.position.set(halfW, cy, 0);
+                right.rotation.y = Math.PI / 2;
+                right.castShadow = true;
+                cityGroup.add(right);
+                // Left (-X face, normal -X)
+                var left = new THREE.Mesh(new THREE.PlaneGeometry(secW, secH), mat);
+                left.position.set(-halfW, cy, 0);
+                left.rotation.y = -Math.PI / 2;
+                left.castShadow = true;
+                cityGroup.add(left);
             }
 
-            // Lower section (0-350m) — full width with shaft
+            // Helper: build ground floor base with lobby opening (BoxGeometry for solid walls)
+            function addGroundFloor(secW, secH, yOff, mat, lobbyGap) {
+                var halfW = secW / 2;
+                var halfL = lobbyGap / 2;
+                var wallDepth = halfW - halfL;
+                if (wallDepth <= 0) return;
+                // Front/back solid walls (outside the lobby opening)
+                var front = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, wallDepth), mat);
+                front.position.set(0, yOff + secH / 2, halfL + wallDepth / 2);
+                front.castShadow = true;
+                cityGroup.add(front);
+                var back = new THREE.Mesh(new THREE.BoxGeometry(secW, secH, wallDepth), mat);
+                back.position.set(0, yOff + secH / 2, -(halfL + wallDepth / 2));
+                back.castShadow = true;
+                cityGroup.add(back);
+                // Side solid walls (only spanning the lobby gap in Z)
+                var left = new THREE.Mesh(new THREE.BoxGeometry(wallDepth, secH, lobbyGap), mat);
+                left.position.set(-(halfL + wallDepth / 2), yOff + secH / 2, 0);
+                left.castShadow = true;
+                cityGroup.add(left);
+                var right = new THREE.Mesh(new THREE.BoxGeometry(wallDepth, secH, lobbyGap), mat);
+                right.position.set(halfL + wallDepth / 2, yOff + secH / 2, 0);
+                right.castShadow = true;
+                cityGroup.add(right);
+            }
+
+            // Lower section
             var sec1H = 350;
-            addTowerSection(TOWER_WIDTH, sec1H, 0, towerMat);
+            var LOBBY_H = 7;
+            var LOBBY_GAP = 22;
 
-            // Middle setback (350-460m) — narrower with shaft
+            // Ground floor base (0 to LOBBY_H) — solid walls with lobby opening
+            addGroundFloor(TOWER_WIDTH, LOBBY_H, 0, towerMat, LOBBY_GAP);
+
+            // Tower above lobby (LOBBY_H to 350m) — exterior shell only
+            addTowerShell(TOWER_WIDTH, sec1H - LOBBY_H, LOBBY_H, towerMat);
+
+            // Middle setback (350-460m) — exterior shell
             var sec2H = 110, sec2W = TOWER_WIDTH - 6;
-            addTowerSection(sec2W, sec2H, sec1H, towerAccent);
+            addTowerShell(sec2W, sec2H, sec1H, towerAccent);
 
-            // Upper setback (460-520m) — narrower still with shaft
+            // Upper setback (460-520m) — exterior shell
             var sec3H = 60, sec3W = TOWER_WIDTH - 14;
-            addTowerSection(sec3W, sec3H, sec1H + sec2H, towerMat);
+            addTowerShell(sec3W, sec3H, sec1H + sec2H, towerMat);
 
-            // Crown (520-TOWER_HEIGHT) — glass crown wrapping the observation deck
-            var crownH = TOWER_HEIGHT - (sec1H + sec2H + sec3H); // 520 to 550 = 30m
-            var crownW = OBS.w + 4; // 26m — wide enough to frame the 22m observation deck
-            var crownMat = new THREE.MeshPhysicalMaterial({ color: 0xaaccee, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.3, transmission: 0.4 });
-            addTowerSection(crownW, crownH, sec1H + sec2H + sec3H, crownMat);
+            // Crown (520-TOWER_HEIGHT) — glass crown, double-sided so visible from observation deck
+            var crownH = TOWER_HEIGHT - (sec1H + sec2H + sec3H);
+            var crownW = OBS.w + 4;
+            var crownMat = new THREE.MeshPhysicalMaterial({ color: 0xaaccee, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.3, transmission: 0.4, side: THREE.DoubleSide });
+            addTowerShell(crownW, crownH, sec1H + sec2H + sec3H, crownMat);
 
             // Structural bands at observation deck floor and ceiling for visual integration
             var ringMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
@@ -547,36 +578,31 @@
                 cityGroup.add(barR);
             }
 
-            // Horizontal band details at setback transitions (with shaft gap)
+            // Horizontal band details at setback transitions (exterior edge bars only)
             var bandMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
             var bands = [
                 { y: sec1H, w: TOWER_WIDTH + 2 },
                 { y: sec1H + sec2H, w: sec2W + 2 },
                 { y: sec1H + sec2H + sec3H, w: sec3W + 2 }
             ];
+            var bandThick = 1.5;
             for (var bi = 0; bi < bands.length; bi++) {
                 var bw = bands[bi].w;
                 var by = bands[bi].y;
-                var halfB = bw / 2;
-                var halfS2 = SHAFT / 2;
-                var segDepth = halfB - halfS2;
-                if (segDepth > 0) {
-                    // Front/back segments
-                    var bf = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, segDepth), bandMat);
-                    bf.position.set(0, by, halfS2 + segDepth / 2);
-                    cityGroup.add(bf);
-                    var bb = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, segDepth), bandMat);
-                    bb.position.set(0, by, -(halfS2 + segDepth / 2));
-                    cityGroup.add(bb);
-                    // Side segments
-                    var sideLen = halfB - halfS2;
-                    var bsl = new THREE.Mesh(new THREE.BoxGeometry(sideLen, 2, SHAFT), bandMat);
-                    bsl.position.set(-(halfS2 + sideLen / 2), by, 0);
-                    cityGroup.add(bsl);
-                    var bsr = new THREE.Mesh(new THREE.BoxGeometry(sideLen, 2, SHAFT), bandMat);
-                    bsr.position.set(halfS2 + sideLen / 2, by, 0);
-                    cityGroup.add(bsr);
-                }
+                var bhw = bw / 2;
+                // 4 exterior edge bars (no center fill — shaft stays clear)
+                var bandF = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, bandThick), bandMat);
+                bandF.position.set(0, by, bhw - bandThick / 2);
+                cityGroup.add(bandF);
+                var bandB = new THREE.Mesh(new THREE.BoxGeometry(bw, 2, bandThick), bandMat);
+                bandB.position.set(0, by, -(bhw - bandThick / 2));
+                cityGroup.add(bandB);
+                var bandL = new THREE.Mesh(new THREE.BoxGeometry(bandThick, 2, bw - bandThick * 2), bandMat);
+                bandL.position.set(-(bhw - bandThick / 2), by, 0);
+                cityGroup.add(bandL);
+                var bandR = new THREE.Mesh(new THREE.BoxGeometry(bandThick, 2, bw - bandThick * 2), bandMat);
+                bandR.position.set(bhw - bandThick / 2, by, 0);
+                cityGroup.add(bandR);
             }
 
             // Window strips on all sections and all 4 faces
@@ -874,9 +900,8 @@
             ceil.position.y = OBSERVATION_Y + OBS.h;
             observationGroup.add(ceil);
 
-            // Glass walls (all 4 sides - floor to ceiling)
+            // Glass walls (back + left + right full, front split with skywalk opening)
             var wallSpecs = [
-                { pos: [0, OBSERVATION_Y + OBS.h / 2, OBS.d / 2], rot: [0, Math.PI, 0], size: [OBS.w, OBS.h] },
                 { pos: [0, OBSERVATION_Y + OBS.h / 2, -OBS.d / 2], rot: [0, 0, 0], size: [OBS.w, OBS.h] },
                 { pos: [OBS.w / 2, OBSERVATION_Y + OBS.h / 2, 0], rot: [0, -Math.PI / 2, 0], size: [OBS.d, OBS.h] },
                 { pos: [-OBS.w / 2, OBSERVATION_Y + OBS.h / 2, 0], rot: [0, Math.PI / 2, 0], size: [OBS.d, OBS.h] }
@@ -888,6 +913,19 @@
                 wall.rotation.set(ws.rot[0], ws.rot[1], ws.rot[2]);
                 observationGroup.add(wall);
             }
+            // Front wall — two panels with gap for skywalk entrance
+            var swGap = SKYWALK.width + 0.6; // opening width
+            var frontPanelW = (OBS.w - swGap) / 2;
+            var frontWallY = OBSERVATION_Y + OBS.h / 2;
+            var frontWallZ = OBS.d / 2;
+            var fwL = new THREE.Mesh(new THREE.PlaneGeometry(frontPanelW, OBS.h), MAT.glass);
+            fwL.position.set(-(swGap / 2 + frontPanelW / 2), frontWallY, frontWallZ);
+            fwL.rotation.y = Math.PI;
+            observationGroup.add(fwL);
+            var fwR = new THREE.Mesh(new THREE.PlaneGeometry(frontPanelW, OBS.h), MAT.glass);
+            fwR.position.set(swGap / 2 + frontPanelW / 2, frontWallY, frontWallZ);
+            fwR.rotation.y = Math.PI;
+            observationGroup.add(fwR);
 
             // Metal frame beams
             var beamMat = MAT.darkMetal;
@@ -928,7 +966,7 @@
         // ═══════════════════════════════════════════════════
         //  GLASS SKYWALK (extends from observation deck)
         // ═══════════════════════════════════════════════════
-        var SKYWALK = { length: 20, width: 3 };
+        var SKYWALK = { length: 20, width: 6 };
 
         function buildSkywalk() {
             // Glass floor (the main terrifying element)
@@ -965,40 +1003,68 @@
                 }
             }
 
-            // End platform (the furthest point - "the edge")
-            var endPlatform = new THREE.Mesh(
-                new THREE.CircleGeometry(2.5, 24),
-                MAT.glassPanel
+            // Bungee jump platform at end of skywalk
+            var jumpZ = OBS.d / 2 + SKYWALK.length;
+            var jumpPlatform = new THREE.Mesh(
+                new THREE.BoxGeometry(SKYWALK.width + 2, 0.3, 4),
+                MAT.darkMetal
             );
-            endPlatform.rotation.x = -Math.PI / 2;
-            endPlatform.position.set(0, OBSERVATION_Y + 0.02, OBS.d / 2 + SKYWALK.length + 2.5);
-            skywalkGroup.add(endPlatform);
+            jumpPlatform.position.set(0, OBSERVATION_Y - 0.1, jumpZ + 2);
+            skywalkGroup.add(jumpPlatform);
 
-            // End railing (semicircle)
-            var endRailGeo = new THREE.TorusGeometry(2.5, 0.025, 8, 24, Math.PI);
-            var endRail = new THREE.Mesh(endRailGeo, MAT.railing);
-            endRail.position.set(0, OBSERVATION_Y + 1.5, OBS.d / 2 + SKYWALK.length + 2.5);
-            endRail.rotation.x = -Math.PI / 2;
-            endRail.rotation.z = -Math.PI / 2;
-            skywalkGroup.add(endRail);
+            // Safety railings on 3 sides of jump platform (left, right, front)
+            var jumpRailMat = new THREE.MeshStandardMaterial({ color: 0xdddd00, roughness: 0.4, metalness: 0.6 });
+            var jumpW = SKYWALK.width + 2;
+            // Front rail
+            var frontJumpRail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, jumpW, 8), jumpRailMat);
+            frontJumpRail.rotation.z = Math.PI / 2;
+            frontJumpRail.position.set(0, OBSERVATION_Y + 1.2, jumpZ + 3.8);
+            skywalkGroup.add(frontJumpRail);
+            // Side rails
+            for (var js = -1; js <= 1; js += 2) {
+                var sideJumpRail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 4, 8), jumpRailMat);
+                sideJumpRail.rotation.x = Math.PI / 2;
+                sideJumpRail.position.set(js * jumpW / 2, OBSERVATION_Y + 1.2, jumpZ + 2);
+                skywalkGroup.add(sideJumpRail);
+                // Vertical posts
+                for (var jp = 0; jp < 3; jp++) {
+                    var post = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6), jumpRailMat);
+                    post.position.set(js * jumpW / 2, OBSERVATION_Y + 0.55, jumpZ + 0.5 + jp * 1.5);
+                    skywalkGroup.add(post);
+                }
+            }
+            // Front vertical posts
+            for (var fp = -1; fp <= 1; fp += 2) {
+                var fPost = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.3, 6), jumpRailMat);
+                fPost.position.set(fp * jumpW / 3, OBSERVATION_Y + 0.55, jumpZ + 3.8);
+                skywalkGroup.add(fPost);
+            }
 
-            // Semicircle glass barrier
-            var endBarrier = new THREE.Mesh(
-                new THREE.TorusGeometry(2.5, 0.75, 4, 24, Math.PI),
-                MAT.glassFence
-            );
-            endBarrier.position.set(0, OBSERVATION_Y + 0.75, OBS.d / 2 + SKYWALK.length + 2.5);
-            endBarrier.rotation.x = -Math.PI / 2;
-            endBarrier.rotation.z = -Math.PI / 2;
-            skywalkGroup.add(endBarrier);
+            // "JUMP" sign on the platform
+            var jumpSign = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 0.1),
+                new THREE.MeshBasicMaterial({ color: 0xff2200 }));
+            jumpSign.position.set(0, OBSERVATION_Y + 1.6, jumpZ + 3.75);
+            jumpSign.rotation.y = Math.PI;
+            skywalkGroup.add(jumpSign);
+
+            // Bungee cord anchor point (overhead beam)
+            var anchorBeam = new THREE.Mesh(new THREE.BoxGeometry(3, 0.3, 0.3), MAT.darkMetal);
+            anchorBeam.position.set(0, OBSERVATION_Y + 3.5, jumpZ + 2);
+            skywalkGroup.add(anchorBeam);
+            // Vertical supports for anchor
+            for (var as = -1; as <= 1; as += 2) {
+                var aSupport = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 3.6, 8), MAT.darkMetal);
+                aSupport.position.set(as * 1.3, OBSERVATION_Y + 1.7, jumpZ + 2);
+                skywalkGroup.add(aSupport);
+            }
 
             // Support beams underneath (structural steel)
             for (var bi = 0; bi < 4; bi++) {
                 var supportBeam = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.15, 0.15, SKYWALK.length + 5),
+                    new THREE.BoxGeometry(0.25, 0.25, SKYWALK.length + 5),
                     MAT.darkMetal
                 );
-                var bx = (bi % 2 === 0 ? -1 : 1) * (SKYWALK.width / 2 - 0.2);
+                var bx = (bi % 2 === 0 ? -1 : 1) * (SKYWALK.width / 2 - 0.3);
                 var by = bi < 2 ? -0.5 : -1.5;
                 supportBeam.position.set(bx, OBSERVATION_Y + by, OBS.d / 2 + SKYWALK.length / 2);
                 skywalkGroup.add(supportBeam);
@@ -1013,12 +1079,14 @@
         var cloudMeshes = [];
         function buildClouds() {
             var cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
-            for (var i = 0; i < 30; i++) {
+            var cloudGeo = new THREE.SphereGeometry(1, 6, 4); // shared, scale per puff
+            for (var i = 0; i < 18; i++) {
                 var cGroup = new THREE.Group();
-                var numPuffs = 3 + Math.floor(Math.random() * 4);
+                var numPuffs = 2 + Math.floor(Math.random() * 3);
                 for (var p = 0; p < numPuffs; p++) {
                     var puffSize = 8 + Math.random() * 15;
-                    var puff = new THREE.Mesh(new THREE.SphereGeometry(puffSize, 8, 6), cloudMat);
+                    var puff = new THREE.Mesh(cloudGeo, cloudMat);
+                    puff.scale.set(puffSize, puffSize, puffSize);
                     puff.position.set(
                         (Math.random() - 0.5) * puffSize * 2,
                         (Math.random() - 0.5) * puffSize * 0.5,
@@ -1192,21 +1260,36 @@
                 }, 3500);
                 break;
 
-            // ─── THE EDGE ───
+            // ─── THE EDGE (bungee jump point) ───
             case 'edge':
-                setPhaseLabel('The Edge');
+                setPhaseLabel('Bungee Jump');
                 State.windStrength = 1.0;
                 State.swayAmount = 0.003;
                 updateWindVolume(0.5);
                 windIndicator.textContent = 'Wind: 40 km/h';
-                showPrompt('The edge. ' + TOWER_HEIGHT + ' meters of nothing beneath your feet.', 5000);
+                showPrompt('The edge. ' + TOWER_HEIGHT + ' meters of nothing beneath your feet.', 4000);
                 State.canMove = true;
+                State.canClick = true;
                 pt(function() {
-                    showPrompt('Look down... if you dare.', 4000);
-                    pt(function() {
-                        State.transitioning = false;
-                    }, 4500);
-                }, 5500);
+                    showPrompt('Click to BUNGEE JUMP!', 0);
+                    State.transitioning = false;
+                }, 4500);
+                break;
+
+            // ─── BUNGEE JUMP ───
+            case 'bungee':
+                setPhaseLabel('BUNGEE!');
+                State.canMove = false;
+                State.canClick = false;
+                State.bungeeTime = 0;
+                State.bungeePhase = 'falling';
+                State.bungeeStartY = camera.position.y;
+                State.bungeeVelocity = 0;
+                // Face downward
+                euler.set(-Math.PI / 3, Math.PI, 0);
+                camera.quaternion.setFromEuler(euler);
+                showPrompt('', 0);
+                State.transitioning = false;
                 break;
 
             // ─── RETURN (walk back) ───
@@ -1276,7 +1359,13 @@
             } else if (State.phase === 'observation' || State.phase === 'glass_floor') {
                 camera.position.y = OBSERVATION_Y + 1.7;
                 camera.position.x = Math.max(-OBS.w / 2 + 0.5, Math.min(OBS.w / 2 - 0.5, camera.position.x));
-                camera.position.z = Math.max(-OBS.d / 2 + 0.5, Math.min(OBS.d / 2 - 0.5, camera.position.z));
+                // Allow walking past front edge (+Z) to reach skywalk trigger zone
+                var maxZ = OBS.d / 2 + 2;
+                // Narrow X when past the deck edge (only skywalk-width corridor)
+                if (camera.position.z > OBS.d / 2 - 0.5) {
+                    camera.position.x = Math.max(-SKYWALK.width / 2 + 0.3, Math.min(SKYWALK.width / 2 - 0.3, camera.position.x));
+                }
+                camera.position.z = Math.max(-OBS.d / 2 + 0.5, Math.min(maxZ, camera.position.z));
             } else if (State.phase === 'skywalk' || State.phase === 'edge') {
                 camera.position.y = OBSERVATION_Y + 1.7;
                 // Allow walking the full observation deck + skywalk
@@ -1350,6 +1439,87 @@
         }
 
         // ═══════════════════════════════════════════════════
+        //  BUNGEE JUMP ANIMATION
+        // ═══════════════════════════════════════════════════
+        function updateBungee(delta) {
+            if (State.phase !== 'bungee') return;
+            State.bungeeTime += delta;
+            var gravity = 25; // m/s^2
+            var damping = 0.55;
+            var cordLength = 280; // meters of freefall before cord kicks in
+            var startY = State.bungeeStartY;
+            var fallen = startY - camera.position.y;
+
+            if (State.bungeePhase === 'falling') {
+                // Accelerate down
+                State.bungeeVelocity += gravity * delta;
+                camera.position.y -= State.bungeeVelocity * delta;
+
+                // Camera gradually looks more downward during fall
+                var lookDown = Math.min(-Math.PI / 2 + 0.2, -Math.PI / 3 - fallen * 0.002);
+                euler.set(lookDown, Math.PI, 0);
+                camera.quaternion.setFromEuler(euler);
+
+                // Update height display
+                var curHeight = Math.max(0, Math.floor(camera.position.y));
+                heightIndicator.textContent = curHeight + 'm — FALLING!';
+
+                // Wind sound intensifies
+                updateWindVolume(Math.min(0.8, fallen * 0.003));
+
+                // Cord starts pulling when fallen > cordLength
+                if (fallen > cordLength) {
+                    var stretch = fallen - cordLength;
+                    var pullBack = stretch * 1.8; // elastic force
+                    State.bungeeVelocity -= pullBack * delta;
+
+                    if (State.bungeeVelocity <= 0) {
+                        State.bungeePhase = 'bouncing';
+                        State.bungeeVelocity = -State.bungeeVelocity * damping;
+                        State.bounceCount = 0;
+                    }
+                }
+            } else if (State.bungeePhase === 'bouncing') {
+                // Bounce up then fall again
+                camera.position.y += State.bungeeVelocity * delta;
+                State.bungeeVelocity -= gravity * delta;
+
+                var curHeight2 = Math.max(0, Math.floor(camera.position.y));
+                heightIndicator.textContent = curHeight2 + 'm — Bouncing!';
+
+                // Gradually look forward during bounces
+                var lookAngle = -Math.PI / 4 + State.bounceCount * 0.2;
+                euler.set(Math.max(-Math.PI / 2 + 0.1, Math.min(0, lookAngle)), Math.PI, 0);
+                camera.quaternion.setFromEuler(euler);
+
+                // When velocity reverses (going down again)
+                var nowFallen = startY - camera.position.y;
+                if (State.bungeeVelocity < 0 && nowFallen > cordLength) {
+                    State.bungeeVelocity = -State.bungeeVelocity * damping;
+                    State.bounceCount++;
+                    updateWindVolume(Math.max(0.1, 0.5 - State.bounceCount * 0.1));
+
+                    // After 3 bounces, end
+                    if (State.bounceCount >= 3) {
+                        State.bungeePhase = 'done';
+                        showPrompt('You did it!', 3000);
+                        fadeIn(2);
+                        pt(function() {
+                            camera.position.y = OBSERVATION_Y + 1.7;
+                            camera.position.x = 0;
+                            camera.position.z = 0;
+                            euler.set(0, 0, 0);
+                            camera.quaternion.setFromEuler(euler);
+                            updateWindVolume(0.1);
+                            fadeOut(1);
+                            goPhase('return');
+                        }, 3000);
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════
         //  PHASE TRIGGERS (position-based)
         // ═══════════════════════════════════════════════════
         function checkPhaseTriggers() {
@@ -1385,9 +1555,9 @@
                 }
             }
 
-            // Edge → Return: stand at the edge for a while, then start return
+            // Edge: player can walk around the jump platform (bungee triggered by click)
+            // If they walk back without jumping, allow return
             if (State.phase === 'edge' && !State.transitioning) {
-                // If player walks back inside
                 if (pz < OBS.d / 2 - 1) {
                     goPhase('return');
                 }
@@ -1448,6 +1618,10 @@
             if (!isPointerLocked) {
                 renderer.domElement.requestPointerLock();
             }
+            // Bungee jump trigger
+            if (isPointerLocked && State.phase === 'edge' && State.canClick && !State.transitioning) {
+                goPhase('bungee');
+            }
         });
 
         document.addEventListener('pointerlockchange', function() {
@@ -1485,6 +1659,7 @@
 
             updatePlayer(delta);
             updateElevator(delta);
+            updateBungee(delta);
             checkPhaseTriggers();
             updateEffects(delta);
 
