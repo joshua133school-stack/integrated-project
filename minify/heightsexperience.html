@@ -467,7 +467,8 @@
         // ═══════════════════════════════════════════════════
         var TOWER_HEIGHT = 550; // meters (supertall skyscraper)
         var TOWER_WIDTH = 30;
-        var OBSERVATION_Y = TOWER_HEIGHT; // observation deck at top
+        var OBS = { w: 22, d: 22, h: 4 };
+        var OBSERVATION_Y = TOWER_HEIGHT - OBS.h - 2; // observation deck inside the crown (544m)
 
         function buildTower() {
             var towerMat = new THREE.MeshStandardMaterial({ color: 0x6688aa, roughness: 0.3, metalness: 0.4 });
@@ -518,10 +519,33 @@
             var sec3H = 60, sec3W = TOWER_WIDTH - 14;
             addTowerSection(sec3W, sec3H, sec1H + sec2H, towerMat);
 
-            // Crown (520-550m) — glass crown with shaft
-            var crownH = 30, crownW = sec3W + 4;
+            // Crown (520-TOWER_HEIGHT) — glass crown wrapping the observation deck
+            var crownH = TOWER_HEIGHT - (sec1H + sec2H + sec3H); // 520 to 550 = 30m
+            var crownW = OBS.w + 4; // 26m — wide enough to frame the 22m observation deck
             var crownMat = new THREE.MeshPhysicalMaterial({ color: 0xaaccee, transparent: true, opacity: 0.5, roughness: 0.05, metalness: 0.3, transmission: 0.4 });
             addTowerSection(crownW, crownH, sec1H + sec2H + sec3H, crownMat);
+
+            // Structural bands at observation deck floor and ceiling for visual integration
+            var ringMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
+            var ringW = crownW + 1;
+            var ringDepth = 1.5; // thickness of the band
+            var ringLevels = [OBSERVATION_Y - 0.25, OBSERVATION_Y + OBS.h - 0.25];
+            for (var ri = 0; ri < ringLevels.length; ri++) {
+                var ry = ringLevels[ri];
+                // 4 edge bars forming a frame (no center fill)
+                var barF = new THREE.Mesh(new THREE.BoxGeometry(ringW, 0.5, ringDepth), ringMat);
+                barF.position.set(0, ry, ringW / 2 - ringDepth / 2);
+                cityGroup.add(barF);
+                var barB = new THREE.Mesh(new THREE.BoxGeometry(ringW, 0.5, ringDepth), ringMat);
+                barB.position.set(0, ry, -(ringW / 2 - ringDepth / 2));
+                cityGroup.add(barB);
+                var barL = new THREE.Mesh(new THREE.BoxGeometry(ringDepth, 0.5, ringW - ringDepth * 2), ringMat);
+                barL.position.set(-(ringW / 2 - ringDepth / 2), ry, 0);
+                cityGroup.add(barL);
+                var barR = new THREE.Mesh(new THREE.BoxGeometry(ringDepth, 0.5, ringW - ringDepth * 2), ringMat);
+                barR.position.set(ringW / 2 - ringDepth / 2, ry, 0);
+                cityGroup.add(barR);
+            }
 
             // Horizontal band details at setback transitions (with shaft gap)
             var bandMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.15, metalness: 0.7 });
@@ -793,10 +817,8 @@
         }
 
         // ═══════════════════════════════════════════════════
-        //  OBSERVATION DECK (top floor)
+        //  OBSERVATION DECK (top floor, inside the crown)
         // ═══════════════════════════════════════════════════
-        var OBS = { w: 22, d: 22, h: 4 };
-
         function buildObservationDeck() {
             // Glass floor section positions
             var glassFloorSize = 5;
