@@ -687,7 +687,7 @@
             fWheel.position.set((fw < 2 ? -1 : 1) * 1.1, 0.25, (fw % 2 === 0 ? -1.2 : 1.2));
             fuelTruck.add(fWheel);
         }
-        fuelTruck.position.set(10, 0, -15);
+        fuelTruck.position.set(-10, 0, -20);
         airportGroup.add(fuelTruck);
 
         // Baggage cart train
@@ -713,13 +713,13 @@
                 bagTrain.add(luggage);
             }
         }
-        bagTrain.position.set(5, 0, 12);
-        bagTrain.rotation.y = 0.3;
+        bagTrain.position.set(-15, 0, -18);
+        bagTrain.rotation.y = 0.5;
         airportGroup.add(bagTrain);
 
         // Pushback tug
         var pushTug = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.7, 2.5), MAT.vehicleBody);
-        pushTug.position.set(22, 0.5, 5);
+        pushTug.position.set(25, 0.5, -12);
         airportGroup.add(pushTug);
 
         // ── Windsock ──
@@ -864,8 +864,8 @@
         var R = PLANE.radius;
         var halfLen = PLANE.len / 2;
 
-        // ── Fuselage (cylinder along Z) ──
-        var fusGeo = new THREE.CylinderGeometry(R, R, PLANE.len, 32);
+        // ── Fuselage (cylinder along Z, open-ended for nose/tail connection) ──
+        var fusGeo = new THREE.CylinderGeometry(R, R, PLANE.len, 32, 1, true);
         var fuselage = new THREE.Mesh(fusGeo, MAT.white);
         fuselage.rotation.x = Math.PI / 2; // align along Z
         fuselage.castShadow = true;
@@ -896,17 +896,20 @@
             planeExtGroup.add(cWin);
         }
 
-        // ── Tail cone (gradual taper, not a sharp point) ──
-        var tailConeGeo = new THREE.CylinderGeometry(0.3, R, 8, 32);
+        // ── Tail cone (gradual taper, seamlessly joins fuselage) ──
+        // CylinderGeometry: (radiusTop, radiusBottom, height) — when rotated PI/2 around X,
+        // radiusTop becomes the -Z end and radiusBottom becomes the +Z end
+        var tailConeLen = 7;
+        var tailConeGeo = new THREE.CylinderGeometry(0.3, R, tailConeLen, 32, 1, true);
         var tailCone = new THREE.Mesh(tailConeGeo, MAT.white);
-        tailCone.rotation.x = Math.PI / 2; // align along Z, narrow end toward -Z
-        tailCone.position.z = -halfLen - 4;
+        tailCone.rotation.x = Math.PI / 2;
+        tailCone.position.z = -halfLen - tailConeLen / 2; // wide end flush with fuselage
         planeExtGroup.add(tailCone);
         // APU exhaust at very tip
         var apuGeo = new THREE.CylinderGeometry(0.18, 0.3, 0.5, 12);
         var apu = new THREE.Mesh(apuGeo, MAT.darkPlastic);
         apu.rotation.x = Math.PI / 2;
-        apu.position.z = -halfLen - 8.1;
+        apu.position.z = -halfLen - tailConeLen - 0.1;
         planeExtGroup.add(apu);
 
         // ── Passenger windows (both sides, with frames) ──
