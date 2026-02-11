@@ -18,9 +18,15 @@
 </head>
 <body>
 <div id="info">Drag to rotate &middot; Scroll to zoom</div>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
-<script>
+<script type="importmap">
+{ "imports": {
+    "three": "https://unpkg.com/three@0.152.2/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.152.2/examples/jsm/"
+}}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 (function() {
     // ── Scene ──
     var scene = new THREE.Scene();
@@ -38,7 +44,7 @@
     renderer.toneMappingExposure = 1.4;
     document.body.appendChild(renderer.domElement);
 
-    var controls = new THREE.OrbitControls(camera, renderer.domElement);
+    var controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     controls.target.set(0, 0, 0);
