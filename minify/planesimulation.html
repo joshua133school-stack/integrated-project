@@ -450,7 +450,26 @@
         lightEmitWarm: new THREE.MeshBasicMaterial({ color: 0xffeecc }),
         lightEmitDim: new THREE.MeshBasicMaterial({ color: 0x443322 }),
         stormCloud: new THREE.MeshLambertMaterial({ color: 0x333344, transparent: true, opacity: 0.85 }),
-        darkCloud: new THREE.MeshLambertMaterial({ color: 0x1a1a22, transparent: true, opacity: 0.9 })
+        darkCloud: new THREE.MeshLambertMaterial({ color: 0x1a1a22, transparent: true, opacity: 0.9 }),
+        yellow: new THREE.MeshStandardMaterial({ color: 0xf0c000, roughness: 0.6 }),
+        yellowLine: new THREE.MeshBasicMaterial({ color: 0xf0c000 }),
+        orange: new THREE.MeshBasicMaterial({ color: 0xff6600 }),
+        navRed: new THREE.MeshBasicMaterial({ color: 0xff0000 }),
+        navGreen: new THREE.MeshBasicMaterial({ color: 0x00ff00 }),
+        navWhite: new THREE.MeshBasicMaterial({ color: 0xffffff }),
+        stainless: new THREE.MeshStandardMaterial({ color: 0xc8c8c8, roughness: 0.2, metalness: 0.9 }),
+        fabric: new THREE.MeshStandardMaterial({ color: 0x1a3560, roughness: 0.85 }),
+        seatbeltOrange: new THREE.MeshStandardMaterial({ color: 0xd4760a, roughness: 0.7 }),
+        lavDoor: new THREE.MeshStandardMaterial({ color: 0x778899, roughness: 0.5, metalness: 0.3 }),
+        trayTable: new THREE.MeshStandardMaterial({ color: 0xd0ccc0, roughness: 0.5 }),
+        signPanel: new THREE.MeshBasicMaterial({ color: 0x004422 }),
+        vehicleBody: new THREE.MeshStandardMaterial({ color: 0xe8d540, roughness: 0.6 }),
+        vehicleWheel: new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.9 }),
+        windsock: new THREE.MeshStandardMaterial({ color: 0xff6600, roughness: 0.8, side: THREE.DoubleSide }),
+        windsockWhite: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8, side: THREE.DoubleSide }),
+        doorOutline: new THREE.MeshBasicMaterial({ color: 0x444444 }),
+        panelLine: new THREE.MeshBasicMaterial({ color: 0xcccccc }),
+        fuselageAccent: new THREE.MeshStandardMaterial({ color: 0xcc1e2e, roughness: 0.4 })
     };
 
     // ═══════════════════════════════════════════════════
@@ -470,6 +489,7 @@
     var cabinLights = [];
     var cabinLightMeshes = [];
     var emergencyLightMeshes = [];
+    var engineFans = [];
 
     // ═══════════════════════════════════════════════════
     //  LIGHTING
@@ -599,6 +619,181 @@
                 airportGroup.add(rlMesh);
             }
         }
+
+        // ── Runway threshold markings (piano keys) ──
+        var pianoKeyMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        for (var te = 0; te < 2; te++) {
+            var threshZ = te === 0 ? -188 : 188;
+            var threshDir = te === 0 ? 1 : -1;
+            for (var pk = 0; pk < 8; pk++) {
+                var pkX = 40 + (pk - 3.5) * 2.5;
+                var key = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 10), pianoKeyMat);
+                key.rotation.x = -Math.PI / 2;
+                key.position.set(pkX, 0.035, threshZ + threshDir * 6);
+                airportGroup.add(key);
+            }
+            // Runway number boxes (simple blocks representing "09" and "27")
+            var numGeo = new THREE.PlaneGeometry(4, 6);
+            var num = new THREE.Mesh(numGeo, pianoKeyMat);
+            num.rotation.x = -Math.PI / 2;
+            num.position.set(40, 0.035, threshZ + threshDir * 22);
+            airportGroup.add(num);
+        }
+
+        // ── Taxiway center line (yellow dashed) ──
+        for (var ti = -35; ti < 35; ti += 4) {
+            var tLine = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 2.5), MAT.yellowLine);
+            tLine.rotation.x = -Math.PI / 2;
+            tLine.position.set(15, 0.025, ti);
+            airportGroup.add(tLine);
+        }
+
+        // ── Taxiway connector (from taxiway to runway) ──
+        var connGeo = new THREE.PlaneGeometry(15, 10);
+        var connector = new THREE.Mesh(connGeo, MAT.asphalt);
+        connector.rotation.x = -Math.PI / 2;
+        connector.position.set(27.5, 0.015, 0);
+        airportGroup.add(connector);
+
+        // ── Apron / ramp area (concrete pad near terminal) ──
+        var apronGeo = new THREE.PlaneGeometry(45, 40);
+        var apron = new THREE.Mesh(apronGeo, MAT.concrete);
+        apron.rotation.x = -Math.PI / 2;
+        apron.position.set(5, 0.01, 0);
+        apron.receiveShadow = true;
+        airportGroup.add(apron);
+
+        // Apron line markings (yellow parking guide lines)
+        for (var al = -1; al <= 1; al++) {
+            var apronLine = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 30), MAT.yellowLine);
+            apronLine.rotation.x = -Math.PI / 2;
+            apronLine.position.set(10 + al * 8, 0.02, 0);
+            airportGroup.add(apronLine);
+        }
+
+        // ── Ground vehicles ──
+        // Fuel truck
+        var fuelTruck = new THREE.Group();
+        var ftBody = new THREE.Mesh(new THREE.BoxGeometry(2, 1.2, 4), MAT.vehicleBody);
+        ftBody.position.y = 0.9;
+        fuelTruck.add(ftBody);
+        var ftTank = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, 3.2, 12), MAT.stainless);
+        ftTank.rotation.x = Math.PI / 2;
+        ftTank.position.set(0, 1.8, 0);
+        fuelTruck.add(ftTank);
+        for (var fw = 0; fw < 4; fw++) {
+            var fWheel = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.15, 8), MAT.vehicleWheel);
+            fWheel.rotation.z = Math.PI / 2;
+            fWheel.position.set((fw < 2 ? -1 : 1) * 1.1, 0.25, (fw % 2 === 0 ? -1.2 : 1.2));
+            fuelTruck.add(fWheel);
+        }
+        fuelTruck.position.set(10, 0, -15);
+        airportGroup.add(fuelTruck);
+
+        // Baggage cart train
+        var bagTrain = new THREE.Group();
+        var tugBody = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 2), MAT.vehicleBody);
+        tugBody.position.y = 0.6;
+        bagTrain.add(tugBody);
+        var tugRoof = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.05, 1.4), MAT.darkPlastic);
+        tugRoof.position.set(0, 1.25, -0.2);
+        bagTrain.add(tugRoof);
+        for (var bc = 0; bc < 3; bc++) {
+            var cart = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.4, 1.8), MAT.metal);
+            cart.position.set(0, 0.35, -2.5 - bc * 2.2);
+            bagTrain.add(cart);
+            // Luggage on cart
+            for (var lg = 0; lg < 3; lg++) {
+                var luggage = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.4, 0.3, 0.5),
+                    new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL(Math.random() * 0.1 + 0.55, 0.6, 0.4), roughness: 0.8 })
+                );
+                luggage.position.set((lg - 1) * 0.45, 0.7, -2.5 - bc * 2.2);
+                luggage.rotation.y = Math.random() * 0.3;
+                bagTrain.add(luggage);
+            }
+        }
+        bagTrain.position.set(5, 0, 12);
+        bagTrain.rotation.y = 0.3;
+        airportGroup.add(bagTrain);
+
+        // Pushback tug
+        var pushTug = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.7, 2.5), MAT.vehicleBody);
+        pushTug.position.set(22, 0.5, 5);
+        airportGroup.add(pushTug);
+
+        // ── Windsock ──
+        var wsGroup = new THREE.Group();
+        var wsPole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 6, 6), MAT.metal);
+        wsPole.position.y = 3;
+        wsGroup.add(wsPole);
+        // Sock (cone shape, alternating orange/white)
+        for (var ws = 0; ws < 5; ws++) {
+            var sockR = 0.4 - ws * 0.06;
+            var sockSeg = new THREE.Mesh(
+                new THREE.CylinderGeometry(sockR - 0.06, sockR, 0.5, 8, 1, true),
+                ws % 2 === 0 ? MAT.windsock : MAT.windsockWhite
+            );
+            sockSeg.rotation.z = -Math.PI / 2;
+            sockSeg.position.set(0.3 + ws * 0.45, 5.8, 0);
+            wsGroup.add(sockSeg);
+        }
+        wsGroup.position.set(55, 0, -40);
+        airportGroup.add(wsGroup);
+
+        // ── Terminal details ──
+        // Entrance awning support columns
+        for (var col = -2; col <= 2; col++) {
+            var column = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 4, 8), MAT.metal);
+            column.position.set(-25 + col * 4.5, 2, 15.5);
+            airportGroup.add(column);
+        }
+
+        // Terminal window mullions (vertical dividers in glass facade)
+        for (var mul = -22; mul <= -28 + 48; mul += 3) {
+            var mullion = new THREE.Mesh(new THREE.BoxGeometry(0.08, 8, 0.1), MAT.metal);
+            mullion.position.set(mul, 7, 12.52);
+            airportGroup.add(mullion);
+        }
+
+        // Gate number sign
+        var gateSign = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 0.1), MAT.signPanel);
+        gateSign.position.set(-10, 10.5, 12.52);
+        airportGroup.add(gateSign);
+
+        // PAPI approach lights (red/white light pairs)
+        var papiColors = [0xff0000, 0xff0000, 0xffffff, 0xffffff];
+        for (var pp = 0; pp < 4; pp++) {
+            var papiLight = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.3, 0.3),
+                new THREE.MeshBasicMaterial({ color: papiColors[pp] })
+            );
+            papiLight.position.set(40 + (pp - 1.5) * 2, 0.3, -195);
+            airportGroup.add(papiLight);
+        }
+
+        // Approach lights (lead-in strobe line)
+        for (var ap = 0; ap < 8; ap++) {
+            var appLight = new THREE.Mesh(
+                new THREE.SphereGeometry(0.2, 6, 6),
+                new THREE.MeshBasicMaterial({ color: 0xffffff })
+            );
+            appLight.position.set(40, 0.3, -200 - ap * 8);
+            airportGroup.add(appLight);
+        }
+
+        // Perimeter fence (simple posts and wire)
+        for (var fp = -200; fp <= 200; fp += 15) {
+            var fPost = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2, 4), MAT.metal);
+            fPost.position.set(-70, 1, fp);
+            airportGroup.add(fPost);
+        }
+        var fenceWire = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 400), MAT.metal);
+        fenceWire.position.set(-70, 1.8, 0);
+        airportGroup.add(fenceWire);
+        var fenceWire2 = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.02, 400), MAT.metal);
+        fenceWire2.position.set(-70, 1.2, 0);
+        airportGroup.add(fenceWire2);
     }
 
     // Plane is built along Z-axis: nose = +Z, tail = -Z, wings along X, up = Y
@@ -611,19 +806,49 @@
         var body = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 1.2, 16, 10), MAT.white);
         body.rotation.x = Math.PI / 2;
         g.add(body);
+        // Blue cheatline
+        var mStripe = new THREE.Mesh(
+            new THREE.CylinderGeometry(1.22, 1.22, 16, 10, 1, false, Math.PI * 0.47, Math.PI * 0.06),
+            MAT.blue
+        );
+        mStripe.rotation.x = Math.PI / 2;
+        g.add(mStripe);
         // Nose
-        var nose = new THREE.Mesh(new THREE.ConeGeometry(1.2, 3, 10), MAT.white);
+        var nose = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), MAT.white);
         nose.rotation.x = -Math.PI / 2;
-        nose.position.z = 9.5;
+        nose.scale.z = 1.5;
+        nose.position.z = 8;
         g.add(nose);
+        // Tail cone
+        var tailC = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 1.2, 4, 10), MAT.white);
+        tailC.rotation.x = Math.PI / 2;
+        tailC.position.z = -10;
+        g.add(tailC);
         // Wings
         var wing = new THREE.Mesh(new THREE.BoxGeometry(14, 0.15, 3), MAT.metal);
         wing.position.set(0, -0.3, -1);
         g.add(wing);
+        // Winglets
+        for (var wl = -1; wl <= 1; wl += 2) {
+            var winglet = new THREE.Mesh(new THREE.BoxGeometry(0.1, 1, 0.6), MAT.white);
+            winglet.position.set(wl * 7.1, 0.2, -1);
+            g.add(winglet);
+        }
+        // Engines
+        for (var eng = -1; eng <= 1; eng += 2) {
+            var nacMini = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, 2, 8), MAT.metal);
+            nacMini.rotation.x = Math.PI / 2;
+            nacMini.position.set(eng * 3.5, -0.8, -0.5);
+            g.add(nacMini);
+        }
         // Tail fin
         var tailFin = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3, 2), MAT.blue);
         tailFin.position.set(0, 2, -8);
         g.add(tailFin);
+        // Horizontal stabilizers
+        var hStab = new THREE.Mesh(new THREE.BoxGeometry(5, 0.1, 1.5), MAT.metal);
+        hStab.position.set(0, 1, -9);
+        g.add(hStab);
         return g;
     }
 
@@ -679,20 +904,106 @@
         apu.position.z = -halfLen - 8.1;
         planeExtGroup.add(apu);
 
-        // ── Passenger windows (both sides) ──
+        // ── Passenger windows (both sides, with frames) ──
         var wGeo = new THREE.CircleGeometry(0.15, 10);
+        var wFrameGeo = new THREE.RingGeometry(0.14, 0.19, 12);
+        var wFrameMat = new THREE.MeshBasicMaterial({ color: 0x666666, side: THREE.DoubleSide });
         for (var wz = -halfLen + 4; wz <= halfLen - 3; wz += 1.2) {
-            // Left side (+X)
-            var wL = new THREE.Mesh(wGeo, MAT.glass);
-            wL.position.set(R + 0.02, R * 0.35, wz);
-            wL.rotation.y = Math.PI / 2;
-            planeExtGroup.add(wL);
-            // Right side (-X)
-            var wR = new THREE.Mesh(wGeo, MAT.glass);
-            wR.position.set(-R - 0.02, R * 0.35, wz);
-            wR.rotation.y = -Math.PI / 2;
-            planeExtGroup.add(wR);
+            for (var wSide = -1; wSide <= 1; wSide += 2) {
+                var wM = new THREE.Mesh(wGeo, MAT.glass);
+                wM.position.set(wSide * (R + 0.02), R * 0.35, wz);
+                wM.rotation.y = wSide > 0 ? Math.PI / 2 : -Math.PI / 2;
+                planeExtGroup.add(wM);
+                // Window frame ring
+                var wF = new THREE.Mesh(wFrameGeo, wFrameMat);
+                wF.position.set(wSide * (R + 0.025), R * 0.35, wz);
+                wF.rotation.y = wSide > 0 ? Math.PI / 2 : -Math.PI / 2;
+                planeExtGroup.add(wF);
+            }
         }
+
+        // ── Fuselage door outlines ──
+        var doorOutGeo = new THREE.PlaneGeometry(1.0, 1.8);
+        var doorEdges = new THREE.EdgesGeometry(doorOutGeo);
+        var doorLineMat = new THREE.LineBasicMaterial({ color: 0x555555, linewidth: 1 });
+        // Forward left door (main boarding door)
+        var doorFL = new THREE.LineSegments(doorEdges, doorLineMat);
+        doorFL.position.set(R + 0.03, R * 0.2, halfLen - 4);
+        doorFL.rotation.y = Math.PI / 2;
+        planeExtGroup.add(doorFL);
+        // Forward right door
+        var doorFR = new THREE.LineSegments(doorEdges.clone(), doorLineMat);
+        doorFR.position.set(-R - 0.03, R * 0.2, halfLen - 4);
+        doorFR.rotation.y = -Math.PI / 2;
+        planeExtGroup.add(doorFR);
+        // Aft left door
+        var doorAL = new THREE.LineSegments(doorEdges.clone(), doorLineMat);
+        doorAL.position.set(R + 0.03, R * 0.2, -halfLen + 7);
+        doorAL.rotation.y = Math.PI / 2;
+        planeExtGroup.add(doorAL);
+        // Aft right door
+        var doorAR = new THREE.LineSegments(doorEdges.clone(), doorLineMat);
+        doorAR.position.set(-R - 0.03, R * 0.2, -halfLen + 7);
+        doorAR.rotation.y = -Math.PI / 2;
+        planeExtGroup.add(doorAR);
+
+        // ── Panel lines (fuselage detail seams) ──
+        for (var plz = -halfLen + 3; plz < halfLen - 2; plz += 6) {
+            // Circumferential panel line (ring around fuselage)
+            var ringGeo = new THREE.RingGeometry(R + 0.01, R + 0.025, 32);
+            var ring = new THREE.Mesh(ringGeo, MAT.panelLine);
+            ring.position.z = plz;
+            ring.material.transparent = true;
+            ring.material.opacity = 0.15;
+            planeExtGroup.add(ring);
+        }
+
+        // ── Belly fairing (under fuselage between wings) ──
+        var fairingGeo = new THREE.BoxGeometry(1.2, 0.25, 5);
+        var fairing = new THREE.Mesh(fairingGeo, MAT.metal);
+        fairing.position.set(0, -R - 0.1, -1);
+        planeExtGroup.add(fairing);
+
+        // ── Fuselage red accent stripe (below windows) ──
+        var accentGeo = new THREE.CylinderGeometry(R + 0.018, R + 0.018, PLANE.len, 32, 1, false, Math.PI * 0.40, Math.PI * 0.04);
+        var accent = new THREE.Mesh(accentGeo, MAT.fuselageAccent);
+        accent.rotation.x = Math.PI / 2;
+        planeExtGroup.add(accent);
+
+        // ── Antenna (shark fin on top of fuselage) ──
+        var antennaShape = new THREE.Shape();
+        antennaShape.moveTo(0, 0);
+        antennaShape.lineTo(0.8, 0);
+        antennaShape.lineTo(0.3, 0.5);
+        antennaShape.lineTo(0, 0);
+        var antennaGeo = new THREE.ExtrudeGeometry(antennaShape, { depth: 0.06, bevelEnabled: false });
+        var antenna = new THREE.Mesh(antennaGeo, MAT.darkPlastic);
+        antenna.rotation.x = Math.PI / 2;
+        antenna.rotation.y = Math.PI / 2;
+        antenna.position.set(-0.03, R + 0.01, 3);
+        planeExtGroup.add(antenna);
+
+        // ── Navigation lights ──
+        // Red on left wingtip
+        var navRedLight = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), MAT.navRed);
+        navRedLight.position.set(PLANE.wingSpan / 2 + 0.1, -R * 0.35 + 0.1, -1);
+        planeExtGroup.add(navRedLight);
+        // Green on right wingtip
+        var navGreenLight = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), MAT.navGreen);
+        navGreenLight.position.set(-PLANE.wingSpan / 2 - 0.1, -R * 0.35 + 0.1, -1);
+        planeExtGroup.add(navGreenLight);
+        // White on tail
+        var navTailLight = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), MAT.navWhite);
+        navTailLight.position.set(0, R + 0.3, -halfLen - 7.8);
+        planeExtGroup.add(navTailLight);
+        // Anti-collision beacon (red, on top of fuselage)
+        var beaconTop = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), MAT.navRed);
+        beaconTop.position.set(0, R + 0.1, 0);
+        planeExtGroup.add(beaconTop);
+        // Belly beacon
+        var beaconBot = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), MAT.navRed);
+        beaconBot.position.set(0, -R - 0.1, 0);
+        planeExtGroup.add(beaconBot);
 
         // ── Wings (tapered airfoil shape, white) ──
         // Wing uses a custom ExtrudeGeometry for proper airfoil cross-section with taper
@@ -767,7 +1078,7 @@
         planeExtGroup.add(makeWing(1));
         planeExtGroup.add(makeWing(-1));
 
-        // ── Engines (under wings) ──
+        // ── Engines (under wings, with spinning fan blades) ──
         function makeEngine(xPos) {
             var eGroup = new THREE.Group();
             // Nacelle (cylinder along Z)
@@ -775,20 +1086,50 @@
             var nacelle = new THREE.Mesh(nacGeo, MAT.metal);
             nacelle.rotation.x = Math.PI / 2;
             eGroup.add(nacelle);
-            // Intake ring
-            var intakeGeo = new THREE.RingGeometry(0.25, 0.65, 18);
-            var intake = new THREE.Mesh(intakeGeo, new THREE.MeshBasicMaterial({ color: 0x111111 }));
+            // Exhaust nozzle (rear, darker ring)
+            var exhaustGeo = new THREE.CylinderGeometry(0.55, 0.62, 0.4, 18);
+            var exhaust = new THREE.Mesh(exhaustGeo, MAT.darkPlastic);
+            exhaust.rotation.x = Math.PI / 2;
+            exhaust.position.z = -1.8;
+            eGroup.add(exhaust);
+            // Intake ring (thick lip)
+            var intakeGeo = new THREE.TorusGeometry(0.65, 0.06, 8, 24);
+            var intake = new THREE.Mesh(intakeGeo, MAT.metal);
             intake.position.z = 1.75;
             eGroup.add(intake);
-            // Fan blades
-            var fanGeo = new THREE.CircleGeometry(0.55, 5);
-            var fan = new THREE.Mesh(fanGeo, MAT.darkPlastic);
-            fan.position.z = 1.7;
-            eGroup.add(fan);
+            // Inner dark circle (engine interior)
+            var innerGeo = new THREE.CircleGeometry(0.62, 18);
+            var inner = new THREE.Mesh(innerGeo, new THREE.MeshBasicMaterial({ color: 0x0a0a0a }));
+            inner.position.z = 1.73;
+            eGroup.add(inner);
+            // Spinner cone (center hub)
+            var spinnerGeo = new THREE.ConeGeometry(0.12, 0.35, 12);
+            var spinner = new THREE.Mesh(spinnerGeo, MAT.metal);
+            spinner.rotation.x = -Math.PI / 2;
+            spinner.position.z = 1.85;
+            eGroup.add(spinner);
+            // Fan blade disc (group that rotates)
+            var fanGroup = new THREE.Group();
+            fanGroup.position.z = 1.72;
+            var bladeCount = 18;
+            var bladeMat = new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.3, metalness: 0.8, side: THREE.DoubleSide });
+            for (var b = 0; b < bladeCount; b++) {
+                var angle = (b / bladeCount) * Math.PI * 2;
+                var bladeGeo = new THREE.PlaneGeometry(0.04, 0.48);
+                var blade = new THREE.Mesh(bladeGeo, bladeMat);
+                blade.position.set(Math.cos(angle) * 0.35, Math.sin(angle) * 0.35, 0);
+                blade.rotation.z = angle;
+                // Slight twist to simulate airfoil
+                blade.rotation.x = 0.3;
+                fanGroup.add(blade);
+            }
+            eGroup.add(fanGroup);
+            engineFans.push(fanGroup);
             // Pylon (connects engine to wing)
-            var pylonGeo = new THREE.BoxGeometry(0.15, 0.7, 2.0);
+            var pylonGeo = new THREE.BoxGeometry(0.15, 0.7, 2.5);
             var pylon = new THREE.Mesh(pylonGeo, MAT.metal);
             pylon.position.y = 0.7;
+            pylon.position.z = -0.2;
             eGroup.add(pylon);
 
             eGroup.position.set(xPos, -R - 0.6, 0);
@@ -819,12 +1160,31 @@
         vfin.position.set(-0.075, R, -halfLen + 2);
         planeExtGroup.add(vfin);
 
-        // ── Horizontal Stabilizers ──
+        // ── Tail livery accent (red swoosh on vertical fin) ──
+        var liveryShape = new THREE.Shape();
+        liveryShape.moveTo(0, 0);
+        liveryShape.lineTo(6, 0);
+        liveryShape.lineTo(2.5, 3);
+        liveryShape.lineTo(0, 0);
+        var liveryGeo = new THREE.ExtrudeGeometry(liveryShape, { depth: 0.18, bevelEnabled: false });
+        var livery = new THREE.Mesh(liveryGeo, MAT.fuselageAccent);
+        livery.rotation.x = Math.PI / 2;
+        livery.rotation.y = Math.PI / 2;
+        livery.position.set(-0.09, R, -halfLen + 2);
+        planeExtGroup.add(livery);
+
+        // ── Horizontal Stabilizers (with taper) ──
         for (var hs = -1; hs <= 1; hs += 2) {
+            var hsGroup = new THREE.Group();
             var hsGeo = new THREE.BoxGeometry(6, 0.15, 3);
             var hStab = new THREE.Mesh(hsGeo, MAT.metal);
-            hStab.position.set(hs * 3.5, R + 0.2, -halfLen - 1);
-            planeExtGroup.add(hStab);
+            hsGroup.add(hStab);
+            // Tip fairing
+            var hsTip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 1.5), MAT.metal);
+            hsTip.position.set(hs * 3.1, 0, -0.5);
+            hsGroup.add(hsTip);
+            hsGroup.position.set(hs * 3.5, R + 0.2, -halfLen - 1);
+            planeExtGroup.add(hsGroup);
         }
 
         // ── Landing Gear ──
@@ -1009,6 +1369,104 @@
             }
         }
 
+        // ── Row numbers (on overhead bins, every row) ──
+        var rowNumMat = new THREE.MeshBasicMaterial({ color: 0x88aacc });
+        for (var rn = 0; rn < numRows; rn++) {
+            var rnZ = firstRowZ + rn * rowPitch;
+            for (var rnSide = -1; rnSide <= 1; rnSide += 2) {
+                var rowTag = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 0.08), rowNumMat);
+                rowTag.position.set(rnSide * (halfW - binD - 0.06), binY - binH / 2 - 0.01, rnZ);
+                rowTag.rotation.y = rnSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+                cabinGroup.add(rowTag);
+            }
+        }
+
+        // ── Air vent / reading light panel (PSU panel above each seat group) ──
+        var psuMat = new THREE.MeshStandardMaterial({ color: 0xd0ccc0, roughness: 0.6 });
+        for (var psu = -halfL + 1.5; psu < halfL - 1; psu += rowPitch * 3) {
+            for (var psuSide = -1; psuSide <= 1; psuSide += 2) {
+                // PSU strip (Passenger Service Unit)
+                var psuPanel = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.04, 0.2), psuMat);
+                psuPanel.position.set(psuSide * (halfW - binD - 0.12), binY - binH / 2 + 0.02, psu);
+                cabinGroup.add(psuPanel);
+                // Air nozzle (gasper)
+                var nozzleMat = new THREE.MeshStandardMaterial({ color: 0x999999, roughness: 0.3, metalness: 0.5 });
+                var gasper = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.03, 0.04, 8), nozzleMat);
+                gasper.position.set(psuSide * (halfW - binD - 0.12), binY - binH / 2 - 0.01, psu);
+                cabinGroup.add(gasper);
+            }
+        }
+
+        // ── No-smoking / Seatbelt illuminated signs (on overhead bin faces) ──
+        var signLitMat = new THREE.MeshBasicMaterial({ color: 0x224433 });
+        for (var sgz = -halfL + 2.5; sgz < halfL - 2; sgz += 6) {
+            for (var sgSide = -1; sgSide <= 1; sgSide += 2) {
+                // Seatbelt sign
+                var sbSign = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.06, 0.14), signLitMat);
+                sbSign.position.set(sgSide * (halfW - binD - 0.053), binY - 0.05, sgz);
+                cabinGroup.add(sbSign);
+                // No smoking sign (offset from seatbelt)
+                var nsSign = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.06, 0.14), signLitMat);
+                nsSign.position.set(sgSide * (halfW - binD - 0.053), binY - 0.05, sgz + 0.2);
+                cabinGroup.add(nsSign);
+            }
+        }
+
+        // ── Lavatory (rear of cabin) ──
+        var lavZ = -halfL + 0.2;
+        // Lavatory wall (partition)
+        var lavWall = new THREE.Mesh(new THREE.BoxGeometry(CW, CH * 0.9, 0.06), MAT.plastic);
+        lavWall.position.set(0, CH * 0.45, lavZ);
+        cabinGroup.add(lavWall);
+        // Lavatory door (left side)
+        var lavDoorMesh = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.7, 0.04), MAT.lavDoor);
+        lavDoorMesh.position.set(-0.7, 0.85, lavZ + 0.05);
+        cabinGroup.add(lavDoorMesh);
+        // Door handle
+        var lavHandle = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.03), MAT.metal);
+        lavHandle.position.set(-0.5, 0.9, lavZ + 0.08);
+        cabinGroup.add(lavHandle);
+        // Occupied sign (red/green indicator)
+        var occSign = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.04, 0.01), MAT.emergencyGreen);
+        occSign.position.set(-0.7, 1.75, lavZ + 0.06);
+        cabinGroup.add(occSign);
+        // Lavatory door (right side)
+        var lavDoor2 = new THREE.Mesh(new THREE.BoxGeometry(0.65, 1.7, 0.04), MAT.lavDoor);
+        lavDoor2.position.set(0.7, 0.85, lavZ + 0.05);
+        cabinGroup.add(lavDoor2);
+
+        // ── Galley area (front of cabin, behind cockpit) ──
+        var galleyZ = halfL - 0.8;
+        // Galley cart slot (stainless steel units)
+        for (var gc = -1; gc <= 1; gc += 2) {
+            var galleyUnit = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.0, 0.6), MAT.stainless);
+            galleyUnit.position.set(gc * (halfW - 0.35), 0.5, galleyZ);
+            cabinGroup.add(galleyUnit);
+            // Counter top
+            var counter = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.03, 0.65), MAT.darkPlastic);
+            counter.position.set(gc * (halfW - 0.35), 1.02, galleyZ);
+            cabinGroup.add(counter);
+        }
+        // Galley curtain rod
+        var curtainRod = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, CW - 0.5, 6), MAT.metal);
+        curtainRod.rotation.z = Math.PI / 2;
+        curtainRod.position.set(0, CH - 0.15, galleyZ - 0.3);
+        cabinGroup.add(curtainRod);
+
+        // ── Cabin crew jump seats (folded, near doors) ──
+        for (var jsSide = -1; jsSide <= 1; jsSide += 2) {
+            var jumpSeat = new THREE.Group();
+            var jsBack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.7, 0.04), MAT.darkPlastic);
+            jsBack.position.y = 0.7;
+            jumpSeat.add(jsBack);
+            var jsCush = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.04, 0.25), MAT.seat);
+            jsCush.position.set(0, 0.38, 0.12);
+            jumpSeat.add(jsCush);
+            jumpSeat.position.set(jsSide * (halfW - 0.3), 0, halfL - 0.5);
+            jumpSeat.rotation.y = Math.PI;
+            cabinGroup.add(jumpSeat);
+        }
+
         cabinGroup.visible = false;
     }
 
@@ -1042,6 +1500,20 @@
 
         // Seat pocket (fabric on back)
         sg.add(pm(new THREE.BoxGeometry(W*0.8, 0.18, 0.008), MAT.darkPlastic, 0, seatY + 0.12, -D/2 + backT + 0.005));
+
+        // Tray table (folded, on back of seat in front)
+        var tray = pm(new THREE.BoxGeometry(W*0.75, 0.015, 0.25), MAT.trayTable, 0, seatY + cushionH + backH * 0.35, -D/2 + backT + 0.01);
+        sg.add(tray);
+        // Tray latch
+        sg.add(pm(new THREE.BoxGeometry(0.06, 0.03, 0.03), MAT.darkPlastic, 0, seatY + cushionH + backH * 0.35 + 0.02, -D/2 + backT + 0.02));
+
+        // Seatbelt (draped on cushion)
+        var beltL = pm(new THREE.BoxGeometry(0.025, 0.008, D*0.4), MAT.seatbeltOrange, -W*0.15, seatY + cushionH + 0.01, 0.05);
+        sg.add(beltL);
+        var beltR = pm(new THREE.BoxGeometry(0.025, 0.008, D*0.4), MAT.seatbeltOrange, W*0.15, seatY + cushionH + 0.01, 0.05);
+        sg.add(beltR);
+        // Belt buckle (center)
+        sg.add(pm(new THREE.BoxGeometry(0.05, 0.015, 0.03), MAT.metal, 0, seatY + cushionH + 0.015, 0.1));
 
         sg.position.set(x, 0, z);
         return sg;
@@ -1103,70 +1575,200 @@
     //  SURVIVAL SCENE
     // ═══════════════════════════════════════════════════
     function buildSurvivalScene() {
-        // Dark terrain
+        // Dark terrain with slight undulation
+        var groundGeo = new THREE.PlaneGeometry(200, 200, 20, 20);
+        var groundVerts = groundGeo.attributes.position.array;
+        for (var gv = 0; gv < groundVerts.length; gv += 3) {
+            groundVerts[gv + 2] += (Math.random() - 0.5) * 0.6; // slight bumpiness
+        }
+        groundGeo.computeVertexNormals();
         var ground = new THREE.Mesh(
-            new THREE.PlaneGeometry(200, 200),
+            groundGeo,
             new THREE.MeshStandardMaterial({ color: 0x1a2a10, roughness: 0.95 })
         );
         ground.rotation.x = -Math.PI / 2;
         ground.position.y = -0.5;
         survivalGroup.add(ground);
 
-        // Wreckage pieces
-        for (var i = 0; i < 20; i++) {
-            var size = 0.5 + Math.random() * 3;
-            var piece = new THREE.Mesh(
-                new THREE.BoxGeometry(size, size * 0.5, size * 0.7),
-                new THREE.MeshStandardMaterial({
-                    color: new THREE.Color().setHSL(0, 0, 0.3 + Math.random() * 0.4),
-                    roughness: 0.9
-                })
+        // ── Broken fuselage section (recognizable tube) ──
+        var fuseWreckGeo = new THREE.CylinderGeometry(2.0, 2.0, 12, 16, 1, true, 0, Math.PI * 1.5);
+        var fuseWreckMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.8, side: THREE.DoubleSide });
+        var fuseWreck = new THREE.Mesh(fuseWreckGeo, fuseWreckMat);
+        fuseWreck.rotation.z = Math.PI / 2;
+        fuseWreck.rotation.y = 0.3;
+        fuseWreck.position.set(-5, 1.5, -8);
+        survivalGroup.add(fuseWreck);
+
+        // Broken nose section
+        var noseWreck = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.5, 2.0, 5, 12, 1, true),
+            fuseWreckMat
+        );
+        noseWreck.rotation.z = Math.PI / 2 + 0.3;
+        noseWreck.position.set(-13, 0.8, -10);
+        noseWreck.rotation.y = 0.5;
+        survivalGroup.add(noseWreck);
+
+        // Broken wing section
+        var wingWreck = new THREE.Mesh(
+            new THREE.BoxGeometry(8, 0.3, 3),
+            new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.7 })
+        );
+        wingWreck.position.set(8, 0.3, -5);
+        wingWreck.rotation.z = 0.15;
+        wingWreck.rotation.y = 0.8;
+        survivalGroup.add(wingWreck);
+
+        // Tail section (vertical fin, broken)
+        var tailWreckShape = new THREE.Shape();
+        tailWreckShape.moveTo(0, 0);
+        tailWreckShape.lineTo(3, 0);
+        tailWreckShape.lineTo(1.5, 4);
+        tailWreckShape.lineTo(0, 0);
+        var tailWreck = new THREE.Mesh(
+            new THREE.ExtrudeGeometry(tailWreckShape, { depth: 0.12, bevelEnabled: false }),
+            MAT.blue
+        );
+        tailWreck.position.set(-18, 0, -12);
+        tailWreck.rotation.z = -0.2;
+        survivalGroup.add(tailWreck);
+
+        // ── Scattered debris (metal fragments, seat pieces) ──
+        var debrisColors = [0x888888, 0x999999, 0x666666, 0xaaaaaa, 0x1e3a6e, 0xe0d8cc];
+        for (var i = 0; i < 30; i++) {
+            var dSize = 0.2 + Math.random() * 1.5;
+            var debrisMat = new THREE.MeshStandardMaterial({
+                color: debrisColors[Math.floor(Math.random() * debrisColors.length)],
+                roughness: 0.85
+            });
+            var debrisGeo = Math.random() < 0.5 ?
+                new THREE.BoxGeometry(dSize, dSize * 0.3, dSize * 0.6) :
+                new THREE.PlaneGeometry(dSize, dSize * 0.8);
+            var debris = new THREE.Mesh(debrisGeo, debrisMat);
+            if (debrisGeo.type === 'PlaneGeometry') debris.material.side = THREE.DoubleSide;
+            debris.position.set(
+                (Math.random() - 0.5) * 50,
+                dSize * 0.1,
+                (Math.random() - 0.5) * 50
             );
-            piece.position.set(
-                (Math.random() - 0.5) * 40,
-                size * 0.2,
-                (Math.random() - 0.5) * 40
-            );
-            piece.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * 0.5);
-            survivalGroup.add(piece);
+            debris.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * 0.5);
+            survivalGroup.add(debris);
         }
 
-        // Fire glow (simple)
+        // ── Scattered luggage ──
+        var luggageColors = [0x8B0000, 0x1a1a6e, 0x2d5a1e, 0x333333, 0x4a2a0a, 0xcc7722];
+        for (var lu = 0; lu < 12; lu++) {
+            var lugMat = new THREE.MeshStandardMaterial({
+                color: luggageColors[Math.floor(Math.random() * luggageColors.length)],
+                roughness: 0.8
+            });
+            var lugSize = 0.3 + Math.random() * 0.3;
+            var lugPiece = new THREE.Mesh(
+                new THREE.BoxGeometry(lugSize * 0.8, lugSize * 0.6, lugSize),
+                lugMat
+            );
+            lugPiece.position.set(
+                (Math.random() - 0.5) * 30,
+                lugSize * 0.3,
+                (Math.random() - 0.5) * 30
+            );
+            lugPiece.rotation.set(Math.random() * 0.8, Math.random() * Math.PI, Math.random() * 0.3);
+            survivalGroup.add(lugPiece);
+        }
+
+        // ── Dirt/gouge marks (impact trail) ──
+        var trailMat = new THREE.MeshStandardMaterial({ color: 0x0f1a08, roughness: 1.0 });
+        for (var tr = 0; tr < 6; tr++) {
+            var trailPiece = new THREE.Mesh(
+                new THREE.PlaneGeometry(3 + Math.random() * 4, 1.5 + Math.random() * 2),
+                trailMat
+            );
+            trailPiece.rotation.x = -Math.PI / 2;
+            trailPiece.position.set(-8 + tr * 5, -0.45, -6 + tr * 1.5);
+            trailPiece.rotation.z = 0.3;
+            survivalGroup.add(trailPiece);
+        }
+
+        // ── Tree silhouettes (around the crash site) ──
+        function makeTree(x, z) {
+            var tg = new THREE.Group();
+            var trunkMat = new THREE.MeshStandardMaterial({ color: 0x2a1a0a, roughness: 0.95 });
+            var trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.25, 4 + Math.random() * 3, 6), trunkMat);
+            trunk.position.y = 2;
+            tg.add(trunk);
+            var foliageMat = new THREE.MeshStandardMaterial({ color: 0x0a1a05, roughness: 0.95 });
+            var foliageH = 3 + Math.random() * 2;
+            var foliage = new THREE.Mesh(new THREE.ConeGeometry(1.5 + Math.random(), foliageH, 6), foliageMat);
+            foliage.position.y = 4 + foliageH / 2;
+            tg.add(foliage);
+            tg.position.set(x, -0.5, z);
+            return tg;
+        }
+        // Ring of trees around crash site
+        for (var t = 0; t < 20; t++) {
+            var angle = (t / 20) * Math.PI * 2;
+            var dist = 35 + Math.random() * 15;
+            survivalGroup.add(makeTree(Math.cos(angle) * dist, Math.sin(angle) * dist));
+        }
+        // Some closer trees
+        survivalGroup.add(makeTree(20, 15));
+        survivalGroup.add(makeTree(-22, 10));
+        survivalGroup.add(makeTree(15, -18));
+
+        // Fire glow (multiple lights for realism)
         var fireLight = new THREE.PointLight(0xff6600, 2, 30);
         fireLight.position.set(5, 2, -3);
         survivalGroup.add(fireLight);
+        var fireLight2 = new THREE.PointLight(0xff4400, 1.5, 20);
+        fireLight2.position.set(-6, 1.5, -7);
+        survivalGroup.add(fireLight2);
 
-        // Fire particles (simple mesh clusters)
-        for (var f = 0; f < 8; f++) {
+        // Fire particles (mesh clusters)
+        for (var f = 0; f < 12; f++) {
+            var fireX = f < 8 ? 5 + (Math.random() - 0.5) * 4 : -6 + (Math.random() - 0.5) * 3;
+            var fireZ = f < 8 ? -3 + (Math.random() - 0.5) * 4 : -7 + (Math.random() - 0.5) * 3;
             var flame = new THREE.Mesh(
-                new THREE.ConeGeometry(0.3 + Math.random() * 0.4, 1 + Math.random() * 1.5, 6),
-                new THREE.MeshBasicMaterial({ color: Math.random() < 0.5 ? 0xff4400 : 0xff8800, transparent: true, opacity: 0.8 })
+                new THREE.ConeGeometry(0.3 + Math.random() * 0.5, 1 + Math.random() * 2, 6),
+                new THREE.MeshBasicMaterial({
+                    color: Math.random() < 0.3 ? 0xff2200 : (Math.random() < 0.6 ? 0xff6600 : 0xffaa00),
+                    transparent: true, opacity: 0.8
+                })
             );
-            flame.position.set(5 + (Math.random() - 0.5) * 3, 0.5 + Math.random(), -3 + (Math.random() - 0.5) * 3);
+            flame.position.set(fireX, 0.5 + Math.random(), fireZ);
             flame.userData.baseY = flame.position.y;
             flame.userData.flicker = Math.random() * Math.PI * 2;
             survivalGroup.add(flame);
         }
 
-        // Smoke column
-        for (var sm = 0; sm < 12; sm++) {
+        // Smoke column (thicker, more realistic)
+        for (var sm = 0; sm < 18; sm++) {
+            var smokeR = 1.5 + sm * 0.3 + Math.random() * 1.5;
             var smoke = new THREE.Mesh(
-                new THREE.SphereGeometry(1 + Math.random() * 2, 6, 6),
-                new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.3 + Math.random() * 0.3 })
+                new THREE.SphereGeometry(smokeR, 6, 6),
+                new THREE.MeshBasicMaterial({ color: sm < 6 ? 0x333333 : 0x1a1a1a, transparent: true, opacity: 0.35 - sm * 0.015 })
             );
-            smoke.position.set(5 + (Math.random() - 0.5) * 2, 4 + sm * 2, -3 + (Math.random() - 0.5) * 2);
+            smoke.position.set(5 + (Math.random() - 0.5) * 3, 4 + sm * 2.5, -3 + (Math.random() - 0.5) * 3);
             survivalGroup.add(smoke);
         }
 
-        // Emergency flashers on ground
-        for (var ef = 0; ef < 5; ef++) {
+        // Emergency flashers on ground (scattered)
+        for (var ef = 0; ef < 6; ef++) {
             var flasher = new THREE.Mesh(
                 new THREE.SphereGeometry(0.1, 6, 6),
                 new THREE.MeshBasicMaterial({ color: 0xff0000 })
             );
-            flasher.position.set(-10 + ef * 5, 0.1, 8);
+            flasher.position.set(-12 + ef * 6, 0.1, 10 + Math.sin(ef) * 3);
             flasher.userData.flashPhase = ef * 0.5;
             survivalGroup.add(flasher);
+        }
+
+        // ── Scattered papers / documents ──
+        var paperMat = new THREE.MeshBasicMaterial({ color: 0xeeeedd, side: THREE.DoubleSide });
+        for (var pp = 0; pp < 8; pp++) {
+            var paper = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.2), paperMat);
+            paper.position.set((Math.random() - 0.5) * 20, 0.02 + Math.random() * 0.5, (Math.random() - 0.5) * 20);
+            paper.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+            survivalGroup.add(paper);
         }
 
         survivalGroup.visible = false;
@@ -1991,6 +2593,12 @@
             // Looking at wreckage/fire
             camera.rotation.y = Math.PI * 0.05 + Math.sin(G.time * 0.1) * 0.02 + G.lookX * 0.2;
             camera.rotation.x = -0.05 + G.lookY * 0.1;
+        }
+
+        // ── Animate engine fans ──
+        var fanSpeed = G.phase === 'airport' ? 2 : (G.speed > 0 ? 15 + G.speed * 0.05 : 0);
+        for (var ef = 0; ef < engineFans.length; ef++) {
+            engineFans[ef].rotation.z += fanSpeed * G.delta;
         }
 
         // ── Animate clouds ──
