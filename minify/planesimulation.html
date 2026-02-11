@@ -2857,9 +2857,11 @@
 
         // ── Phase-specific camera ──
         if (G.phase === 'airport') {
-            // Inside terminal, looking toward windows / plane
-            camera.rotation.y = G.lookX * 0.6;
-            camera.rotation.x = G.lookY * 0.2;
+            // Inside terminal, facing toward windows (+Z direction)
+            // rotation.y = PI faces +Z (default 0 faces -Z in Three.js)
+            // lookX is subtracted because at PI, positive rotation goes left
+            camera.rotation.y = Math.PI - G.lookX * 0.6;
+            camera.rotation.x = -0.05 + G.lookY * 0.2;
         }
         if (G.phase === 'boarding') {
             // Standing in aisle, looking forward (+Z)
