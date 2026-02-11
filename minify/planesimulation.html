@@ -750,11 +750,16 @@
         }
 
         // Terminal window mullions (vertical dividers in glass facade)
-        for (var mul = -22; mul <= -28 + 48; mul += 3) {
+        // Facade is 48 wide centered at x=-25, so spans x=-49 to x=-1
+        for (var mul = -48; mul <= -2; mul += 4) {
             var mullion = new THREE.Mesh(new THREE.BoxGeometry(0.08, 8, 0.1), MAT.metal);
             mullion.position.set(mul, 7, 12.52);
             airportGroup.add(mullion);
         }
+        // Horizontal mullion (mid-height divider)
+        var hMullion = new THREE.Mesh(new THREE.BoxGeometry(48, 0.08, 0.1), MAT.metal);
+        hMullion.position.set(-25, 7, 12.52);
+        airportGroup.add(hMullion);
 
         // Gate number sign
         var gateSign = new THREE.Mesh(new THREE.BoxGeometry(2, 0.8, 0.1), MAT.signPanel);
@@ -947,22 +952,32 @@
         doorAR.rotation.y = -Math.PI / 2;
         planeExtGroup.add(doorAR);
 
-        // ── Panel lines (fuselage detail seams) ──
-        for (var plz = -halfLen + 3; plz < halfLen - 2; plz += 6) {
-            // Circumferential panel line (ring around fuselage)
-            var ringGeo = new THREE.RingGeometry(R + 0.01, R + 0.025, 32);
-            var ring = new THREE.Mesh(ringGeo, MAT.panelLine);
-            ring.position.z = plz;
-            ring.material.transparent = true;
-            ring.material.opacity = 0.15;
-            planeExtGroup.add(ring);
-        }
-
-        // ── Belly fairing (under fuselage between wings) ──
-        var fairingGeo = new THREE.BoxGeometry(1.2, 0.25, 5);
-        var fairing = new THREE.Mesh(fairingGeo, MAT.metal);
-        fairing.position.set(0, -R - 0.1, -1);
+        // ── Belly fairing (wing-to-body fairing, smooth transition) ──
+        var fairingGeo = new THREE.BoxGeometry(1.6, 0.2, 8);
+        var fairing = new THREE.Mesh(fairingGeo, MAT.white);
+        fairing.position.set(0, -R - 0.08, -1);
         planeExtGroup.add(fairing);
+
+        // ── Cargo door outlines (forward and aft belly) ──
+        var cargoDoorGeo = new THREE.PlaneGeometry(1.8, 1.2);
+        var cargoDoorEdges = new THREE.EdgesGeometry(cargoDoorGeo);
+        var cargoDoorLineMat = new THREE.LineBasicMaterial({ color: 0x888888 });
+        // Forward cargo door
+        var cargoDoorF = new THREE.LineSegments(cargoDoorEdges, cargoDoorLineMat);
+        cargoDoorF.position.set(0, -R - 0.01, 8);
+        cargoDoorF.rotation.x = Math.PI / 2;
+        planeExtGroup.add(cargoDoorF);
+        // Aft cargo door
+        var cargoDoorA = new THREE.LineSegments(cargoDoorEdges.clone(), cargoDoorLineMat);
+        cargoDoorA.position.set(0, -R - 0.01, -8);
+        cargoDoorA.rotation.x = Math.PI / 2;
+        planeExtGroup.add(cargoDoorA);
+
+        // ── Belly anti-collision stripe (gray panel) ──
+        var bellyPanelGeo = new THREE.CylinderGeometry(R + 0.012, R + 0.012, PLANE.len * 0.7, 32, 1, false, Math.PI * 0.95, Math.PI * 0.10);
+        var bellyPanel = new THREE.Mesh(bellyPanelGeo, new THREE.MeshStandardMaterial({ color: 0xd0d0d0, roughness: 0.5 }));
+        bellyPanel.rotation.x = Math.PI / 2;
+        planeExtGroup.add(bellyPanel);
 
         // ── Fuselage red accent stripe (below windows) ──
         var accentGeo = new THREE.CylinderGeometry(R + 0.018, R + 0.018, PLANE.len, 32, 1, false, Math.PI * 0.40, Math.PI * 0.04);
@@ -1188,29 +1203,72 @@
         }
 
         // ── Landing Gear ──
-        function makeGear(x, z, numWheels) {
+        var gearMetal = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.7 });
+        function makeGear(x, z, numWheels, isMain) {
             var gGroup = new THREE.Group();
-            // Strut
-            var strut = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.5, 8), MAT.darkPlastic);
-            gGroup.add(strut);
-            // Wheels
+            // Main strut (oleo/shock absorber - two-piece telescoping)
+            var strutUpper = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.8, 8), gearMetal);
+            strutUpper.position.y = -0.1;
+            gGroup.add(strutUpper);
+            var strutLower = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.8, 8), gearMetal);
+            strutLower.position.y = -0.8;
+            gGroup.add(strutLower);
+            // Hydraulic lines (thin tubes on strut)
+            var hydraulic = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 1.2, 4), MAT.darkPlastic);
+            hydraulic.position.set(0.08, -0.4, 0);
+            gGroup.add(hydraulic);
+            // Axle
+            var axleW = numWheels * 0.4;
+            var axle = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, axleW, 6), gearMetal);
+            axle.rotation.z = Math.PI / 2;
+            axle.position.y = -1.15;
+            gGroup.add(axle);
+            // Wheels with tire detail
             for (var w = 0; w < numWheels; w++) {
-                var wheel = new THREE.Mesh(
+                var wheelGroup = new THREE.Group();
+                // Tire (torus for roundness)
+                var tire = new THREE.Mesh(
                     new THREE.CylinderGeometry(0.3, 0.3, 0.18, 16),
                     MAT.darkPlastic
                 );
-                wheel.rotation.z = Math.PI / 2; // axle along X
-                wheel.position.set((w - (numWheels - 1) / 2) * 0.5, -0.75, 0);
-                gGroup.add(wheel);
+                tire.rotation.z = Math.PI / 2;
+                wheelGroup.add(tire);
+                // Hub cap (silver center)
+                var hub = new THREE.Mesh(new THREE.CircleGeometry(0.15, 10), gearMetal);
+                hub.position.x = 0.1;
+                hub.rotation.y = Math.PI / 2;
+                wheelGroup.add(hub);
+                var hub2 = new THREE.Mesh(new THREE.CircleGeometry(0.15, 10), gearMetal);
+                hub2.position.x = -0.1;
+                hub2.rotation.y = -Math.PI / 2;
+                wheelGroup.add(hub2);
+                wheelGroup.position.set((w - (numWheels - 1) / 2) * 0.45, -1.15, 0);
+                gGroup.add(wheelGroup);
+            }
+            // Gear door (folded open along fuselage)
+            if (isMain) {
+                var doorGeo = new THREE.BoxGeometry(0.5, 0.04, 1.2);
+                var door = new THREE.Mesh(doorGeo, MAT.white);
+                door.position.set(x > 0 ? 0.4 : -0.4, 0.15, 0);
+                door.rotation.z = x > 0 ? 0.8 : -0.8;
+                gGroup.add(door);
             }
             gGroup.position.set(x, -R, z);
             return gGroup;
         }
         // Nose gear (single pair, forward)
-        planeExtGroup.add(makeGear(0, halfLen - 5, 2));
+        planeExtGroup.add(makeGear(0, halfLen - 5, 2, false));
         // Main gear (double pair, under wings)
-        planeExtGroup.add(makeGear(1.5, -3, 2));
-        planeExtGroup.add(makeGear(-1.5, -3, 2));
+        planeExtGroup.add(makeGear(1.5, -3, 2, true));
+        planeExtGroup.add(makeGear(-1.5, -3, 2, true));
+
+        // ── Gear well covers (on belly, where gear retracts into) ──
+        for (var gwSide = -1; gwSide <= 1; gwSide += 2) {
+            var gearWell = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.8), new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.5 }));
+            gearWell.rotation.x = -Math.PI / 2;
+            gearWell.position.set(gwSide * 1.5, -R + 0.01, -3);
+            planeExtGroup.add(gearWell);
+        }
 
         // Position the whole plane: nose pointing +Z, at the gate
         // Ground clearance: bottom of wheels should touch y=0
@@ -1251,6 +1309,25 @@
             geo.computeVertexNormals();
             cabinGroup.add(new THREE.Mesh(geo, MAT.plastic));
         }
+
+        // ── Side wall panels (below arch, from floor to arch start) ──
+        for (var wallSide = -1; wallSide <= 1; wallSide += 2) {
+            var wallPanel = new THREE.Mesh(new THREE.PlaneGeometry(CL, CH * 0.3), MAT.plastic);
+            wallPanel.position.set(wallSide * halfW, CH * 0.15, 0);
+            wallPanel.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+            cabinGroup.add(wallPanel);
+        }
+
+        // ── Front bulkhead wall (seals cabin at +Z end) ──
+        var frontBulkhead = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), MAT.plastic);
+        frontBulkhead.position.set(0, CH / 2, halfL);
+        frontBulkhead.rotation.y = Math.PI;
+        cabinGroup.add(frontBulkhead);
+
+        // ── Rear bulkhead wall (seals cabin at -Z end) ──
+        var rearBulkhead = new THREE.Mesh(new THREE.PlaneGeometry(CW, CH), MAT.plastic);
+        rearBulkhead.position.set(0, CH / 2, -halfL);
+        cabinGroup.add(rearBulkhead);
 
         // ── Floor ──
         var floor = new THREE.Mesh(new THREE.PlaneGeometry(CW, CL), MAT.carpet);
