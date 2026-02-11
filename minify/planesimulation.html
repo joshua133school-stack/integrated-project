@@ -557,31 +557,54 @@
         airportGroup.add(taxiway);
 
         // ════════════════════════════════════════
-        //  TERMINAL BUILDING & INTERIOR
+        //  TERMINAL BUILDING & INTERIOR (2-story)
         // ════════════════════════════════════════
-        // Terminal is a long corridor along Z axis
-        // Window wall on +X side facing the plane (plane at x≈15)
-        // Back wall on -X side
-        // TI = terminal interior bounds
-        var TI = { x1: -12, x2: 2, z1: -30, z2: 30, floorY: 0.1, ceilY: 5 };
+        // Terminal is a long corridor along Z axis, 2 floors
+        // Ground floor: y=0 to y=4 (arrivals, services — not detailed)
+        // 2nd floor: y=4 to y=8.5 (departure gates — where player is)
+        // Window wall on +X side facing the plane
+        // TI = terminal interior bounds (2nd floor only)
+        var TI = { x1: -12, x2: 2, z1: -30, z2: 30, floorY: 4.0, ceilY: 8.5 };
         var TW = TI.x2 - TI.x1; // 14m wide
         var TL = TI.z2 - TI.z1; // 60m long
-        var TH = TI.ceilY - TI.floorY; // 5m tall
+        var TH = TI.ceilY - TI.floorY; // 4.5m tall (2nd floor)
         var TCX = (TI.x1 + TI.x2) / 2; // center X = -5
         var TCZ = (TI.z1 + TI.z2) / 2; // center Z = 0
 
-        // ── Terminal exterior shell (visible from outside) ──
+        // ── Terminal exterior shell ──
         var termExtMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, roughness: 0.7 });
         // Roof
         var termRoof = new THREE.Mesh(new THREE.BoxGeometry(TW + 2, 0.4, TL + 2), termExtMat);
         termRoof.position.set(TCX, TI.ceilY + 0.2, TCZ);
         termRoof.castShadow = true;
         airportGroup.add(termRoof);
-        // Back exterior wall (solid, -X side)
-        var termBackExt = new THREE.Mesh(new THREE.BoxGeometry(0.3, TH + 0.4, TL + 2), termExtMat);
-        termBackExt.position.set(TI.x1 - 0.85, TI.ceilY / 2, TCZ);
+        // Back exterior wall (spans full height, ground to roof)
+        var termBackExt = new THREE.Mesh(new THREE.BoxGeometry(0.3, TI.ceilY + 0.4, TL + 2), termExtMat);
+        termBackExt.position.set(TI.x1 - 0.85, (TI.ceilY + 0.4) / 2, TCZ);
         termBackExt.castShadow = true;
         airportGroup.add(termBackExt);
+        // Side exterior walls (end caps, full height)
+        for (var ew = 0; ew < 2; ew++) {
+            var endExtWall = new THREE.Mesh(new THREE.BoxGeometry(TW + 2, TI.ceilY + 0.4, 0.3), termExtMat);
+            endExtWall.position.set(TCX, (TI.ceilY + 0.4) / 2, ew === 0 ? TI.z1 - 0.5 : TI.z2 + 0.5);
+            endExtWall.castShadow = true;
+            airportGroup.add(endExtWall);
+        }
+
+        // ── Ground floor exterior (visible structure below 2nd floor) ──
+        var groundFloorMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 0.7 });
+        // Ground floor facade (concrete/glass lower portion on +X side)
+        var gfFacade = new THREE.Mesh(new THREE.BoxGeometry(0.2, 4, TL), groundFloorMat);
+        gfFacade.position.set(TI.x2 + 0.1, 2, TCZ);
+        airportGroup.add(gfFacade);
+        // Ground floor windows (decorative, along +X side)
+        for (var gfw = TI.z1 + 2; gfw < TI.z2; gfw += 5) {
+            var gfWin = new THREE.Mesh(new THREE.PlaneGeometry(3, 2.5),
+                new THREE.MeshPhysicalMaterial({ color: 0x88aacc, transparent: true, opacity: 0.3, roughness: 0.1 }));
+            gfWin.position.set(TI.x2 + 0.22, 2, gfw);
+            gfWin.rotation.y = -Math.PI / 2;
+            airportGroup.add(gfWin);
+        }
 
         // ── Interior floor (polished tile) ──
         var tFloorMat = new THREE.MeshStandardMaterial({ color: 0xd4c8b0, roughness: 0.3, metalness: 0.1 });
@@ -703,21 +726,29 @@
             gDesk.position.set(TI.x2 - 2, TI.floorY, gate.z);
             airportGroup.add(gDesk);
 
-            // ── Jet bridge (extends from window wall toward plane) ──
+            // ── Jet bridge (connects 2nd floor to plane door) ──
+            // Terminal 2nd floor at y=4, plane door at y≈3.9
+            // Bridge starts at terminal wall (x=2) at 2nd floor level
+            // and extends out to the plane door
             var bridgeLen = 12;
             var bridgeH = 2.8;
             var bridgeW = 3.2;
             var bridgeX = TI.x2 + bridgeLen / 2 + 0.5;
-            var bridgeY = 3.8;
+            var bridgeYterm = TI.floorY + bridgeH / 2; // terminal end: floor at y=4
+            var bridgeYplane = 3.9; // plane door height
+            var bridgeY = (bridgeYterm + bridgeYplane + bridgeH / 2) / 2; // avg center
 
-            // Main bridge tunnel
+            // Main bridge tunnel (slight downward slope toward plane)
             var bTunnel = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen, bridgeH, bridgeW), bridgeMat);
             bTunnel.position.set(bridgeX, bridgeY, gate.z);
+            // Slight slope: terminal end higher than plane end
+            bTunnel.rotation.z = Math.atan2(bridgeYterm - bridgeYplane, bridgeLen) * 0.3;
             bTunnel.castShadow = true;
             airportGroup.add(bTunnel);
             // Bridge floor
             var bFloor = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen, 0.1, bridgeW), MAT.carpet);
             bFloor.position.set(bridgeX, bridgeY - bridgeH / 2 + 0.05, gate.z);
+            bFloor.rotation.z = bTunnel.rotation.z;
             airportGroup.add(bFloor);
             // Bridge windows (both sides along Z)
             for (var bwSide = -1; bwSide <= 1; bwSide += 2) {
@@ -728,15 +759,17 @@
                     airportGroup.add(bWin);
                 }
             }
-            // Support pillars (2 legs under bridge)
+            // Support pillars (from ground to bridge underside)
+            var pillarTop = bridgeY - bridgeH / 2;
             for (var bp = 0; bp < 2; bp++) {
-                var bPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.25, bridgeY - bridgeH / 2, 8), MAT.concrete);
-                bPillar.position.set(TI.x2 + 3 + bp * 7, (bridgeY - bridgeH / 2) / 2, gate.z);
+                var pillarH = pillarTop;
+                var bPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, pillarH, 8), MAT.concrete);
+                bPillar.position.set(TI.x2 + 3 + bp * 7, pillarH / 2, gate.z);
                 airportGroup.add(bPillar);
             }
             // Accordion connector at plane end
             var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(1.5, bridgeH, bridgeW), accordionMat);
-            bAccordion.position.set(TI.x2 + bridgeLen + 1.25, bridgeY, gate.z);
+            bAccordion.position.set(TI.x2 + bridgeLen + 1.25, bridgeYplane + bridgeH / 2 - 0.3, gate.z);
             airportGroup.add(bAccordion);
 
             // ── Parked mini-plane at non-player gates ──
@@ -1484,8 +1517,9 @@
 
         // Position the whole plane at gate A7: nose pointing +Z
         // x=15 puts left side (-X) facing the terminal window wall at x=2
-        // z=5 aligns with gate A7
-        planeExtGroup.position.set(15, R + 1.5, 5);
+        // z=-10 so forward door (local z=halfLen-4=15) aligns with gate A7 at z=5
+        // Forward door (-X side) world pos: (13, 3.9, 5)
+        planeExtGroup.position.set(15, R + 1.5, -10);
     }
 
     // ═══════════════════════════════════════════════════
@@ -2200,9 +2234,10 @@
             survivalGroup.visible = false;
             scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0008);
-            // Camera inside terminal at gate A7, looking +X through windows at the plane
-            camera.position.set(-5, 1.7, 5);
-            camera.lookAt(new THREE.Vector3(15, 3, 5));
+            // Camera inside terminal 2nd floor at gate A7, looking +X through windows at the plane
+            // 2nd floor is at y=4, eye height = 4 + 1.7 = 5.7
+            camera.position.set(-5, 5.7, 3);
+            camera.lookAt(new THREE.Vector3(15, 4.5, 0));
             G.cameraBasePos.copy(camera.position);
             showPrompt('Gate A7 — Now Boarding', 3500);
             pt(function() {
@@ -2858,13 +2893,12 @@
 
         // ── Phase-specific camera ──
         if (G.phase === 'airport') {
-            // Looking +X (toward plane through windows)
+            // 2nd floor, looking +X through windows at the plane
             // yaw=0 → cos(0)=1,sin(0)=0 → +X direction
-            // positive lookX → negative sin → -Z (turn right)
             var yaw = G.lookX * 0.6;
             camera.lookAt(
                 camera.position.x + Math.cos(yaw) * 10,
-                camera.position.y - 0.1 + G.lookY * 2,
+                camera.position.y - 0.5 + G.lookY * 3,
                 camera.position.z - Math.sin(yaw) * 10
             );
         }
