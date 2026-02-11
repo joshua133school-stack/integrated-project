@@ -864,8 +864,8 @@
         var R = PLANE.radius;
         var halfLen = PLANE.len / 2;
 
-        // ── Fuselage (cylinder along Z, open-ended for nose/tail connection) ──
-        var fusGeo = new THREE.CylinderGeometry(R, R, PLANE.len, 32, 1, true);
+        // ── Fuselage (cylinder along Z, closed with caps) ──
+        var fusGeo = new THREE.CylinderGeometry(R, R, PLANE.len, 32);
         var fuselage = new THREE.Mesh(fusGeo, MAT.white);
         fuselage.rotation.x = Math.PI / 2; // align along Z
         fuselage.castShadow = true;
@@ -877,39 +877,37 @@
         stripe.rotation.x = Math.PI / 2;
         planeExtGroup.add(stripe);
 
-        // ── Nose cone (ellipsoidal, smooth blend with fuselage) ──
-        // Use a hemisphere scaled along Z for a rounded-but-elongated nose
-        var noseGeo = new THREE.SphereGeometry(R, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        // ── Nose cone (full sphere, front half protrudes beyond fuselage) ──
+        // Using a full sphere centered at the fuselage front — back half hidden inside fuselage
+        var noseGeo = new THREE.SphereGeometry(R, 32, 16);
         var nose = new THREE.Mesh(noseGeo, MAT.white);
-        nose.rotation.x = -Math.PI / 2; // hemisphere pointing +Z
-        nose.scale.set(1, 1, 2.0);      // stretch along Z for elongated airliner nose
-        nose.position.z = halfLen;       // flush with cylinder end
+        nose.scale.set(1, 1, 2.5);      // stretch along Z for elongated airliner nose
+        nose.position.z = halfLen;       // centered at fuselage front end
         planeExtGroup.add(nose);
 
-        // ── Cockpit windows (on nose, angled) ──
+        // ── Cockpit windows (on nose dome, angled) ──
         var cwGeo = new THREE.PlaneGeometry(0.9, 0.5);
         for (var cw = -1; cw <= 1; cw += 2) {
             var cWin = new THREE.Mesh(cwGeo, MAT.glass);
-            cWin.position.set(cw * 0.55, R * 0.55, halfLen + 0.3);
-            cWin.rotation.x = -0.25;
-            cWin.rotation.y = cw * 0.2;
+            cWin.position.set(cw * 0.55, R * 0.5, halfLen + R * 1.5);
+            cWin.rotation.x = -0.3;
+            cWin.rotation.y = cw * 0.25;
             planeExtGroup.add(cWin);
         }
 
-        // ── Tail cone (gradual taper, seamlessly joins fuselage) ──
-        // CylinderGeometry: (radiusTop, radiusBottom, height) — when rotated PI/2 around X,
-        // radiusTop becomes the -Z end and radiusBottom becomes the +Z end
+        // ── Tail cone (gradual taper, overlaps with fuselage end for seamless join) ──
         var tailConeLen = 7;
-        var tailConeGeo = new THREE.CylinderGeometry(0.3, R, tailConeLen, 32, 1, true);
+        var tailConeGeo = new THREE.CylinderGeometry(0.3, R, tailConeLen, 32);
         var tailCone = new THREE.Mesh(tailConeGeo, MAT.white);
         tailCone.rotation.x = Math.PI / 2;
-        tailCone.position.z = -halfLen - tailConeLen / 2; // wide end flush with fuselage
+        // Position so the wide end (R) slightly overlaps the fuselage rear
+        tailCone.position.z = -halfLen - tailConeLen / 2 + 0.5;
         planeExtGroup.add(tailCone);
         // APU exhaust at very tip
         var apuGeo = new THREE.CylinderGeometry(0.18, 0.3, 0.5, 12);
         var apu = new THREE.Mesh(apuGeo, MAT.darkPlastic);
         apu.rotation.x = Math.PI / 2;
-        apu.position.z = -halfLen - tailConeLen - 0.1;
+        apu.position.z = -halfLen - tailConeLen + 0.3;
         planeExtGroup.add(apu);
 
         // ── Passenger windows (both sides, with frames) ──
