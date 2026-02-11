@@ -1676,7 +1676,12 @@ var heightsDiagnostic = heightsDiagnostic || function() {
             diagnosticScreen = container.querySelector('#heights-diag-screen');
             mainContent = container.querySelector('#heights-diag-main');
             questionsPanel = container.querySelector('#heights-diag-panel');
-            initAnimation();
+            // Pre-hide diagnostic if user won't need it (not logged in or already completed)
+            if (typeof OasisAccount !== 'undefined' && (!OasisAccount.isLoggedIn() || OasisAccount.hasDiagnostic('heights'))) {
+                diagnosticScreen.style.display = 'none';
+            } else {
+                initAnimation();
+            }
         },
         start: function() {
             // Skip diagnostic if user is not logged in or has already completed one for this phobia
