@@ -614,11 +614,11 @@
         tFloor.receiveShadow = true;
         airportGroup.add(tFloor);
 
-        // ── Interior ceiling ──
+        // ── Interior ceiling (offset slightly below roof to prevent z-fighting) ──
         var tCeilMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.7 });
         var tCeil = new THREE.Mesh(new THREE.PlaneGeometry(TW, TL), tCeilMat);
         tCeil.rotation.x = Math.PI / 2;
-        tCeil.position.set(TCX, TI.ceilY, TCZ);
+        tCeil.position.set(TCX, TI.ceilY - 0.15, TCZ);
         airportGroup.add(tCeil);
 
         // ── Back wall interior (-X side, solid) ──
@@ -726,50 +726,76 @@
             gDesk.position.set(TI.x2 - 2, TI.floorY, gate.z);
             airportGroup.add(gDesk);
 
-            // ── Jet bridge (connects 2nd floor to plane door) ──
-            // Terminal 2nd floor at y=4, plane door at y≈3.9
-            // Bridge starts at terminal wall (x=2) at 2nd floor level
-            // and extends out to the plane door
+            // ── Jet bridge (connects 2nd floor to plane) ──
+            // Level bridge at 2nd floor height (floor at y=4)
             var bridgeLen = 12;
             var bridgeH = 2.8;
-            var bridgeW = 3.2;
-            var bridgeX = TI.x2 + bridgeLen / 2 + 0.5;
-            var bridgeYterm = TI.floorY + bridgeH / 2; // terminal end: floor at y=4
-            var bridgeYplane = 3.9; // plane door height
-            var bridgeY = (bridgeYterm + bridgeYplane + bridgeH / 2) / 2; // avg center
+            var bridgeW = 3.0;
+            var bridgeFloorY = TI.floorY; // y=4, same as terminal floor
+            var bridgeCenterY = bridgeFloorY + bridgeH / 2; // y=5.4
+            var bridgeStartX = TI.x2 + 0.3;
+            var bridgeEndX = bridgeStartX + bridgeLen;
+            var bridgeCenterX = (bridgeStartX + bridgeEndX) / 2;
+            var halfBW = bridgeW / 2;
 
-            // Main bridge tunnel (slight downward slope toward plane)
-            var bTunnel = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen, bridgeH, bridgeW), bridgeMat);
-            bTunnel.position.set(bridgeX, bridgeY, gate.z);
-            // Slight slope: terminal end higher than plane end
-            bTunnel.rotation.z = Math.atan2(bridgeYterm - bridgeYplane, bridgeLen) * 0.3;
-            bTunnel.castShadow = true;
-            airportGroup.add(bTunnel);
-            // Bridge floor
-            var bFloor = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen, 0.1, bridgeW), MAT.carpet);
-            bFloor.position.set(bridgeX, bridgeY - bridgeH / 2 + 0.05, gate.z);
-            bFloor.rotation.z = bTunnel.rotation.z;
-            airportGroup.add(bFloor);
-            // Bridge windows (both sides along Z)
-            for (var bwSide = -1; bwSide <= 1; bwSide += 2) {
-                for (var bwi = 0; bwi < 3; bwi++) {
-                    var bWin = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.2), glassMat);
-                    bWin.position.set(bridgeX - 3 + bwi * 4, bridgeY + 0.3, gate.z + bwSide * (bridgeW / 2 + 0.01));
-                    bWin.rotation.y = bwSide > 0 ? 0 : Math.PI;
-                    airportGroup.add(bWin);
+            // Exterior shell (visible from outside)
+            var bShell = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen, bridgeH, bridgeW), bridgeMat);
+            bShell.position.set(bridgeCenterX, bridgeCenterY, gate.z);
+            bShell.castShadow = true;
+            airportGroup.add(bShell);
+
+            // Interior (walkable — only fully built for gate A7)
+            var isPlayerGate = (gate.name === 'A7');
+            if (isPlayerGate) {
+                // Bridge interior floor
+                var bIntFloor = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW - 0.2),
+                    new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.8 }));
+                bIntFloor.rotation.x = -Math.PI / 2;
+                bIntFloor.position.set(bridgeCenterX, bridgeFloorY + 0.05, gate.z);
+                airportGroup.add(bIntFloor);
+                // Bridge interior ceiling
+                var bIntCeil = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW - 0.2), tCeilMat);
+                bIntCeil.rotation.x = Math.PI / 2;
+                bIntCeil.position.set(bridgeCenterX, bridgeFloorY + bridgeH - 0.05, gate.z);
+                airportGroup.add(bIntCeil);
+                // Bridge interior walls (both sides)
+                for (var bws = -1; bws <= 1; bws += 2) {
+                    var bIntWall = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeH - 0.2), wallMat);
+                    bIntWall.position.set(bridgeCenterX, bridgeCenterY, gate.z + bws * (halfBW - 0.05));
+                    bIntWall.rotation.y = bws > 0 ? Math.PI : 0;
+                    airportGroup.add(bIntWall);
+                }
+                // Bridge windows (cutouts in walls — glass panels)
+                for (var bwSide = -1; bwSide <= 1; bwSide += 2) {
+                    for (var bwi = 0; bwi < 3; bwi++) {
+                        var bWin = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), glassMat);
+                        bWin.position.set(bridgeStartX + 2 + bwi * 3.5, bridgeCenterY + 0.3, gate.z + bwSide * (halfBW - 0.03));
+                        bWin.rotation.y = bwSide > 0 ? Math.PI : 0;
+                        airportGroup.add(bWin);
+                    }
+                }
+            } else {
+                // Other gates: just exterior windows
+                for (var bwSide2 = -1; bwSide2 <= 1; bwSide2 += 2) {
+                    for (var bwi2 = 0; bwi2 < 3; bwi2++) {
+                        var bWin2 = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), glassMat);
+                        bWin2.position.set(bridgeCenterX - 3 + bwi2 * 3.5, bridgeCenterY + 0.3, gate.z + bwSide2 * (halfBW + 0.01));
+                        bWin2.rotation.y = bwSide2 > 0 ? 0 : Math.PI;
+                        airportGroup.add(bWin2);
+                    }
                 }
             }
+
             // Support pillars (from ground to bridge underside)
-            var pillarTop = bridgeY - bridgeH / 2;
+            var pillarTop = bridgeFloorY;
             for (var bp = 0; bp < 2; bp++) {
-                var pillarH = pillarTop;
-                var bPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, pillarH, 8), MAT.concrete);
-                bPillar.position.set(TI.x2 + 3 + bp * 7, pillarH / 2, gate.z);
+                var bPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, pillarTop, 8), MAT.concrete);
+                bPillar.position.set(bridgeStartX + 2 + bp * 8, pillarTop / 2, gate.z);
                 airportGroup.add(bPillar);
             }
             // Accordion connector at plane end
-            var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(1.5, bridgeH, bridgeW), accordionMat);
-            bAccordion.position.set(TI.x2 + bridgeLen + 1.25, bridgeYplane + bridgeH / 2 - 0.3, gate.z);
+            var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(1.8, bridgeH, bridgeW), accordionMat);
+            bAccordion.position.set(bridgeEndX + 0.9, bridgeCenterY, gate.z);
             airportGroup.add(bAccordion);
 
             // ── Parked mini-plane at non-player gates ──
@@ -2241,8 +2267,8 @@
             G.cameraBasePos.copy(camera.position);
             showPrompt('Gate A7 — Now Boarding', 3500);
             pt(function() {
-                showSub('Click to begin boarding');
-                G.canClick = true;
+                showSub('WASD to walk — Board at Gate A7');
+                G.canClick = false;
                 G.transitioning = false;
             }, 1500);
             break;
@@ -2837,6 +2863,23 @@
     // ═══════════════════════════════════════════════════
     var audioStarted = false;
 
+    // ── Keyboard state for WASD walking ──
+    var keys = { w: false, a: false, s: false, d: false };
+    document.addEventListener('keydown', function(e) {
+        var k = e.key.toLowerCase();
+        if (k === 'w' || k === 'arrowup') keys.w = true;
+        if (k === 'a' || k === 'arrowleft') keys.a = true;
+        if (k === 's' || k === 'arrowdown') keys.s = true;
+        if (k === 'd' || k === 'arrowright') keys.d = true;
+    });
+    document.addEventListener('keyup', function(e) {
+        var k = e.key.toLowerCase();
+        if (k === 'w' || k === 'arrowup') keys.w = false;
+        if (k === 'a' || k === 'arrowleft') keys.a = false;
+        if (k === 's' || k === 'arrowdown') keys.s = false;
+        if (k === 'd' || k === 'arrowright') keys.d = false;
+    });
+
     document.addEventListener('click', function() {
         if (!audioStarted) {
             initAudio();
@@ -2847,7 +2890,7 @@
         if (!G.canClick) return;
 
         switch (G.phase) {
-            case 'airport': goPhase('boarding'); break;
+            // airport phase: no click-to-board (walk instead)
             case 'boarding': goPhase('seated'); break;
             case 'seated': goPhase('taxi'); break;
         }
@@ -2857,8 +2900,8 @@
         G.mouseX = e.clientX;
         G.mouseY = e.clientY;
         if (['airport', 'boarding', 'seated', 'cruising'].indexOf(G.phase) !== -1) {
-            G.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.6;
-            G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.3;
+            G.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.8;
+            G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.4;
         }
     });
 
@@ -2893,12 +2936,69 @@
 
         // ── Phase-specific camera ──
         if (G.phase === 'airport') {
-            // 2nd floor, looking +X through windows at the plane
-            // yaw=0 → cos(0)=1,sin(0)=0 → +X direction
-            var yaw = G.lookX * 0.6;
+            // ── WASD Walking ──
+            var walkSpeed = 4.5 * G.delta; // ~4.5 m/s
+            var yaw = G.lookX * 1.2; // look direction yaw
+            // Forward direction based on where player is looking
+            var fwdX = Math.cos(yaw);
+            var fwdZ = -Math.sin(yaw);
+            // Right direction (perpendicular)
+            var rightX = -fwdZ;
+            var rightZ = fwdX;
+
+            var moveX = 0, moveZ = 0;
+            if (keys.w) { moveX += fwdX; moveZ += fwdZ; }
+            if (keys.s) { moveX -= fwdX; moveZ -= fwdZ; }
+            if (keys.a) { moveX -= rightX; moveZ -= rightZ; }
+            if (keys.d) { moveX += rightX; moveZ += rightZ; }
+            // Normalize diagonal movement
+            var moveLen = Math.sqrt(moveX * moveX + moveZ * moveZ);
+            if (moveLen > 0) {
+                moveX = moveX / moveLen * walkSpeed;
+                moveZ = moveZ / moveLen * walkSpeed;
+                camera.position.x += moveX;
+                camera.position.z += moveZ;
+            }
+
+            // Keep Y at eye height on 2nd floor
+            camera.position.y = 5.7;
+
+            // ── Bounds: terminal interior OR gate A7 jet bridge ──
+            // Terminal: x in [-12, 2], z in [-30, 30]
+            // Bridge A7: x in [2, 16], z in [5-1.4, 5+1.4] = [3.6, 6.4]
+            var px = camera.position.x;
+            var pz = camera.position.z;
+            var inTerminal = (px >= -12 && px <= 2 && pz >= -30 && pz <= 30);
+            var inBridge = (px > 2 && px <= 16 && pz >= 3.6 && pz <= 6.4);
+
+            if (!inTerminal && !inBridge) {
+                // Clamp back to valid area
+                if (px > 2) {
+                    // Near bridge — clamp to bridge Z bounds
+                    camera.position.z = Math.max(3.6, Math.min(6.4, pz));
+                    camera.position.x = Math.min(16, px);
+                    // If Z still outside bridge, push back into terminal
+                    if (pz < 3.6 || pz > 6.4) {
+                        camera.position.x = Math.min(2, px);
+                    }
+                } else {
+                    camera.position.x = Math.max(-12, Math.min(2, px));
+                    camera.position.z = Math.max(-30, Math.min(30, pz));
+                }
+            }
+
+            // ── Auto-board when reaching end of jet bridge ──
+            if (camera.position.x >= 15 && !G.transitioning) {
+                G.transitioning = true;
+                goPhase('boarding');
+            }
+
+            G.cameraBasePos.copy(camera.position);
+
+            // ── Look direction ──
             camera.lookAt(
                 camera.position.x + Math.cos(yaw) * 10,
-                camera.position.y - 0.5 + G.lookY * 3,
+                camera.position.y - 0.3 + G.lookY * 3,
                 camera.position.z - Math.sin(yaw) * 10
             );
         }
