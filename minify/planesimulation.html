@@ -564,7 +564,7 @@
         terminal.receiveShadow = true;
         airportGroup.add(terminal);
 
-        // Terminal windows - glass facade
+        // Terminal windows - glass facade (exterior)
         var facadeGeo = new THREE.PlaneGeometry(48, 8);
         var facade = new THREE.Mesh(facadeGeo, MAT.glass);
         facade.position.set(-25, 7, 12.51);
@@ -575,6 +575,194 @@
         var canopy = new THREE.Mesh(canopyGeo, MAT.metal);
         canopy.position.set(-25, 4, 15);
         airportGroup.add(canopy);
+
+        // ════════════════════════════════════════
+        //  TERMINAL INTERIOR
+        // ════════════════════════════════════════
+        // Terminal spans X:-50 to 0, Y:0 to 12, Z:-12.5 to 12.5
+        var TI = { x1: -49, x2: -1, z1: -12, z2: 12, floorY: 0.15, ceilY: 11.5 };
+
+        // Interior floor (polished tile)
+        var tFloorMat = new THREE.MeshStandardMaterial({ color: 0xd4c8b0, roughness: 0.3, metalness: 0.1 });
+        var tFloor = new THREE.Mesh(new THREE.PlaneGeometry(48, 24), tFloorMat);
+        tFloor.rotation.x = -Math.PI / 2;
+        tFloor.position.set(-25, TI.floorY, 0);
+        tFloor.receiveShadow = true;
+        airportGroup.add(tFloor);
+
+        // Interior ceiling
+        var tCeilMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.7 });
+        var tCeil = new THREE.Mesh(new THREE.PlaneGeometry(48, 24), tCeilMat);
+        tCeil.rotation.x = Math.PI / 2;
+        tCeil.position.set(-25, TI.ceilY, 0);
+        airportGroup.add(tCeil);
+
+        // Interior walls (visible from inside)
+        // Back wall (z=-12)
+        var tBackWall = new THREE.Mesh(new THREE.PlaneGeometry(48, TI.ceilY - TI.floorY), tCeilMat);
+        tBackWall.position.set(-25, (TI.ceilY + TI.floorY) / 2, TI.z1);
+        airportGroup.add(tBackWall);
+        // Left wall (x=-49)
+        var tLeftWall = new THREE.Mesh(new THREE.PlaneGeometry(24, TI.ceilY - TI.floorY), tCeilMat);
+        tLeftWall.position.set(TI.x1, (TI.ceilY + TI.floorY) / 2, 0);
+        tLeftWall.rotation.y = Math.PI / 2;
+        airportGroup.add(tLeftWall);
+        // Right wall (x=-1)
+        var tRightWall = new THREE.Mesh(new THREE.PlaneGeometry(24, TI.ceilY - TI.floorY), tCeilMat);
+        tRightWall.position.set(TI.x2, (TI.ceilY + TI.floorY) / 2, 0);
+        tRightWall.rotation.y = -Math.PI / 2;
+        airportGroup.add(tRightWall);
+
+        // Interior glass window wall (z=12, looking at plane)
+        var tGlassWall = new THREE.Mesh(new THREE.PlaneGeometry(48, TI.ceilY - TI.floorY),
+            new THREE.MeshPhysicalMaterial({ color: 0xaaddff, transparent: true, opacity: 0.2, roughness: 0.02, transmission: 0.7 }));
+        tGlassWall.position.set(-25, (TI.ceilY + TI.floorY) / 2, TI.z2);
+        tGlassWall.rotation.y = Math.PI;
+        airportGroup.add(tGlassWall);
+
+        // Ceiling lights (fluorescent panels)
+        var ceilLightMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
+        for (var clx = -45; clx <= -5; clx += 8) {
+            for (var clz = -8; clz <= 8; clz += 8) {
+                var cLight = new THREE.Mesh(new THREE.BoxGeometry(4, 0.05, 0.8), ceilLightMat);
+                cLight.position.set(clx, TI.ceilY - 0.05, clz);
+                airportGroup.add(cLight);
+            }
+        }
+        // Ceiling light actual lights (every other panel)
+        for (var plx = -45; plx <= -5; plx += 16) {
+            var pLight = new THREE.PointLight(0xffffee, 0.3, 15);
+            pLight.position.set(plx, TI.ceilY - 0.3, 0);
+            airportGroup.add(pLight);
+        }
+
+        // ── Support columns ──
+        for (var colX = -42; colX <= -8; colX += 17) {
+            for (var colZ = -6; colZ <= 6; colZ += 12) {
+                var col = new THREE.Mesh(new THREE.BoxGeometry(0.5, TI.ceilY - TI.floorY, 0.5), MAT.concrete);
+                col.position.set(colX, (TI.ceilY + TI.floorY) / 2, colZ);
+                airportGroup.add(col);
+            }
+        }
+
+        // ── Gate seating (rows of connected airport chairs) ──
+        var chairMat = new THREE.MeshStandardMaterial({ color: 0x2244aa, roughness: 0.7 });
+        var chairLegMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.3, metalness: 0.7 });
+        function makeChairRow(rx, rz, count, facingZ) {
+            var rowGroup = new THREE.Group();
+            var totalW = count * 0.55;
+            // Beam (connects all chairs)
+            var beam = new THREE.Mesh(new THREE.BoxGeometry(totalW, 0.04, 0.04), chairLegMat);
+            beam.position.y = 0.42;
+            rowGroup.add(beam);
+            for (var c = 0; c < count; c++) {
+                var cx = (c - (count - 1) / 2) * 0.55;
+                // Seat
+                var seat = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.04, 0.40), chairMat);
+                seat.position.set(cx, 0.44, 0);
+                rowGroup.add(seat);
+                // Back
+                var cBack = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.35, 0.04), chairMat);
+                cBack.position.set(cx, 0.64, facingZ * -0.18);
+                rowGroup.add(cBack);
+                // Legs (2 per seat)
+                for (var leg = -1; leg <= 1; leg += 2) {
+                    var cLeg = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.42, 6), chairLegMat);
+                    cLeg.position.set(cx + leg * 0.2, 0.21, 0);
+                    rowGroup.add(cLeg);
+                }
+                // Armrest
+                var armR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 0.25), chairLegMat);
+                armR.position.set(cx + 0.25, 0.5, 0);
+                rowGroup.add(armR);
+            }
+            rowGroup.position.set(rx, TI.floorY, rz);
+            return rowGroup;
+        }
+        // Rows of seating facing the windows (toward +Z)
+        for (var sr = 0; sr < 3; sr++) {
+            airportGroup.add(makeChairRow(-35 + sr * 12, 4, 8, 1));
+            airportGroup.add(makeChairRow(-35 + sr * 12, 0, 8, 1));
+            airportGroup.add(makeChairRow(-35 + sr * 12, -4, 8, -1));
+        }
+
+        // ── Gate desk / counter ──
+        var deskMat = new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.5 });
+        var gateDeskGroup = new THREE.Group();
+        // Counter
+        var deskTop = new THREE.Mesh(new THREE.BoxGeometry(4, 0.08, 1.2), deskMat);
+        deskTop.position.y = 1.1;
+        gateDeskGroup.add(deskTop);
+        // Front panel
+        var deskFront = new THREE.Mesh(new THREE.BoxGeometry(4, 1.1, 0.06), deskMat);
+        deskFront.position.set(0, 0.55, 0.57);
+        gateDeskGroup.add(deskFront);
+        // Monitor
+        var monitor = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.03), MAT.darkPlastic);
+        monitor.position.set(-0.5, 1.5, 0);
+        gateDeskGroup.add(monitor);
+        var screen = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.35), new THREE.MeshBasicMaterial({ color: 0x3388cc }));
+        screen.position.set(-0.5, 1.5, 0.016);
+        gateDeskGroup.add(screen);
+        // Second monitor
+        var monitor2 = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.4, 0.03), MAT.darkPlastic);
+        monitor2.position.set(0.5, 1.5, 0);
+        gateDeskGroup.add(monitor2);
+        gateDeskGroup.position.set(-8, TI.floorY, 10);
+        airportGroup.add(gateDeskGroup);
+
+        // ── Departure board (large, on back wall) ──
+        var boardBg = new THREE.Mesh(new THREE.BoxGeometry(8, 3, 0.15), MAT.darkPlastic);
+        boardBg.position.set(-25, 8, TI.z1 + 0.1);
+        airportGroup.add(boardBg);
+        var boardScreen = new THREE.Mesh(new THREE.PlaneGeometry(7.6, 2.6),
+            new THREE.MeshBasicMaterial({ color: 0x001133 }));
+        boardScreen.position.set(-25, 8, TI.z1 + 0.18);
+        airportGroup.add(boardScreen);
+        // Flight info rows (colored bars)
+        for (var fi = 0; fi < 5; fi++) {
+            var rowBar = new THREE.Mesh(new THREE.PlaneGeometry(7, 0.3),
+                new THREE.MeshBasicMaterial({ color: fi % 2 === 0 ? 0x002244 : 0x003355 }));
+            rowBar.position.set(-25, 9 - fi * 0.5, TI.z1 + 0.19);
+            airportGroup.add(rowBar);
+        }
+
+        // ── Trash cans ──
+        for (var tc = 0; tc < 3; tc++) {
+            var trashCan = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.7, 8), MAT.darkPlastic);
+            trashCan.position.set(-20 + tc * 15, TI.floorY + 0.35, 8);
+            airportGroup.add(trashCan);
+        }
+
+        // ── Potted plants (decorative) ──
+        for (var pp = 0; pp < 2; pp++) {
+            var potGroup = new THREE.Group();
+            var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.2, 0.4, 8),
+                new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.9 }));
+            pot.position.y = 0.2;
+            potGroup.add(pot);
+            var plant = new THREE.Mesh(new THREE.SphereGeometry(0.4, 6, 6),
+                new THREE.MeshStandardMaterial({ color: 0x228822, roughness: 0.9 }));
+            plant.position.y = 0.6;
+            potGroup.add(plant);
+            potGroup.position.set(-15 + pp * 20, TI.floorY, -8);
+            airportGroup.add(potGroup);
+        }
+
+        // ── Vending machines (against back wall) ──
+        var vendMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.5 });
+        var vend1 = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.8, 0.7), vendMat);
+        vend1.position.set(-40, TI.floorY + 0.9, TI.z1 + 0.45);
+        airportGroup.add(vend1);
+        var vendFace = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.2),
+            new THREE.MeshBasicMaterial({ color: 0xffeecc }));
+        vendFace.position.set(-40, TI.floorY + 1.1, TI.z1 + 0.81);
+        airportGroup.add(vendFace);
+
+        var vend2 = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.8, 0.7),
+            new THREE.MeshStandardMaterial({ color: 0x2244cc, roughness: 0.5 }));
+        vend2.position.set(-38.5, TI.floorY + 0.9, TI.z1 + 0.45);
+        airportGroup.add(vend2);
 
         // Control tower (proportional to smaller terminal)
         var towerBase = new THREE.Mesh(new THREE.CylinderGeometry(3, 3.5, 22, 12), MAT.concrete);
@@ -590,11 +778,33 @@
         towerRoof.position.set(-55, 28, -35);
         airportGroup.add(towerRoof);
 
-        // Jet bridge (extends from terminal toward plane door, along X)
-        var bridgeGeo = new THREE.BoxGeometry(16, 3.0, 4.0);
-        var bridge = new THREE.Mesh(bridgeGeo, MAT.metal);
-        bridge.position.set(3, 4.2, 0);
+        // Jet bridge (extends from terminal to plane's forward left door)
+        // Plane forward door is at approx world (20, 3.9, 15)
+        // Terminal airside face is at z=12.5, around x=-1 to x=0
+        var bridgeLen = 22;
+        var bridgeGeo = new THREE.BoxGeometry(bridgeLen, 2.8, 3.5);
+        var bridgeMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb, roughness: 0.5, metalness: 0.3 });
+        var bridge = new THREE.Mesh(bridgeGeo, bridgeMat);
+        bridge.position.set(10, 4.5, 15);
         airportGroup.add(bridge);
+        // Bridge floor
+        var bFloor = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen, 0.1, 3.5), MAT.carpet);
+        bFloor.position.set(10, 3.15, 15);
+        airportGroup.add(bFloor);
+        // Bridge windows (both sides)
+        for (var bwSide = -1; bwSide <= 1; bwSide += 2) {
+            for (var bwi = 0; bwi < 5; bwi++) {
+                var bWin = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.5), MAT.glass);
+                bWin.position.set(1 + bwi * 4.5, 4.8, 15 + bwSide * 1.76);
+                bWin.rotation.y = bwSide > 0 ? 0 : Math.PI;
+                airportGroup.add(bWin);
+            }
+        }
+        // Bridge accordion (flexible connector at plane end)
+        var accordion = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.8, 3.5),
+            new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.8 }));
+        accordion.position.set(21.5, 4.5, 15);
+        airportGroup.add(accordion);
 
         // Plane at gate (exterior)
         buildPlaneExterior();
@@ -687,7 +897,7 @@
             fWheel.position.set((fw < 2 ? -1 : 1) * 1.1, 0.25, (fw % 2 === 0 ? -1.2 : 1.2));
             fuelTruck.add(fWheel);
         }
-        fuelTruck.position.set(10, 0, -15);
+        fuelTruck.position.set(-10, 0, -20);
         airportGroup.add(fuelTruck);
 
         // Baggage cart train
@@ -713,13 +923,13 @@
                 bagTrain.add(luggage);
             }
         }
-        bagTrain.position.set(5, 0, 12);
-        bagTrain.rotation.y = 0.3;
+        bagTrain.position.set(-15, 0, -18);
+        bagTrain.rotation.y = 0.5;
         airportGroup.add(bagTrain);
 
         // Pushback tug
         var pushTug = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.7, 2.5), MAT.vehicleBody);
-        pushTug.position.set(22, 0.5, 5);
+        pushTug.position.set(25, 0.5, -12);
         airportGroup.add(pushTug);
 
         // ── Windsock ──
@@ -864,7 +1074,7 @@
         var R = PLANE.radius;
         var halfLen = PLANE.len / 2;
 
-        // ── Fuselage (cylinder along Z) ──
+        // ── Fuselage (cylinder along Z, closed with caps) ──
         var fusGeo = new THREE.CylinderGeometry(R, R, PLANE.len, 32);
         var fuselage = new THREE.Mesh(fusGeo, MAT.white);
         fuselage.rotation.x = Math.PI / 2; // align along Z
@@ -877,36 +1087,38 @@
         stripe.rotation.x = Math.PI / 2;
         planeExtGroup.add(stripe);
 
-        // ── Nose cone (ellipsoidal, smooth blend with fuselage) ──
-        // Use a hemisphere scaled along Z for a rounded-but-elongated nose
-        var noseGeo = new THREE.SphereGeometry(R, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        // ── Nose cone (full sphere, front half protrudes beyond fuselage) ──
+        // Using a full sphere centered at the fuselage front — back half hidden inside fuselage
+        var noseGeo = new THREE.SphereGeometry(R, 32, 16);
         var nose = new THREE.Mesh(noseGeo, MAT.white);
-        nose.rotation.x = -Math.PI / 2; // hemisphere pointing +Z
-        nose.scale.set(1, 1, 2.0);      // stretch along Z for elongated airliner nose
-        nose.position.z = halfLen;       // flush with cylinder end
+        nose.scale.set(1, 1, 2.5);      // stretch along Z for elongated airliner nose
+        nose.position.z = halfLen;       // centered at fuselage front end
         planeExtGroup.add(nose);
 
-        // ── Cockpit windows (on nose, angled) ──
+        // ── Cockpit windows (on nose dome, angled) ──
         var cwGeo = new THREE.PlaneGeometry(0.9, 0.5);
         for (var cw = -1; cw <= 1; cw += 2) {
             var cWin = new THREE.Mesh(cwGeo, MAT.glass);
-            cWin.position.set(cw * 0.55, R * 0.55, halfLen + 0.3);
-            cWin.rotation.x = -0.25;
-            cWin.rotation.y = cw * 0.2;
+            cWin.position.set(cw * 0.55, R * 0.5, halfLen + R * 1.5);
+            cWin.rotation.x = -0.3;
+            cWin.rotation.y = cw * 0.25;
             planeExtGroup.add(cWin);
         }
 
-        // ── Tail cone (gradual taper, not a sharp point) ──
-        var tailConeGeo = new THREE.CylinderGeometry(0.3, R, 8, 32);
+        // ── Tail cone (wide end connects to fuselage, narrows toward tail tip) ──
+        // After rotation.x=PI/2: radiusTop→+Z end, radiusBottom→-Z end
+        // So radiusTop=R (connects to fuselage at +Z), radiusBottom=0.3 (tail tip at -Z)
+        var tailConeLen = 7;
+        var tailConeGeo = new THREE.CylinderGeometry(R, 0.3, tailConeLen, 32);
         var tailCone = new THREE.Mesh(tailConeGeo, MAT.white);
-        tailCone.rotation.x = Math.PI / 2; // align along Z, narrow end toward -Z
-        tailCone.position.z = -halfLen - 4;
+        tailCone.rotation.x = Math.PI / 2;
+        tailCone.position.z = -halfLen - tailConeLen / 2;
         planeExtGroup.add(tailCone);
         // APU exhaust at very tip
         var apuGeo = new THREE.CylinderGeometry(0.18, 0.3, 0.5, 12);
         var apu = new THREE.Mesh(apuGeo, MAT.darkPlastic);
         apu.rotation.x = Math.PI / 2;
-        apu.position.z = -halfLen - 8.1;
+        apu.position.z = -halfLen - tailConeLen;
         planeExtGroup.add(apu);
 
         // ── Passenger windows (both sides, with frames) ──
@@ -1987,11 +2199,11 @@
             survivalGroup.visible = false;
             scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0008);
-            // Camera offset showing the plane prominently with terminal in background
-            camera.position.set(5, 5.0, 28);
-            camera.lookAt(new THREE.Vector3(18, 3.5, 0));
+            // Camera inside terminal, looking through windows at the plane
+            camera.position.set(-20, 1.85, 6);
+            camera.lookAt(new THREE.Vector3(0, 2.5, 12));
             G.cameraBasePos.copy(camera.position);
-            showPrompt('Welcome to the airport.', 3500);
+            showPrompt('Gate A7 — Now Boarding', 3500);
             pt(function() {
                 showSub('Click to begin boarding');
                 G.canClick = true;
@@ -2645,9 +2857,9 @@
 
         // ── Phase-specific camera ──
         if (G.phase === 'airport') {
-            // Looking from terminal toward plane
-            camera.rotation.y = -1.1 + G.lookX;
-            camera.rotation.x = -0.05 + G.lookY * 0.3;
+            // Inside terminal, looking toward windows / plane
+            camera.rotation.y = G.lookX * 0.6;
+            camera.rotation.x = G.lookY * 0.2;
         }
         if (G.phase === 'boarding') {
             // Standing in aisle, looking forward (+Z)
