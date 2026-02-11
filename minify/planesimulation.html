@@ -1905,6 +1905,7 @@
             airportGroup.visible = true;
             planeExtGroup.visible = true;
             cabinGroup.visible = false;
+            cloudGroup.visible = true;
             stormCloudGroup.visible = false;
             survivalGroup.visible = false;
             scene.background = new THREE.Color(0x87CEEB);
@@ -1936,6 +1937,7 @@
                 airportGroup.visible = false;
                 planeExtGroup.visible = false;
                 cabinGroup.visible = true;
+                cloudGroup.visible = false;
 
                 // Standing in aisle at rear of cabin, looking forward (+Z)
                 camera.position.set(0, 1.65, -9);
@@ -2051,6 +2053,7 @@
             setPhaseLabel('Climbing');
             showPrompt('Climbing to cruising altitude...', 3000);
             G.pitch = 5;
+            cloudGroup.visible = true;
 
             var climbInt = setInterval(function() {
                 G.altitude += 400;
@@ -2348,6 +2351,7 @@
             G.rainIntensity = 0.3;
 
             cabinGroup.visible = false;
+            cloudGroup.visible = false;
             stormCloudGroup.visible = false;
             airportGroup.visible = false;
             survivalGroup.visible = true;
