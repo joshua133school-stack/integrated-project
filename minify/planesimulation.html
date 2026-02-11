@@ -442,7 +442,7 @@
         carpet: new THREE.MeshStandardMaterial({ color: 0x2a3040, roughness: 0.95 }),
         plastic: new THREE.MeshStandardMaterial({ color: 0xe0d8cc, roughness: 0.7 }),
         darkPlastic: new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.8 }),
-        windowInner: new THREE.MeshPhysicalMaterial({ color: 0xaaddff, transparent: true, opacity: 0.15, roughness: 0.02 }),
+        windowInner: new THREE.MeshBasicMaterial({ color: 0x88ccff, side: THREE.DoubleSide }),
         terminalFloor: new THREE.MeshStandardMaterial({ color: 0xccbbaa, roughness: 0.5 }),
         sky: new THREE.MeshBasicMaterial({ color: 0x87CEEB }),
         emergencyGreen: new THREE.MeshBasicMaterial({ color: 0x00ff44 }),
@@ -1117,7 +1117,7 @@
 
     // Plane is built along Z-axis: nose = +Z, tail = -Z, wings along X, up = Y
     // All coordinates: (x=left/right, y=up/down, z=fore/aft)
-    var PLANE = { len: 38, radius: 2.0, wingSpan: 34, wingChord: 5 };
+    var PLANE = { len: 38, radius: 2.8, wingSpan: 34, wingChord: 5 };
 
     function buildMiniPlane() {
         var g = new THREE.Group();
@@ -1589,8 +1589,8 @@
     // Real 737 cabin: ~3.54m wide, ~2.2m tall inside, ~24m passenger cabin length
     // Scale: 1 unit ≈ 1 meter
     function buildCabin() {
-        var CW = 3.54; // cabin width (meters)
-        var CH = 2.2;  // cabin height
+        var CW = 4.8;  // cabin width (meters)
+        var CH = 2.8;  // cabin height
         var CL = 22;   // cabin length (passenger section)
         var halfW = CW / 2;
         var halfL = CL / 2;
@@ -1691,13 +1691,13 @@
         // ── Windows (interior, on walls) ──
         for (var wz = -halfL + 1.5; wz < halfL - 1; wz += rowPitch) {
             for (var wSide = -1; wSide <= 1; wSide += 2) {
-                // Rounded-rect window frame
-                var frame = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.20), MAT.darkPlastic);
-                frame.position.set(wSide * (halfW - 0.02), 1.15, wz);
+                // Window frame
+                var frame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.30), MAT.darkPlastic);
+                frame.position.set(wSide * (halfW - 0.02), 1.2, wz);
                 cabinGroup.add(frame);
-                // Glass
-                var glass = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.16), MAT.windowInner);
-                glass.position.set(wSide * (halfW - 0.01), 1.15, wz);
+                // Glass — bright sky-blue to simulate outdoor view
+                var glass = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.26), MAT.windowInner);
+                glass.position.set(wSide * (halfW - 0.01), 1.2, wz);
                 glass.rotation.y = wSide > 0 ? -Math.PI / 2 : Math.PI / 2;
                 cabinGroup.add(glass);
             }
@@ -2932,9 +2932,8 @@
         G.mouseX = e.clientX;
         G.mouseY = e.clientY;
         if (G.phase === 'airport') {
-            // Wide range for walking: full screen = ±90° turn
-            // NEGATIVE because moving mouse right = positive clientX = look RIGHT = negative yaw
-            G.targetLookX = -(e.clientX / window.innerWidth - 0.5);
+            // Mouse position maps to look direction (right side of screen = look right)
+            G.targetLookX = (e.clientX / window.innerWidth - 0.5);
             G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.5;
         } else if (['boarding', 'seated', 'cruising'].indexOf(G.phase) !== -1) {
             G.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.8;
@@ -3052,9 +3051,9 @@
         }
         if (G.phase === 'seated' || G.phase === 'taxi' || G.phase === 'takeoff' ||
             G.phase === 'climbing') {
-            // Looking out left window (+X direction) = camera rotY ~ -PI/2
-            camera.rotation.y = -Math.PI / 2 + G.lookX * 0.5;
-            camera.rotation.x = G.lookY * 0.3;
+            // Free look around cabin — mouse position controls view direction
+            camera.rotation.y = G.lookX * Math.PI;  // full ±180° horizontal
+            camera.rotation.x = G.lookY * 0.5;      // ±30° vertical
         }
         if (['cruising', 'turbulence_light', 'storm', 'lightning_intense', 'emergency'].indexOf(G.phase) !== -1) {
             // Mostly looking out window with subtle drift
