@@ -1448,52 +1448,55 @@
         planeExtGroup.add(makeEngine(-6.0));
 
         // ── Vertical Stabilizer (swept tail fin) ──
-        // Build as a thin tapered shape lying in XY, then rotate to stand upright on the tail
-        // Shape drawn in a local 2D plane: X = fore/aft, Y = height
+        // Proper thickness so it looks like a real fin, not a flat triangle
         var vfinShape = new THREE.Shape();
-        // Base (on fuselage top): from tail end forward along fuselage
-        vfinShape.moveTo(0, 0);        // trailing edge base (tail tip)
-        vfinShape.lineTo(6, 0);        // leading edge base (forward on fuselage)
-        // Sweep up: leading edge rises steeply
-        vfinShape.lineTo(2.5, 6);      // tip - leading edge (swept back)
-        // Tip curves back
-        vfinShape.lineTo(0.5, 6);      // tip - trailing edge
-        // Trailing edge back down
-        vfinShape.lineTo(0, 0);        // close
-        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: 0.15, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2 });
+        vfinShape.moveTo(0, 0);           // trailing edge base (tail tip)
+        vfinShape.lineTo(7, 0);           // leading edge base (forward on fuselage)
+        vfinShape.quadraticCurveTo(5, 4, 3, 6.5);  // leading edge sweeps up with curve
+        vfinShape.lineTo(1.5, 6.5);       // fin tip width
+        vfinShape.quadraticCurveTo(0.8, 5, 0, 0);  // trailing edge curves back down
+        var vfinDepth = 0.5;
+        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: vfinDepth, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.12, bevelSegments: 3 });
         var vfin = new THREE.Mesh(vfinGeo, MAT.blue);
-        // Rotate so the shape stands upright: the local Y (height) becomes world Y, local X (fore/aft) aligns with Z
-        vfin.rotation.x = Math.PI / 2;   // stand up from XY-plane to XZ
-        vfin.rotation.y = Math.PI / 2;   // rotate so fore/aft aligns with Z
-        // Position: on top of fuselage, at the tail
-        vfin.position.set(-0.075, R, -halfLen + 2);
+        vfin.rotation.x = Math.PI / 2;
+        vfin.rotation.y = Math.PI / 2;
+        vfin.position.set(-vfinDepth / 2, R - 0.2, -halfLen + 2);
         planeExtGroup.add(vfin);
 
         // ── Tail livery accent (red swoosh on vertical fin) ──
         var liveryShape = new THREE.Shape();
         liveryShape.moveTo(0, 0);
-        liveryShape.lineTo(6, 0);
-        liveryShape.lineTo(2.5, 3);
+        liveryShape.lineTo(7, 0);
+        liveryShape.quadraticCurveTo(4.5, 2, 3, 3.5);
         liveryShape.lineTo(0, 0);
-        var liveryGeo = new THREE.ExtrudeGeometry(liveryShape, { depth: 0.18, bevelEnabled: false });
+        var liveryGeo = new THREE.ExtrudeGeometry(liveryShape, { depth: vfinDepth + 0.06, bevelEnabled: false });
         var livery = new THREE.Mesh(liveryGeo, MAT.fuselageAccent);
         livery.rotation.x = Math.PI / 2;
         livery.rotation.y = Math.PI / 2;
-        livery.position.set(-0.09, R, -halfLen + 2);
+        livery.position.set(-(vfinDepth + 0.06) / 2, R - 0.2, -halfLen + 2);
         planeExtGroup.add(livery);
 
-        // ── Horizontal Stabilizers (with taper) ──
+        // ── Horizontal Stabilizers (tapered wing shape) ──
         for (var hs = -1; hs <= 1; hs += 2) {
-            var hsGroup = new THREE.Group();
-            var hsGeo = new THREE.BoxGeometry(6, 0.15, 3);
+            var hsShape = new THREE.Shape();
+            // Airfoil-like cross section viewed from above: root chord longer, tip shorter, swept back
+            hsShape.moveTo(0, 0);          // root trailing edge
+            hsShape.lineTo(3.5, 0);        // root leading edge
+            hsShape.lineTo(2, 6);          // tip leading edge (swept)
+            hsShape.lineTo(1, 6);          // tip trailing edge
+            hsShape.lineTo(0, 0);          // close
+            var hsGeo = new THREE.ExtrudeGeometry(hsShape, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2 });
             var hStab = new THREE.Mesh(hsGeo, MAT.metal);
-            hsGroup.add(hStab);
-            // Tip fairing
-            var hsTip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 1.5), MAT.metal);
-            hsTip.position.set(hs * 3.1, 0, -0.5);
-            hsGroup.add(hsTip);
-            hsGroup.position.set(hs * 3.5, R + 0.2, -halfLen - 1);
-            planeExtGroup.add(hsGroup);
+            // Rotate so shape lies flat (Y=up) and extends outward along X
+            hStab.rotation.x = -Math.PI / 2;  // lay flat
+            if (hs === 1) {
+                hStab.rotation.z = Math.PI / 2;   // extend to +X
+                hStab.position.set(0, R + 0.1, -halfLen - 1);
+            } else {
+                hStab.rotation.z = -Math.PI / 2;  // extend to -X
+                hStab.position.set(0, R + 0.1, -halfLen - 1);
+            }
+            planeExtGroup.add(hStab);
         }
 
         // ── Landing Gear ──
