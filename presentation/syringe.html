@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Syringe Model</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #0d1117; }
+  canvas { display: block; }
+  #info {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    color: #fff; font-family: 'Segoe UI', sans-serif; font-size: 14px;
+    background: rgba(0,0,0,0.5); padding: 8px 18px; border-radius: 20px;
+    pointer-events: none; letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+<div id="info">Drag to rotate &middot; Scroll to zoom</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function() {
+    // ── Scene ──
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0d1117);
+
+    var camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.01, 100);
+    camera.position.set(4, 3, 6);
+
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.4;
+    document.body.appendChild(renderer.domElement);
+
+    var controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.target.set(0, 0, 0);
+
+    // ── Lighting ──
+    scene.add(new THREE.AmbientLight(0x445566, 0.8));
+
+    var keyLight = new THREE.DirectionalLight(0xffffff, 1.2);
+    keyLight.position.set(5, 8, 5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    scene.add(keyLight);
+
+    var fillLight = new THREE.DirectionalLight(0x4488cc, 0.5);
+    fillLight.position.set(-3, 4, -2);
+    scene.add(fillLight);
+
+    var rimLight = new THREE.DirectionalLight(0xccddff, 0.4);
+    rimLight.position.set(0, 2, -6);
+    scene.add(rimLight);
+
+    // ── Environment sphere for reflections ──
+    var envGeo = new THREE.SphereGeometry(50, 16, 16);
+    var envMat = new THREE.MeshBasicMaterial({ color: 0x111520, side: THREE.BackSide });
+    scene.add(new THREE.Mesh(envGeo, envMat));
+
+    // ── Syringe Group ──
+    var syringe = new THREE.Group();
+
+    // ── Materials ──
+    var glassMat = new THREE.MeshPhysicalMaterial({
+        color: 0xd0e8ff,
+        transparent: true,
+        opacity: 0.35,
+        roughness: 0.05,
+        metalness: 0.0,
+        transmission: 0.7,
+        thickness: 0.3,
+        clearcoat: 1.0,
+        clearcoatRoughness: 0.05,
+        side: THREE.DoubleSide
+    });
+
+    var plasticWhite = new THREE.MeshStandardMaterial({
+        color: 0xf0f0f5,
+        roughness: 0.3,
+        metalness: 0.0
+    });
+
+    var plasticGray = new THREE.MeshStandardMaterial({
+        color: 0x888899,
+        roughness: 0.4,
+        metalness: 0.1
+    });
+
+    var rubberBlack = new THREE.MeshStandardMaterial({
+        color: 0x1a1a1a,
+        roughness: 0.8,
+        metalness: 0.0
+    });
+
+    var metalMat = new THREE.MeshStandardMaterial({
+        color: 0xc0c0c0,
+        roughness: 0.15,
+        metalness: 0.95
+    });
+
+    var metalShiny = new THREE.MeshStandardMaterial({
+        color: 0xe0e0e0,
+        roughness: 0.05,
+        metalness: 1.0
+    });
+
+    var liquidMat = new THREE.MeshPhysicalMaterial({
+        color: 0x88ccff,
+        transparent: true,
+        opacity: 0.5,
+        roughness: 0.1,
+        metalness: 0.0,
+        transmission: 0.4,
+        thickness: 0.5
+    });
+
+    // ── Barrel (glass cylinder) ──
+    // The syringe lies along Y axis: needle points UP (+Y)
+    var barrelRadius = 0.4;
+    var barrelLength = 3.5;
+    var barrelGeo = new THREE.CylinderGeometry(barrelRadius, barrelRadius, barrelLength, 48, 1, true);
+    var barrel = new THREE.Mesh(barrelGeo, glassMat);
+    barrel.position.y = 0;
+    barrel.castShadow = true;
+    syringe.add(barrel);
+
+    // Barrel top cap (where it narrows to needle hub)
+    var barrelTopGeo = new THREE.CylinderGeometry(0.12, barrelRadius, 0.3, 48);
+    var barrelTop = new THREE.Mesh(barrelTopGeo, plasticWhite);
+    barrelTop.position.y = barrelLength / 2 + 0.15;
+    syringe.add(barrelTop);
+
+    // Barrel bottom rim
+    var rimGeo = new THREE.TorusGeometry(barrelRadius, 0.03, 8, 48);
+    var rim = new THREE.Mesh(rimGeo, plasticWhite);
+    rim.rotation.x = Math.PI / 2;
+    rim.position.y = -barrelLength / 2;
+    syringe.add(rim);
+
+    // ── Finger flange (the flat wings at the bottom) ──
+    var flangeWidth = 1.4;
+    var flangeGeo = new THREE.BoxGeometry(flangeWidth, 0.12, 0.5);
+    var flange = new THREE.Mesh(flangeGeo, plasticWhite);
+    flange.position.y = -barrelLength / 2 - 0.06;
+    flange.castShadow = true;
+    syringe.add(flange);
+
+    // Round the flange edges with small cylinders
+    var flangeEdgeGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.12, 16);
+    var flangeEdgeL = new THREE.Mesh(flangeEdgeGeo, plasticWhite);
+    flangeEdgeL.position.set(-flangeWidth / 2, -barrelLength / 2 - 0.06, 0);
+    syringe.add(flangeEdgeL);
+    var flangeEdgeR = new THREE.Mesh(flangeEdgeGeo, plasticWhite);
+    flangeEdgeR.position.set(flangeWidth / 2, -barrelLength / 2 - 0.06, 0);
+    syringe.add(flangeEdgeR);
+
+    // ── Plunger rod ──
+    var plungerRodLen = 2.8;
+    var plungerRodGeo = new THREE.CylinderGeometry(0.08, 0.08, plungerRodLen, 16);
+    var plungerRod = new THREE.Mesh(plungerRodGeo, plasticGray);
+    plungerRod.position.y = -barrelLength / 2 - plungerRodLen / 2 + 0.5;
+    syringe.add(plungerRod);
+
+    // Plunger rubber tip (inside barrel)
+    var plungerTipGeo = new THREE.CylinderGeometry(barrelRadius - 0.02, barrelRadius - 0.02, 0.2, 48);
+    var plungerTip = new THREE.Mesh(plungerTipGeo, rubberBlack);
+    plungerTip.position.y = -barrelLength / 2 + 0.6;
+    syringe.add(plungerTip);
+
+    // Plunger thumb pad (the flat disc at the very bottom)
+    var thumbPadGeo = new THREE.CylinderGeometry(0.45, 0.45, 0.15, 48);
+    var thumbPad = new THREE.Mesh(thumbPadGeo, plasticWhite);
+    thumbPad.position.y = -barrelLength / 2 - plungerRodLen + 0.5;
+    thumbPad.castShadow = true;
+    syringe.add(thumbPad);
+
+    // Thumb pad grip ring
+    var thumbRingGeo = new THREE.TorusGeometry(0.42, 0.03, 8, 48);
+    var thumbRing = new THREE.Mesh(thumbRingGeo, plasticGray);
+    thumbRing.rotation.x = Math.PI / 2;
+    thumbRing.position.y = thumbPad.position.y - 0.08;
+    syringe.add(thumbRing);
+
+    // ── Needle hub (Luer lock) ──
+    var hubGeo = new THREE.CylinderGeometry(0.14, 0.18, 0.4, 32);
+    var hub = new THREE.Mesh(hubGeo, plasticWhite);
+    hub.position.y = barrelLength / 2 + 0.3 + 0.2;
+    syringe.add(hub);
+
+    // Hub threading rings
+    for (var t = 0; t < 3; t++) {
+        var threadGeo = new THREE.TorusGeometry(0.16 - t * 0.01, 0.015, 6, 32);
+        var thread = new THREE.Mesh(threadGeo, plasticGray);
+        thread.rotation.x = Math.PI / 2;
+        thread.position.y = barrelLength / 2 + 0.35 + t * 0.1;
+        syringe.add(thread);
+    }
+
+    // ── Needle ──
+    var needleLength = 1.5;
+    // Main needle shaft — tapers to a very fine point
+    var needleGeo = new THREE.CylinderGeometry(0.005, 0.04, needleLength, 12);
+    var needle = new THREE.Mesh(needleGeo, metalShiny);
+    needle.position.y = barrelLength / 2 + 0.5 + needleLength / 2;
+    needle.castShadow = true;
+    syringe.add(needle);
+
+    // Needle bevel (angled cut at the tip)
+    var bevelGeo = new THREE.CylinderGeometry(0.003, 0.012, 0.12, 8);
+    var bevel = new THREE.Mesh(bevelGeo, metalShiny);
+    bevel.position.y = barrelLength / 2 + 0.5 + needleLength + 0.04;
+    bevel.rotation.z = 0.3;
+    syringe.add(bevel);
+
+    // Needle base collar
+    var collarGeo = new THREE.CylinderGeometry(0.06, 0.05, 0.08, 16);
+    var collar = new THREE.Mesh(collarGeo, metalMat);
+    collar.position.y = barrelLength / 2 + 0.5;
+    syringe.add(collar);
+
+    // ── Liquid inside barrel ──
+    var liquidLevel = 0.65; // 65% full
+    var liquidH = (barrelLength - 0.8) * liquidLevel;
+    var liquidGeo = new THREE.CylinderGeometry(barrelRadius - 0.04, barrelRadius - 0.04, liquidH, 48);
+    var liquid = new THREE.Mesh(liquidGeo, liquidMat);
+    liquid.position.y = -barrelLength / 2 + 0.7 + liquidH / 2;
+    syringe.add(liquid);
+
+    // ── Measurement markings on barrel ──
+    var markMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5 });
+    var numMarks = 10;
+    var markSpacing = (barrelLength - 0.8) / numMarks;
+    for (var m = 0; m <= numMarks; m++) {
+        var my = -barrelLength / 2 + 0.6 + m * markSpacing;
+        var isMajor = (m % 5 === 0);
+        var markW = isMajor ? 0.35 : 0.2;
+        var markH = isMajor ? 0.04 : 0.02;
+
+        var markGeo = new THREE.PlaneGeometry(markW, markH);
+        var mark = new THREE.Mesh(markGeo, markMat);
+        mark.position.set(barrelRadius + 0.005, my, 0);
+        mark.rotation.y = 0;
+        syringe.add(mark);
+
+        // Duplicate on the other side for visibility while rotating
+        var mark2 = new THREE.Mesh(markGeo, markMat);
+        mark2.position.set(-barrelRadius - 0.005, my, 0);
+        mark2.rotation.y = Math.PI;
+        syringe.add(mark2);
+
+        // Sub marks between major ones (on one side)
+        if (m < numMarks && !isMajor) {
+            var subGeo = new THREE.PlaneGeometry(0.12, 0.015);
+            for (var s = 1; s <= 1; s++) {
+                var sub = new THREE.Mesh(subGeo, markMat);
+                sub.position.set(barrelRadius + 0.005, my + markSpacing * 0.5, 0);
+                syringe.add(sub);
+            }
+        }
+    }
+
+    // ── Number labels (using thin planes arranged as blocky digits) ──
+    // We'll place "0", "5", "10" as small indicator marks
+    function createNumberMark(y, size) {
+        var g = new THREE.PlaneGeometry(size, size);
+        var m = new THREE.Mesh(g, markMat);
+        m.position.set(barrelRadius + 0.005 + size * 1.5, y, 0);
+        return m;
+    }
+    // Small diamonds at 0, 5, 10 ml marks
+    for (var n = 0; n <= 2; n++) {
+        var ny = -barrelLength / 2 + 0.6 + n * 5 * markSpacing;
+        var diamond = createNumberMark(ny, 0.06);
+        diamond.rotation.z = Math.PI / 4;
+        syringe.add(diamond);
+    }
+
+    // ── Needle cap (translucent, positioned off to the side) ──
+    var capGroup = new THREE.Group();
+    var capLength = 2.0;
+    var capMat = new THREE.MeshPhysicalMaterial({
+        color: 0xff6633,
+        transparent: true,
+        opacity: 0.7,
+        roughness: 0.2,
+        metalness: 0.0,
+        clearcoat: 0.5
+    });
+
+    var capGeo = new THREE.CylinderGeometry(0.08, 0.18, capLength, 24);
+    var cap = new THREE.Mesh(capGeo, capMat);
+    cap.position.y = capLength / 2;
+    capGroup.add(cap);
+
+    // Cap base ring
+    var capRingGeo = new THREE.TorusGeometry(0.18, 0.025, 8, 24);
+    var capRing = new THREE.Mesh(capRingGeo, new THREE.MeshStandardMaterial({ color: 0xcc5522, roughness: 0.3 }));
+    capRing.rotation.x = Math.PI / 2;
+    capRing.position.y = 0;
+    capGroup.add(capRing);
+
+    capGroup.position.set(2.0, -1.8, 0);
+    capGroup.rotation.z = -0.3;
+    syringe.add(capGroup);
+
+    // ── Position the whole syringe ──
+    syringe.rotation.z = -0.15; // Slight tilt for visual interest
+    scene.add(syringe);
+
+    // ── Soft ground shadow catcher ──
+    var shadowGeo = new THREE.PlaneGeometry(20, 20);
+    var shadowMat = new THREE.ShadowMaterial({ opacity: 0.3 });
+    var shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
+    shadowPlane.rotation.x = -Math.PI / 2;
+    shadowPlane.position.y = -4;
+    shadowPlane.receiveShadow = true;
+    scene.add(shadowPlane);
+
+    // ── Subtle floating particles (medical/clean aesthetic) ──
+    var particleCount = 200;
+    var particleGeo = new THREE.BufferGeometry();
+    var particlePos = new Float32Array(particleCount * 3);
+    for (var i = 0; i < particleCount; i++) {
+        particlePos[i * 3] = (Math.random() - 0.5) * 15;
+        particlePos[i * 3 + 1] = (Math.random() - 0.5) * 10;
+        particlePos[i * 3 + 2] = (Math.random() - 0.5) * 15;
+    }
+    particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+    var particleMat = new THREE.PointsMaterial({
+        color: 0x4488cc,
+        size: 0.03,
+        transparent: true,
+        opacity: 0.5,
+        sizeAttenuation: true
+    });
+    var particles = new THREE.Points(particleGeo, particleMat);
+    scene.add(particles);
+
+    // ── Animation ──
+    var clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        var t = clock.getElapsedTime();
+
+        // Gentle auto-rotation
+        syringe.rotation.y = t * 0.3;
+
+        // Floating particles drift
+        var positions = particles.geometry.attributes.position.array;
+        for (var i = 0; i < particleCount; i++) {
+            positions[i * 3 + 1] += Math.sin(t + i) * 0.001;
+        }
+        particles.geometry.attributes.position.needsUpdate = true;
+
+        // Subtle liquid shimmer
+        liquid.material.opacity = 0.45 + Math.sin(t * 2) * 0.08;
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // ── Resize ──
+    window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+})();
+</script>
+</body>
+</html>

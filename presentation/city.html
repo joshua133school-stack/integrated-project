@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D City — Bird's Eye View</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { overflow: hidden; background: #0a0a1a; }
+  canvas { display: block; }
+  #info {
+    position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+    color: #fff; font-family: 'Segoe UI', sans-serif; font-size: 14px;
+    background: rgba(0,0,0,0.5); padding: 8px 18px; border-radius: 20px;
+    pointer-events: none; letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+<div id="info">Drag to orbit &middot; Scroll to zoom</div>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function() {
+    // ── Scene setup ──
+    var scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.FogExp2(0x1a1a2e, 0.0025);
+
+    var camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(120, 140, 120);
+    camera.lookAt(0, 0, 0);
+
+    var renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.2;
+    document.body.appendChild(renderer.domElement);
+
+    var controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.maxPolarAngle = Math.PI / 2.2;
+    controls.minDistance = 40;
+    controls.maxDistance = 300;
+    controls.target.set(0, 0, 0);
+
+    // ── Lighting ──
+    var ambientLight = new THREE.AmbientLight(0x334466, 0.6);
+    scene.add(ambientLight);
+
+    var moonLight = new THREE.DirectionalLight(0x8899cc, 0.8);
+    moonLight.position.set(80, 120, 60);
+    moonLight.castShadow = true;
+    moonLight.shadow.mapSize.set(2048, 2048);
+    moonLight.shadow.camera.left = -150;
+    moonLight.shadow.camera.right = 150;
+    moonLight.shadow.camera.top = 150;
+    moonLight.shadow.camera.bottom = -150;
+    moonLight.shadow.camera.near = 1;
+    moonLight.shadow.camera.far = 400;
+    scene.add(moonLight);
+
+    var warmLight = new THREE.DirectionalLight(0xffaa44, 0.3);
+    warmLight.position.set(-50, 80, -40);
+    scene.add(warmLight);
+
+    // ── Helpers ──
+    function rand(min, max) { return Math.random() * (max - min) + min; }
+    function randInt(min, max) { return Math.floor(rand(min, max + 1)); }
+    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+    // ── Ground plane ──
+    var groundGeo = new THREE.PlaneGeometry(400, 400);
+    var groundMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+    var ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // ── City grid parameters ──
+    var gridSize = 10;        // 10x10 city blocks
+    var blockSize = 20;       // each block is 20x20 units
+    var roadWidth = 4;        // road between blocks
+    var totalStep = blockSize + roadWidth;
+    var cityHalf = (gridSize * totalStep) / 2;
+
+    // ── Roads ──
+    var roadMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.8 });
+    // Horizontal roads
+    for (var r = 0; r <= gridSize; r++) {
+        var roadGeo = new THREE.PlaneGeometry(gridSize * totalStep + roadWidth, roadWidth);
+        var road = new THREE.Mesh(roadGeo, roadMat);
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(0, 0.01, -cityHalf + r * totalStep);
+        road.receiveShadow = true;
+        scene.add(road);
+    }
+    // Vertical roads
+    for (var r = 0; r <= gridSize; r++) {
+        var roadGeo = new THREE.PlaneGeometry(roadWidth, gridSize * totalStep + roadWidth);
+        var road = new THREE.Mesh(roadGeo, roadMat);
+        road.rotation.x = -Math.PI / 2;
+        road.position.set(-cityHalf + r * totalStep, 0.01, 0);
+        road.receiveShadow = true;
+        scene.add(road);
+    }
+
+    // ── Road markings (dashed center lines) ──
+    var markingMat = new THREE.MeshStandardMaterial({ color: 0xffcc00, roughness: 0.5 });
+    for (var r = 0; r <= gridSize; r++) {
+        for (var d = -cityHalf; d < cityHalf; d += 4) {
+            // Horizontal road dashes
+            var dg = new THREE.PlaneGeometry(1.5, 0.15);
+            var dm = new THREE.Mesh(dg, markingMat);
+            dm.rotation.x = -Math.PI / 2;
+            dm.position.set(d + 2, 0.02, -cityHalf + r * totalStep);
+            scene.add(dm);
+            // Vertical road dashes
+            var dg2 = new THREE.PlaneGeometry(0.15, 1.5);
+            var dm2 = new THREE.Mesh(dg2, markingMat);
+            dm2.rotation.x = -Math.PI / 2;
+            dm2.position.set(-cityHalf + r * totalStep, 0.02, d + 2);
+            scene.add(dm2);
+        }
+    }
+
+    // ── Building palettes ──
+    var buildingColors = [
+        0x2a3a5c, 0x3a4a6c, 0x1e2d4a, 0x4a5a7c,  // Blue-grays
+        0x3c3c5a, 0x2d2d4a, 0x4a3a5c, 0x5a4a6c,  // Purple-grays
+        0x2a4a4a, 0x3a5a5a, 0x1e3a3a, 0x4a6a6a,  // Teal
+        0x5a5a6a, 0x4a4a5a, 0x6a6a7a, 0x3a3a4a   // Neutrals
+    ];
+
+    var windowColor = new THREE.Color(0xffdd88);
+    var windowOffColor = new THREE.Color(0x111122);
+    var accentColors = [0xff4444, 0x44aaff, 0x44ff88, 0xffaa44, 0xff44aa];
+
+    // ── Building creation function ──
+    function createBuilding(x, z, maxW, maxD) {
+        var group = new THREE.Group();
+
+        var w = rand(Math.min(6, maxW), maxW);
+        var d = rand(Math.min(6, maxD), maxD);
+        var h = rand(8, 70);
+
+        // Taller buildings toward center
+        var distFromCenter = Math.sqrt(x * x + z * z) / cityHalf;
+        if (distFromCenter < 0.3) h = rand(35, 70);
+        else if (distFromCenter < 0.6) h = rand(15, 50);
+        else h = rand(5, 25);
+
+        var color = pick(buildingColors);
+        var mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7, metalness: 0.2 });
+
+        // Main body
+        var bodyGeo = new THREE.BoxGeometry(w, h, d);
+        var body = new THREE.Mesh(bodyGeo, mat);
+        body.position.y = h / 2;
+        body.castShadow = true;
+        body.receiveShadow = true;
+        group.add(body);
+
+        // Setback tower for tall buildings
+        if (h > 35 && Math.random() > 0.3) {
+            var tw = w * rand(0.4, 0.7);
+            var td = d * rand(0.4, 0.7);
+            var th = rand(10, 25);
+            var towerGeo = new THREE.BoxGeometry(tw, th, td);
+            var tower = new THREE.Mesh(towerGeo, mat);
+            tower.position.y = h + th / 2;
+            tower.castShadow = true;
+            group.add(tower);
+            h += th; // update total height for antenna
+        }
+
+        // Windows (emissive planes on facades)
+        var windowRows = Math.floor(h / 3.5);
+        var windowCols = Math.floor(w / 2.5);
+        var windowColsZ = Math.floor(d / 2.5);
+        var windowGeo = new THREE.PlaneGeometry(1.2, 1.8);
+
+        for (var row = 0; row < windowRows; row++) {
+            var wy = 2.5 + row * 3.5;
+            if (wy > h - 1) break;
+
+            // Front and back (Z faces)
+            for (var col = 0; col < windowCols; col++) {
+                var wx = -w / 2 + 1.5 + col * (w / windowCols);
+                var lit = Math.random() > 0.3;
+                var wMat = new THREE.MeshStandardMaterial({
+                    color: lit ? windowColor : windowOffColor,
+                    emissive: lit ? windowColor : windowOffColor,
+                    emissiveIntensity: lit ? rand(0.3, 0.8) : 0.05,
+                    roughness: 0.3
+                });
+
+                // Front
+                var wm = new THREE.Mesh(windowGeo, wMat);
+                wm.position.set(wx, wy, d / 2 + 0.01);
+                group.add(wm);
+
+                // Back
+                var wb = new THREE.Mesh(windowGeo, wMat);
+                wb.position.set(wx, wy, -d / 2 - 0.01);
+                wb.rotation.y = Math.PI;
+                group.add(wb);
+            }
+
+            // Left and right (X faces)
+            for (var col = 0; col < windowColsZ; col++) {
+                var wz = -d / 2 + 1.5 + col * (d / windowColsZ);
+                var lit = Math.random() > 0.3;
+                var wMat = new THREE.MeshStandardMaterial({
+                    color: lit ? windowColor : windowOffColor,
+                    emissive: lit ? windowColor : windowOffColor,
+                    emissiveIntensity: lit ? rand(0.3, 0.8) : 0.05,
+                    roughness: 0.3
+                });
+
+                var wl = new THREE.Mesh(windowGeo, wMat);
+                wl.position.set(w / 2 + 0.01, wy, wz);
+                wl.rotation.y = Math.PI / 2;
+                group.add(wl);
+
+                var wr = new THREE.Mesh(windowGeo, wMat);
+                wr.position.set(-w / 2 - 0.01, wy, wz);
+                wr.rotation.y = -Math.PI / 2;
+                group.add(wr);
+            }
+        }
+
+        // Rooftop features
+        if (h > 20 && Math.random() > 0.4) {
+            // Antenna
+            var antennaGeo = new THREE.CylinderGeometry(0.08, 0.08, rand(3, 8));
+            var antennaMat = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.8 });
+            var antenna = new THREE.Mesh(antennaGeo, antennaMat);
+            antenna.position.y = h + antenna.geometry.parameters.height / 2;
+            group.add(antenna);
+
+            // Blinking light on top
+            var lightGeo = new THREE.SphereGeometry(0.3);
+            var lightMat = new THREE.MeshStandardMaterial({
+                color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 2
+            });
+            var blink = new THREE.Mesh(lightGeo, lightMat);
+            blink.position.y = h + antenna.geometry.parameters.height + 0.3;
+            blink.userData.blink = true;
+            blink.userData.blinkOffset = Math.random() * Math.PI * 2;
+            group.add(blink);
+        }
+
+        // AC units on roof
+        if (Math.random() > 0.5) {
+            var acCount = randInt(1, 4);
+            var acMat = new THREE.MeshStandardMaterial({ color: 0x555566, roughness: 0.6 });
+            for (var a = 0; a < acCount; a++) {
+                var acGeo = new THREE.BoxGeometry(rand(1, 2), rand(0.8, 1.5), rand(1, 2));
+                var ac = new THREE.Mesh(acGeo, acMat);
+                ac.position.set(rand(-w / 3, w / 3), h + 0.6, rand(-d / 3, d / 3));
+                ac.castShadow = true;
+                group.add(ac);
+            }
+        }
+
+        // Accent stripe on some buildings
+        if (Math.random() > 0.6) {
+            var stripeGeo = new THREE.BoxGeometry(w + 0.1, 0.4, d + 0.1);
+            var stripeMat = new THREE.MeshStandardMaterial({
+                color: pick(accentColors), emissive: pick(accentColors), emissiveIntensity: 0.5
+            });
+            var stripe = new THREE.Mesh(stripeGeo, stripeMat);
+            stripe.position.y = h;
+            group.add(stripe);
+        }
+
+        group.position.set(x, 0, z);
+        return group;
+    }
+
+    // ── Place buildings in grid ──
+    var buildings = [];
+    for (var gx = 0; gx < gridSize; gx++) {
+        for (var gz = 0; gz < gridSize; gz++) {
+            var blockX = -cityHalf + roadWidth / 2 + gx * totalStep + blockSize / 2;
+            var blockZ = -cityHalf + roadWidth / 2 + gz * totalStep + blockSize / 2;
+
+            // 1-4 buildings per block
+            var numBuildings = randInt(1, 4);
+            if (numBuildings === 1) {
+                // Single large building centered
+                var b = createBuilding(blockX, blockZ, blockSize - 2, blockSize - 2);
+                scene.add(b);
+                buildings.push(b);
+            } else {
+                // Multiple smaller buildings in sub-grid
+                var subSize = blockSize / 2 - 1;
+                var positions = [
+                    [blockX - blockSize / 4, blockZ - blockSize / 4],
+                    [blockX + blockSize / 4, blockZ - blockSize / 4],
+                    [blockX - blockSize / 4, blockZ + blockSize / 4],
+                    [blockX + blockSize / 4, blockZ + blockSize / 4]
+                ];
+                for (var i = 0; i < numBuildings && i < 4; i++) {
+                    var b = createBuilding(positions[i][0], positions[i][1], subSize, subSize);
+                    scene.add(b);
+                    buildings.push(b);
+                }
+            }
+        }
+    }
+
+    // ── Street lights ──
+    var lampMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.6 });
+    var lampLightMat = new THREE.MeshStandardMaterial({
+        color: 0xffaa44, emissive: 0xffaa44, emissiveIntensity: 1.5
+    });
+    for (var r = 0; r <= gridSize; r++) {
+        for (var p = -cityHalf + 10; p < cityHalf; p += 24) {
+            // Along horizontal roads
+            var poleGeo = new THREE.CylinderGeometry(0.12, 0.12, 5);
+            var pole = new THREE.Mesh(poleGeo, lampMat);
+            pole.position.set(p, 2.5, -cityHalf + r * totalStep + roadWidth / 2 + 1.5);
+            scene.add(pole);
+
+            var bulbGeo = new THREE.SphereGeometry(0.4);
+            var bulb = new THREE.Mesh(bulbGeo, lampLightMat);
+            bulb.position.set(p, 5.2, -cityHalf + r * totalStep + roadWidth / 2 + 1.5);
+            scene.add(bulb);
+
+            // Point light (sparse — every other lamp)
+            if (Math.random() > 0.5) {
+                var pl = new THREE.PointLight(0xffaa44, 0.5, 15);
+                pl.position.copy(bulb.position);
+                scene.add(pl);
+            }
+        }
+    }
+
+    // ── Trees in some blocks ──
+    var trunkMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.9 });
+    var leafMat = new THREE.MeshStandardMaterial({ color: 0x1a4a2a, roughness: 0.8 });
+    for (var i = 0; i < 40; i++) {
+        var tx = rand(-cityHalf, cityHalf);
+        var tz = rand(-cityHalf, cityHalf);
+        // Only place near roads (in road strips)
+        var trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, rand(2, 4));
+        var trunk = new THREE.Mesh(trunkGeo, trunkMat);
+        trunk.position.set(tx, 1.5, tz);
+        trunk.castShadow = true;
+        scene.add(trunk);
+
+        var leafGeo = new THREE.SphereGeometry(rand(1.5, 3), 8, 6);
+        var leaf = new THREE.Mesh(leafGeo, leafMat);
+        leaf.position.set(tx, rand(3.5, 5), tz);
+        leaf.castShadow = true;
+        scene.add(leaf);
+    }
+
+    // ── Animated cars ──
+    var cars = [];
+    var carColors = [0xff3333, 0x3333ff, 0xffff33, 0x33ff33, 0xffffff, 0xff8800];
+    for (var i = 0; i < 30; i++) {
+        var carGeo = new THREE.BoxGeometry(1.8, 1, 3.5);
+        var carMat = new THREE.MeshStandardMaterial({ color: pick(carColors), roughness: 0.4, metalness: 0.6 });
+        var car = new THREE.Mesh(carGeo, carMat);
+
+        // Place on a random road
+        var isHorizontal = Math.random() > 0.5;
+        var roadIdx = randInt(0, gridSize);
+        if (isHorizontal) {
+            car.position.set(rand(-cityHalf, cityHalf), 0.6, -cityHalf + roadIdx * totalStep + (Math.random() > 0.5 ? 1 : -1));
+            car.userData.dir = Math.random() > 0.5 ? 1 : -1;
+            car.userData.axis = 'x';
+        } else {
+            car.position.set(-cityHalf + roadIdx * totalStep + (Math.random() > 0.5 ? 1 : -1), 0.6, rand(-cityHalf, cityHalf));
+            car.rotation.y = Math.PI / 2;
+            car.userData.dir = Math.random() > 0.5 ? 1 : -1;
+            car.userData.axis = 'z';
+        }
+        car.userData.speed = rand(8, 20);
+        car.castShadow = true;
+        scene.add(car);
+
+        // Headlights
+        var hlMat = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffcc, emissiveIntensity: 1 });
+        var hlGeo = new THREE.SphereGeometry(0.15);
+        var hl1 = new THREE.Mesh(hlGeo, hlMat);
+        hl1.position.set(-0.6, 0, 1.8);
+        car.add(hl1);
+        var hl2 = new THREE.Mesh(hlGeo, hlMat);
+        hl2.position.set(0.6, 0, 1.8);
+        car.add(hl2);
+
+        // Tail lights
+        var tlMat = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8 });
+        var tl1 = new THREE.Mesh(hlGeo, tlMat);
+        tl1.position.set(-0.6, 0, -1.8);
+        car.add(tl1);
+        var tl2 = new THREE.Mesh(hlGeo, tlMat);
+        tl2.position.set(0.6, 0, -1.8);
+        car.add(tl2);
+
+        cars.push(car);
+    }
+
+    // ── Stars ──
+    var starGeo = new THREE.BufferGeometry();
+    var starCount = 2000;
+    var starPos = new Float32Array(starCount * 3);
+    for (var i = 0; i < starCount; i++) {
+        starPos[i * 3] = rand(-300, 300);
+        starPos[i * 3 + 1] = rand(60, 200);
+        starPos[i * 3 + 2] = rand(-300, 300);
+    }
+    starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
+    var starMat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.5, sizeAttenuation: true });
+    var stars = new THREE.Points(starGeo, starMat);
+    scene.add(stars);
+
+    // ── Animation ──
+    var clock = new THREE.Clock();
+
+    function animate() {
+        requestAnimationFrame(animate);
+        var dt = clock.getDelta();
+        var t = clock.getElapsedTime();
+
+        // Animate cars
+        for (var i = 0; i < cars.length; i++) {
+            var c = cars[i];
+            var axis = c.userData.axis;
+            c.position[axis] += c.userData.dir * c.userData.speed * dt;
+            // Wrap around
+            if (c.position[axis] > cityHalf + 20) c.position[axis] = -cityHalf - 20;
+            if (c.position[axis] < -cityHalf - 20) c.position[axis] = cityHalf + 20;
+        }
+
+        // Blink antenna lights
+        scene.traverse(function(obj) {
+            if (obj.userData && obj.userData.blink) {
+                var intensity = (Math.sin(t * 2 + obj.userData.blinkOffset) + 1) * 0.5;
+                obj.material.emissiveIntensity = intensity * 3;
+            }
+        });
+
+        controls.update();
+        renderer.render(scene, camera);
+    }
+
+    animate();
+
+    // ── Resize ──
+    window.addEventListener('resize', function() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+})();
+</script>
+</body>
+</html>
