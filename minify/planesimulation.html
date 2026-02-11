@@ -637,6 +637,13 @@
         tEndWall2.rotation.y = Math.PI;
         airportGroup.add(tEndWall2);
 
+        // ── Gate positions (defined early — needed for window wall openings) ──
+        var gatePositions = [
+            { name: 'A5', z: -30, hasPlane: true },
+            { name: 'A7', z: 5, hasPlane: false },
+            { name: 'A9', z: 35, hasPlane: true }
+        ];
+
         // ── Window wall (+X side) — floor-to-ceiling glass with openings for jet bridges ──
         var glassMat = new THREE.MeshPhysicalMaterial({ color: 0xaaddff, transparent: true, opacity: 0.15, roughness: 0.02, transmission: 0.8 });
         // Collect gate Z positions for bridge openings (3.5m wide opening each)
@@ -696,12 +703,6 @@
         // ════════════════════════════════════════
         //  GATES AND JET BRIDGES
         // ════════════════════════════════════════
-        // 3 gates spread along the larger terminal
-        var gatePositions = [
-            { name: 'A5', z: -30, hasPlane: true },
-            { name: 'A7', z: 5, hasPlane: false },  // player's gate — main plane is separate
-            { name: 'A9', z: 35, hasPlane: true }
-        ];
 
         // Gate desk, signs, and jet bridges for each gate
         var deskMat = new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.5 });
