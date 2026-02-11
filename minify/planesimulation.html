@@ -559,16 +559,16 @@
         // ════════════════════════════════════════
         //  TERMINAL BUILDING & INTERIOR (2-story)
         // ════════════════════════════════════════
-        // Terminal is a long corridor along Z axis, 2 floors
+        // Large terminal corridor along Z axis, 2 floors
         // Ground floor: y=0 to y=4 (arrivals, services — not detailed)
         // 2nd floor: y=4 to y=8.5 (departure gates — where player is)
-        // Window wall on +X side facing the plane
+        // Window wall on +X side facing the planes
         // TI = terminal interior bounds (2nd floor only)
-        var TI = { x1: -12, x2: 2, z1: -30, z2: 30, floorY: 4.0, ceilY: 8.5 };
-        var TW = TI.x2 - TI.x1; // 14m wide
-        var TL = TI.z2 - TI.z1; // 60m long
+        var TI = { x1: -20, x2: 2, z1: -50, z2: 50, floorY: 4.0, ceilY: 8.5 };
+        var TW = TI.x2 - TI.x1; // 22m wide
+        var TL = TI.z2 - TI.z1; // 100m long
         var TH = TI.ceilY - TI.floorY; // 4.5m tall (2nd floor)
-        var TCX = (TI.x1 + TI.x2) / 2; // center X = -5
+        var TCX = (TI.x1 + TI.x2) / 2; // center X = -9
         var TCZ = (TI.z1 + TI.z2) / 2; // center Z = 0
 
         // ── Terminal exterior shell ──
@@ -637,26 +637,40 @@
         tEndWall2.rotation.y = Math.PI;
         airportGroup.add(tEndWall2);
 
-        // ── Window wall (+X side) — floor-to-ceiling glass panels with mullions ──
-        // The window wall at x = TI.x2 = 2, facing +X toward the plane
+        // ── Window wall (+X side) — floor-to-ceiling glass with openings for jet bridges ──
         var glassMat = new THREE.MeshPhysicalMaterial({ color: 0xaaddff, transparent: true, opacity: 0.15, roughness: 0.02, transmission: 0.8 });
-        // Glass panels between mullions (every 3m along Z)
+        // Collect gate Z positions for bridge openings (3.5m wide opening each)
+        var bridgeOpeningHalfW = 1.8;
+        function isInBridgeOpening(z) {
+            for (var go = 0; go < gatePositions.length; go++) {
+                if (Math.abs(z - gatePositions[go].z) < bridgeOpeningHalfW) return true;
+            }
+            return false;
+        }
+        // Glass panels (every 3m along Z, skip where bridges connect)
         for (var gz = TI.z1; gz < TI.z2; gz += 3) {
+            var panelCenter = gz + 1.5;
+            if (isInBridgeOpening(panelCenter)) continue; // skip — bridge opening
             var glassPanel = new THREE.Mesh(new THREE.PlaneGeometry(2.8, TH), glassMat);
-            glassPanel.position.set(TI.x2, TI.floorY + TH / 2, gz + 1.5);
+            glassPanel.position.set(TI.x2, TI.floorY + TH / 2, panelCenter);
             glassPanel.rotation.y = -Math.PI / 2;
             airportGroup.add(glassPanel);
         }
-        // Vertical mullions (metal dividers)
+        // Vertical mullions (skip in bridge openings)
         for (var mz = TI.z1; mz <= TI.z2; mz += 3) {
+            if (isInBridgeOpening(mz)) continue;
             var mullion = new THREE.Mesh(new THREE.BoxGeometry(0.12, TH, 0.08), MAT.metal);
             mullion.position.set(TI.x2 + 0.01, TI.floorY + TH / 2, mz);
             airportGroup.add(mullion);
         }
-        // Horizontal mullion (mid-height divider strip)
-        var hMullion = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, TL), MAT.metal);
-        hMullion.position.set(TI.x2 + 0.01, TI.floorY + TH * 0.55, TCZ);
-        airportGroup.add(hMullion);
+        // Horizontal mullion (skip in bridge openings — split into segments)
+        for (var hmz = TI.z1; hmz < TI.z2; hmz += 3) {
+            var hmCenter = hmz + 1.5;
+            if (isInBridgeOpening(hmCenter)) continue;
+            var hMullSeg = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.06, 2.8), MAT.metal);
+            hMullSeg.position.set(TI.x2 + 0.01, TI.floorY + TH * 0.55, hmCenter);
+            airportGroup.add(hMullSeg);
+        }
 
         // ── Ceiling lights (fluorescent panels, along corridor) ──
         var ceilLightMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
@@ -682,11 +696,11 @@
         // ════════════════════════════════════════
         //  GATES AND JET BRIDGES
         // ════════════════════════════════════════
-        // 3 gates: A5 (z=-20), A7 (z=5, player's gate), A9 (z=25)
+        // 3 gates spread along the larger terminal
         var gatePositions = [
-            { name: 'A5', z: -20, hasPlane: true },
+            { name: 'A5', z: -30, hasPlane: true },
             { name: 'A7', z: 5, hasPlane: false },  // player's gate — main plane is separate
-            { name: 'A9', z: 25, hasPlane: true }
+            { name: 'A9', z: 35, hasPlane: true }
         ];
 
         // Gate desk, signs, and jet bridges for each gate
@@ -727,75 +741,83 @@
             airportGroup.add(gDesk);
 
             // ── Jet bridge (connects 2nd floor to plane) ──
-            // Level bridge at 2nd floor height (floor at y=4)
-            var bridgeLen = 12;
-            var bridgeH = 2.8;
-            var bridgeW = 3.0;
+            // Bridge starts flush with terminal window wall (x=TI.x2)
+            // and extends out to the plane's forward door
+            var bridgeLen = 13;
+            var bridgeH = 3.0;
+            var bridgeW = 3.2;
             var bridgeFloorY = TI.floorY; // y=4, same as terminal floor
-            var bridgeCenterY = bridgeFloorY + bridgeH / 2; // y=5.4
-            var bridgeStartX = TI.x2 + 0.3;
+            var bridgeCenterY = bridgeFloorY + bridgeH / 2;
+            var bridgeStartX = TI.x2; // flush with terminal wall
             var bridgeEndX = bridgeStartX + bridgeLen;
             var bridgeCenterX = (bridgeStartX + bridgeEndX) / 2;
             var halfBW = bridgeW / 2;
-
-            // Exterior shell (visible from outside)
-            var bShell = new THREE.Mesh(new THREE.BoxGeometry(bridgeLen, bridgeH, bridgeW), bridgeMat);
-            bShell.position.set(bridgeCenterX, bridgeCenterY, gate.z);
-            bShell.castShadow = true;
-            airportGroup.add(bShell);
-
-            // Interior (walkable — only fully built for gate A7)
             var isPlayerGate = (gate.name === 'A7');
-            if (isPlayerGate) {
-                // Bridge interior floor
-                var bIntFloor = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW - 0.2),
-                    new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.8 }));
-                bIntFloor.rotation.x = -Math.PI / 2;
-                bIntFloor.position.set(bridgeCenterX, bridgeFloorY + 0.05, gate.z);
-                airportGroup.add(bIntFloor);
-                // Bridge interior ceiling
-                var bIntCeil = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW - 0.2), tCeilMat);
-                bIntCeil.rotation.x = Math.PI / 2;
-                bIntCeil.position.set(bridgeCenterX, bridgeFloorY + bridgeH - 0.05, gate.z);
-                airportGroup.add(bIntCeil);
-                // Bridge interior walls (both sides)
-                for (var bws = -1; bws <= 1; bws += 2) {
-                    var bIntWall = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeH - 0.2), wallMat);
-                    bIntWall.position.set(bridgeCenterX, bridgeCenterY, gate.z + bws * (halfBW - 0.05));
-                    bIntWall.rotation.y = bws > 0 ? Math.PI : 0;
-                    airportGroup.add(bIntWall);
-                }
-                // Bridge windows (cutouts in walls — glass panels)
-                for (var bwSide = -1; bwSide <= 1; bwSide += 2) {
-                    for (var bwi = 0; bwi < 3; bwi++) {
-                        var bWin = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), glassMat);
-                        bWin.position.set(bridgeStartX + 2 + bwi * 3.5, bridgeCenterY + 0.3, gate.z + bwSide * (halfBW - 0.03));
-                        bWin.rotation.y = bwSide > 0 ? Math.PI : 0;
-                        airportGroup.add(bWin);
-                    }
-                }
-            } else {
-                // Other gates: just exterior windows
-                for (var bwSide2 = -1; bwSide2 <= 1; bwSide2 += 2) {
-                    for (var bwi2 = 0; bwi2 < 3; bwi2++) {
-                        var bWin2 = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.0), glassMat);
-                        bWin2.position.set(bridgeCenterX - 3 + bwi2 * 3.5, bridgeCenterY + 0.3, gate.z + bwSide2 * (halfBW + 0.01));
-                        bWin2.rotation.y = bwSide2 > 0 ? 0 : Math.PI;
-                        airportGroup.add(bWin2);
-                    }
+
+            // Exterior shell — built from individual faces (not a box)
+            // so the terminal-side face is open for walking through
+            var bExtMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.5, metalness: 0.3 });
+            // Top face
+            var bTop = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW), bExtMat);
+            bTop.rotation.x = -Math.PI / 2;
+            bTop.position.set(bridgeCenterX, bridgeFloorY + bridgeH, gate.z);
+            airportGroup.add(bTop);
+            // Bottom face
+            var bBot = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW), bExtMat);
+            bBot.rotation.x = Math.PI / 2;
+            bBot.position.set(bridgeCenterX, bridgeFloorY, gate.z);
+            airportGroup.add(bBot);
+            // Side faces (exterior, both Z sides)
+            for (var bSide = -1; bSide <= 1; bSide += 2) {
+                var bSideFace = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeH), bExtMat);
+                bSideFace.position.set(bridgeCenterX, bridgeCenterY, gate.z + bSide * halfBW);
+                bSideFace.rotation.y = bSide > 0 ? 0 : Math.PI;
+                airportGroup.add(bSideFace);
+            }
+            // Far end face (plane side — closed, accordion attaches here)
+            var bEndFace = new THREE.Mesh(new THREE.PlaneGeometry(bridgeW, bridgeH), bExtMat);
+            bEndFace.position.set(bridgeEndX, bridgeCenterY, gate.z);
+            bEndFace.rotation.y = -Math.PI / 2;
+            airportGroup.add(bEndFace);
+            // Terminal-side face is OPEN (no face) so player can walk in
+
+            // Interior floor (walkable surface)
+            var bIntFloorMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.8 });
+            var bIntFloor = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW - 0.2), bIntFloorMat);
+            bIntFloor.rotation.x = -Math.PI / 2;
+            bIntFloor.position.set(bridgeCenterX, bridgeFloorY + 0.05, gate.z);
+            airportGroup.add(bIntFloor);
+            // Interior ceiling
+            var bIntCeil = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeW - 0.2), tCeilMat);
+            bIntCeil.rotation.x = Math.PI / 2;
+            bIntCeil.position.set(bridgeCenterX, bridgeFloorY + bridgeH - 0.05, gate.z);
+            airportGroup.add(bIntCeil);
+            // Interior walls (both sides, visible from inside)
+            for (var bws = -1; bws <= 1; bws += 2) {
+                var bIntWall = new THREE.Mesh(new THREE.PlaneGeometry(bridgeLen, bridgeH - 0.2), wallMat);
+                bIntWall.position.set(bridgeCenterX, bridgeCenterY, gate.z + bws * (halfBW - 0.05));
+                bIntWall.rotation.y = bws > 0 ? Math.PI : 0;
+                airportGroup.add(bIntWall);
+            }
+            // Interior windows (glass panels on both sides)
+            for (var bwSide = -1; bwSide <= 1; bwSide += 2) {
+                for (var bwi = 0; bwi < 3; bwi++) {
+                    var bWin = new THREE.Mesh(new THREE.PlaneGeometry(2.5, 1.2), glassMat);
+                    bWin.position.set(bridgeStartX + 2.5 + bwi * 4, bridgeCenterY + 0.3, gate.z + bwSide * (halfBW - 0.03));
+                    bWin.rotation.y = bwSide > 0 ? Math.PI : 0;
+                    airportGroup.add(bWin);
                 }
             }
 
             // Support pillars (from ground to bridge underside)
-            var pillarTop = bridgeFloorY;
             for (var bp = 0; bp < 2; bp++) {
-                var bPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, pillarTop, 8), MAT.concrete);
-                bPillar.position.set(bridgeStartX + 2 + bp * 8, pillarTop / 2, gate.z);
+                var bPillar = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.35, bridgeFloorY, 8), MAT.concrete);
+                bPillar.position.set(bridgeStartX + 3 + bp * 8, bridgeFloorY / 2, gate.z);
                 airportGroup.add(bPillar);
             }
             // Accordion connector at plane end
-            var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(1.8, bridgeH, bridgeW), accordionMat);
-            bAccordion.position.set(bridgeEndX + 0.9, bridgeCenterY, gate.z);
+            var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(2.0, bridgeH, bridgeW + 0.4), accordionMat);
+            bAccordion.position.set(bridgeEndX + 1.0, bridgeCenterY, gate.z);
             airportGroup.add(bAccordion);
 
             // ── Parked mini-plane at non-player gates ──
@@ -2260,10 +2282,10 @@
             survivalGroup.visible = false;
             scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0008);
-            // Camera inside terminal 2nd floor at gate A7, looking +X through windows at the plane
+            // Camera inside terminal 2nd floor at gate A7, looking +X through windows
             // 2nd floor is at y=4, eye height = 4 + 1.7 = 5.7
-            camera.position.set(-5, 5.7, 3);
-            camera.lookAt(new THREE.Vector3(15, 4.5, 0));
+            camera.position.set(-8, 5.7, 5);
+            camera.lookAt(new THREE.Vector3(15, 5, 5));
             G.cameraBasePos.copy(camera.position);
             showPrompt('Gate A7 — Now Boarding', 3500);
             pt(function() {
@@ -2899,7 +2921,11 @@
     document.addEventListener('mousemove', function(e) {
         G.mouseX = e.clientX;
         G.mouseY = e.clientY;
-        if (['airport', 'boarding', 'seated', 'cruising'].indexOf(G.phase) !== -1) {
+        if (G.phase === 'airport') {
+            // Wide range for walking: full screen = ±90° turn
+            G.targetLookX = (e.clientX / window.innerWidth - 0.5);
+            G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.5;
+        } else if (['boarding', 'seated', 'cruising'].indexOf(G.phase) !== -1) {
             G.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.8;
             G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.4;
         }
@@ -2923,8 +2949,9 @@
         G.time += G.delta;
 
         // ── Smooth look ──
-        G.lookX += (G.targetLookX - G.lookX) * 0.04;
-        G.lookY += (G.targetLookY - G.lookY) * 0.04;
+        var lookSmooth = G.phase === 'airport' ? 0.12 : 0.04;
+        G.lookX += (G.targetLookX - G.lookX) * lookSmooth;
+        G.lookY += (G.targetLookY - G.lookY) * lookSmooth;
 
         // ── Camera shake ──
         if (G.shakeAmount > 0.0001) {
@@ -2937,8 +2964,9 @@
         // ── Phase-specific camera ──
         if (G.phase === 'airport') {
             // ── WASD Walking ──
-            var walkSpeed = 4.5 * G.delta; // ~4.5 m/s
-            var yaw = G.lookX * 1.2; // look direction yaw
+            var walkSpeed = 5.0 * G.delta; // ~5 m/s
+            // Yaw from mouse: full screen width = ±PI/2 (±90°)
+            var yaw = G.lookX * Math.PI;
             // Forward direction based on where player is looking
             var fwdX = Math.cos(yaw);
             var fwdZ = -Math.sin(yaw);
@@ -2964,27 +2992,31 @@
             camera.position.y = 5.7;
 
             // ── Bounds: terminal interior OR gate A7 jet bridge ──
-            // Terminal: x in [-12, 2], z in [-30, 30]
-            // Bridge A7: x in [2, 16], z in [5-1.4, 5+1.4] = [3.6, 6.4]
+            // Terminal: x in [-20, 2], z in [-50, 50]
+            // Bridge A7: x in [2, 16], z in [5-1.5, 5+1.5] = [3.5, 6.5]
             var px = camera.position.x;
             var pz = camera.position.z;
-            var inTerminal = (px >= -12 && px <= 2 && pz >= -30 && pz <= 30);
-            var inBridge = (px > 2 && px <= 16 && pz >= 3.6 && pz <= 6.4);
+            var inTerminal = (px >= -20 && px <= 2 && pz >= -50 && pz <= 50);
+            var inBridge = (px > 2 && px <= 16 && pz >= 3.5 && pz <= 6.5);
 
             if (!inTerminal && !inBridge) {
-                // Clamp back to valid area
                 if (px > 2) {
-                    // Near bridge — clamp to bridge Z bounds
-                    camera.position.z = Math.max(3.6, Math.min(6.4, pz));
-                    camera.position.x = Math.min(16, px);
-                    // If Z still outside bridge, push back into terminal
-                    if (pz < 3.6 || pz > 6.4) {
-                        camera.position.x = Math.min(2, px);
+                    // Trying to enter bridge area — only allow if Z is in range
+                    if (pz >= 3.5 && pz <= 6.5) {
+                        camera.position.x = Math.min(16, px);
+                    } else {
+                        // Push back into terminal
+                        camera.position.x = 2;
+                        camera.position.z = Math.max(-50, Math.min(50, pz));
                     }
                 } else {
-                    camera.position.x = Math.max(-12, Math.min(2, px));
-                    camera.position.z = Math.max(-30, Math.min(30, pz));
+                    camera.position.x = Math.max(-20, Math.min(2, px));
+                    camera.position.z = Math.max(-50, Math.min(50, pz));
                 }
+            }
+            // Clamp Z inside bridge corridor
+            if (camera.position.x > 2) {
+                camera.position.z = Math.max(3.5, Math.min(6.5, camera.position.z));
             }
 
             // ── Auto-board when reaching end of jet bridge ──
@@ -2998,7 +3030,7 @@
             // ── Look direction ──
             camera.lookAt(
                 camera.position.x + Math.cos(yaw) * 10,
-                camera.position.y - 0.3 + G.lookY * 3,
+                camera.position.y - 0.3 + G.lookY * 4,
                 camera.position.z - Math.sin(yaw) * 10
             );
         }
