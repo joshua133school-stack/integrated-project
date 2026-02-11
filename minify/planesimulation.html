@@ -2888,22 +2888,20 @@
 
     // ── Keyboard state for WASD walking ──
     var keys = { w: false, a: false, s: false, d: false };
-    document.addEventListener('keydown', function(e) {
-        var k = e.key.toLowerCase();
-        if (k === 'w' || k === 'arrowup') keys.w = true;
-        if (k === 'a' || k === 'arrowleft') keys.a = true;
-        if (k === 's' || k === 'arrowdown') keys.s = true;
-        if (k === 'd' || k === 'arrowright') keys.d = true;
-    });
-    document.addEventListener('keyup', function(e) {
-        var k = e.key.toLowerCase();
-        if (k === 'w' || k === 'arrowup') keys.w = false;
-        if (k === 'a' || k === 'arrowleft') keys.a = false;
-        if (k === 's' || k === 'arrowdown') keys.s = false;
-        if (k === 'd' || k === 'arrowright') keys.d = false;
-    });
+    function handleKey(e, val) {
+        var k = e.key ? e.key.toLowerCase() : '';
+        var c = e.code || '';
+        if (k === 'w' || c === 'KeyW' || k === 'arrowup' || c === 'ArrowUp') { keys.w = val; e.preventDefault(); }
+        if (k === 'a' || c === 'KeyA' || k === 'arrowleft' || c === 'ArrowLeft') { keys.a = val; e.preventDefault(); }
+        if (k === 's' || c === 'KeyS' || k === 'arrowdown' || c === 'ArrowDown') { keys.s = val; e.preventDefault(); }
+        if (k === 'd' || c === 'KeyD' || k === 'arrowright' || c === 'ArrowRight') { keys.d = val; e.preventDefault(); }
+    }
+    window.addEventListener('keydown', function(e) { handleKey(e, true); });
+    window.addEventListener('keyup', function(e) { handleKey(e, false); });
 
     document.addEventListener('click', function() {
+        // Ensure this window has keyboard focus
+        window.focus();
         if (!audioStarted) {
             initAudio();
             audioStarted = true;
@@ -2924,7 +2922,8 @@
         G.mouseY = e.clientY;
         if (G.phase === 'airport') {
             // Wide range for walking: full screen = ±90° turn
-            G.targetLookX = (e.clientX / window.innerWidth - 0.5);
+            // NEGATIVE because moving mouse right = positive clientX = look RIGHT = negative yaw
+            G.targetLookX = -(e.clientX / window.innerWidth - 0.5);
             G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.5;
         } else if (['boarding', 'seated', 'cruising'].indexOf(G.phase) !== -1) {
             G.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.8;
