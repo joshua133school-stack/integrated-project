@@ -775,11 +775,13 @@
                 bSideFace.rotation.y = bSide > 0 ? 0 : Math.PI;
                 airportGroup.add(bSideFace);
             }
-            // Far end face (plane side — closed, accordion attaches here)
-            var bEndFace = new THREE.Mesh(new THREE.PlaneGeometry(bridgeW, bridgeH), bExtMat);
-            bEndFace.position.set(bridgeEndX, bridgeCenterY, gate.z);
-            bEndFace.rotation.y = -Math.PI / 2;
-            airportGroup.add(bEndFace);
+            // Far end face (plane side — closed for non-player gates, open for A7)
+            if (!isPlayerGate) {
+                var bEndFace = new THREE.Mesh(new THREE.PlaneGeometry(bridgeW, bridgeH), bExtMat);
+                bEndFace.position.set(bridgeEndX, bridgeCenterY, gate.z);
+                bEndFace.rotation.y = -Math.PI / 2;
+                airportGroup.add(bEndFace);
+            }
             // Terminal-side face is OPEN (no face) so player can walk in
 
             // Interior floor (walkable surface)
@@ -816,10 +818,30 @@
                 bPillar.position.set(bridgeStartX + 3 + bp * 8, bridgeFloorY / 2, gate.z);
                 airportGroup.add(bPillar);
             }
-            // Accordion connector at plane end
-            var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(2.0, bridgeH, bridgeW + 0.4), accordionMat);
-            bAccordion.position.set(bridgeEndX + 1.0, bridgeCenterY, gate.z);
-            airportGroup.add(bAccordion);
+            // Accordion connector at plane end (open-ended for player gate)
+            if (isPlayerGate) {
+                // Open accordion — just top, bottom, sides (no front/back faces)
+                var accLen = 2.0;
+                var accCX = bridgeEndX + accLen / 2;
+                var accTop = new THREE.Mesh(new THREE.PlaneGeometry(accLen, bridgeW + 0.4), accordionMat);
+                accTop.rotation.x = -Math.PI / 2;
+                accTop.position.set(accCX, bridgeFloorY + bridgeH, gate.z);
+                airportGroup.add(accTop);
+                var accBot = new THREE.Mesh(new THREE.PlaneGeometry(accLen, bridgeW + 0.4), accordionMat);
+                accBot.rotation.x = Math.PI / 2;
+                accBot.position.set(accCX, bridgeFloorY, gate.z);
+                airportGroup.add(accBot);
+                for (var accS = -1; accS <= 1; accS += 2) {
+                    var accSide = new THREE.Mesh(new THREE.PlaneGeometry(accLen, bridgeH), accordionMat);
+                    accSide.position.set(accCX, bridgeCenterY, gate.z + accS * (bridgeW / 2 + 0.2));
+                    accSide.rotation.y = accS > 0 ? 0 : Math.PI;
+                    airportGroup.add(accSide);
+                }
+            } else {
+                var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(2.0, bridgeH, bridgeW + 0.4), accordionMat);
+                bAccordion.position.set(bridgeEndX + 1.0, bridgeCenterY, gate.z);
+                airportGroup.add(bAccordion);
+            }
 
             // ── Parked mini-plane at non-player gates ──
             if (gate.hasPlane) {
@@ -1557,7 +1579,7 @@
         // x=15 puts left side (-X) facing the terminal window wall at x=2
         // z=-10 so forward door (local z=halfLen-4=15) aligns with gate A7 at z=5
         // Forward door (-X side) world pos: (13, 3.9, 5)
-        planeExtGroup.position.set(15, R + 1.5, -10);
+        planeExtGroup.position.set(15, R + 2.0, -10);
     }
 
     // ═══════════════════════════════════════════════════
@@ -1587,7 +1609,7 @@
             var verts = new Float32Array([
                 x0, y0, -halfL,  x0, y0, halfL,  x1, y1, halfL,  x1, y1, -halfL
             ]);
-            var idx = [0, 2, 1, 0, 3, 2]; // inward-facing normals
+            var idx = [0, 1, 2, 0, 2, 3]; // inward-facing normals (CCW from inside)
             var geo = new THREE.BufferGeometry();
             geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
             geo.setIndex(idx);
@@ -1599,7 +1621,7 @@
         for (var wallSide = -1; wallSide <= 1; wallSide += 2) {
             var wallPanel = new THREE.Mesh(new THREE.PlaneGeometry(CL, CH * 0.3), MAT.plastic);
             wallPanel.position.set(wallSide * halfW, CH * 0.15, 0);
-            wallPanel.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+            wallPanel.rotation.y = wallSide > 0 ? Math.PI / 2 : -Math.PI / 2;
             cabinGroup.add(wallPanel);
         }
 
@@ -2298,9 +2320,9 @@
 
             pt(function() {
                 airportGroup.visible = false;
-                planeExtGroup.visible = false;
+                planeExtGroup.visible = true;  // keep exterior for window views
                 cabinGroup.visible = true;
-                cloudGroup.visible = false;
+                cloudGroup.visible = true;     // keep clouds/sky visible through windows
 
                 // Standing in aisle at rear of cabin, looking forward (+Z)
                 camera.position.set(0, 1.65, -9);
