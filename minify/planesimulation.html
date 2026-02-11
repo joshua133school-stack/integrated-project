@@ -1117,7 +1117,7 @@
         nose.position.z = 8;
         g.add(nose);
         // Tail cone
-        var tailC = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 1.2, 4, 10), MAT.white);
+        var tailC = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.2, 4, 10), MAT.white);
         tailC.rotation.x = Math.PI / 2;
         tailC.position.z = -10;
         g.add(tailC);
@@ -1448,55 +1448,41 @@
         planeExtGroup.add(makeEngine(-6.0));
 
         // ── Vertical Stabilizer (swept tail fin) ──
-        // Proper thickness so it looks like a real fin, not a flat triangle
+        // Shape drawn in XY: X = fore/aft, Y = height
+        // Only rotation.y = PI/2 maps: X→-Z (toward tail), Y stays Y (upward), extrusion Z→+X (thickness)
         var vfinShape = new THREE.Shape();
-        vfinShape.moveTo(0, 0);           // trailing edge base (tail tip)
-        vfinShape.lineTo(7, 0);           // leading edge base (forward on fuselage)
-        vfinShape.quadraticCurveTo(5, 4, 3, 6.5);  // leading edge sweeps up with curve
-        vfinShape.lineTo(1.5, 6.5);       // fin tip width
-        vfinShape.quadraticCurveTo(0.8, 5, 0, 0);  // trailing edge curves back down
+        vfinShape.moveTo(0, 0);
+        vfinShape.lineTo(7, 0);
+        vfinShape.quadraticCurveTo(5, 3.5, 3, 5.5);
+        vfinShape.lineTo(1.5, 5.5);
+        vfinShape.quadraticCurveTo(0.8, 4, 0, 0);
         var vfinDepth = 0.5;
-        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: vfinDepth, bevelEnabled: true, bevelThickness: 0.12, bevelSize: 0.12, bevelSegments: 3 });
+        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: vfinDepth, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 3 });
         var vfin = new THREE.Mesh(vfinGeo, MAT.blue);
-        vfin.rotation.x = Math.PI / 2;
-        vfin.rotation.y = Math.PI / 2;
-        vfin.position.set(-vfinDepth / 2, R - 0.2, -halfLen + 2);
+        vfin.rotation.y = Math.PI / 2;  // only Y rotation — stands upright
+        vfin.position.set(-vfinDepth / 2, R, -halfLen + 2);
         planeExtGroup.add(vfin);
 
         // ── Tail livery accent (red swoosh on vertical fin) ──
         var liveryShape = new THREE.Shape();
         liveryShape.moveTo(0, 0);
         liveryShape.lineTo(7, 0);
-        liveryShape.quadraticCurveTo(4.5, 2, 3, 3.5);
+        liveryShape.quadraticCurveTo(4.5, 1.5, 3, 3);
         liveryShape.lineTo(0, 0);
         var liveryGeo = new THREE.ExtrudeGeometry(liveryShape, { depth: vfinDepth + 0.06, bevelEnabled: false });
         var livery = new THREE.Mesh(liveryGeo, MAT.fuselageAccent);
-        livery.rotation.x = Math.PI / 2;
-        livery.rotation.y = Math.PI / 2;
-        livery.position.set(-(vfinDepth + 0.06) / 2, R - 0.2, -halfLen + 2);
+        livery.rotation.y = Math.PI / 2;  // same as fin
+        livery.position.set(-(vfinDepth + 0.06) / 2, R, -halfLen + 2);
         planeExtGroup.add(livery);
 
-        // ── Horizontal Stabilizers (tapered wing shape) ──
+        // ── Horizontal Stabilizers ──
         for (var hs = -1; hs <= 1; hs += 2) {
-            var hsShape = new THREE.Shape();
-            // Airfoil-like cross section viewed from above: root chord longer, tip shorter, swept back
-            hsShape.moveTo(0, 0);          // root trailing edge
-            hsShape.lineTo(3.5, 0);        // root leading edge
-            hsShape.lineTo(2, 6);          // tip leading edge (swept)
-            hsShape.lineTo(1, 6);          // tip trailing edge
-            hsShape.lineTo(0, 0);          // close
-            var hsGeo = new THREE.ExtrudeGeometry(hsShape, { depth: 0.2, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.06, bevelSegments: 2 });
+            var hsGroup = new THREE.Group();
+            var hsGeo = new THREE.BoxGeometry(6, 0.15, 3);
             var hStab = new THREE.Mesh(hsGeo, MAT.metal);
-            // Rotate so shape lies flat (Y=up) and extends outward along X
-            hStab.rotation.x = -Math.PI / 2;  // lay flat
-            if (hs === 1) {
-                hStab.rotation.z = Math.PI / 2;   // extend to +X
-                hStab.position.set(0, R + 0.1, -halfLen - 1);
-            } else {
-                hStab.rotation.z = -Math.PI / 2;  // extend to -X
-                hStab.position.set(0, R + 0.1, -halfLen - 1);
-            }
-            planeExtGroup.add(hStab);
+            hsGroup.add(hStab);
+            hsGroup.position.set(hs * 3.5, R + 0.2, -halfLen - 1);
+            planeExtGroup.add(hsGroup);
         }
 
         // ── Landing Gear ──
