@@ -442,7 +442,7 @@
         carpet: new THREE.MeshStandardMaterial({ color: 0x2a3040, roughness: 0.95 }),
         plastic: new THREE.MeshStandardMaterial({ color: 0xe0d8cc, roughness: 0.7 }),
         darkPlastic: new THREE.MeshStandardMaterial({ color: 0x3a3a3a, roughness: 0.8 }),
-        windowInner: new THREE.MeshPhysicalMaterial({ color: 0xaaddff, transparent: true, opacity: 0.15, roughness: 0.02 }),
+        windowInner: new THREE.MeshBasicMaterial({ color: 0x88ccff, side: THREE.DoubleSide }),
         terminalFloor: new THREE.MeshStandardMaterial({ color: 0xccbbaa, roughness: 0.5 }),
         sky: new THREE.MeshBasicMaterial({ color: 0x87CEEB }),
         emergencyGreen: new THREE.MeshBasicMaterial({ color: 0x00ff44 }),
@@ -775,11 +775,13 @@
                 bSideFace.rotation.y = bSide > 0 ? 0 : Math.PI;
                 airportGroup.add(bSideFace);
             }
-            // Far end face (plane side — closed, accordion attaches here)
-            var bEndFace = new THREE.Mesh(new THREE.PlaneGeometry(bridgeW, bridgeH), bExtMat);
-            bEndFace.position.set(bridgeEndX, bridgeCenterY, gate.z);
-            bEndFace.rotation.y = -Math.PI / 2;
-            airportGroup.add(bEndFace);
+            // Far end face (plane side — closed for non-player gates, open for A7)
+            if (!isPlayerGate) {
+                var bEndFace = new THREE.Mesh(new THREE.PlaneGeometry(bridgeW, bridgeH), bExtMat);
+                bEndFace.position.set(bridgeEndX, bridgeCenterY, gate.z);
+                bEndFace.rotation.y = -Math.PI / 2;
+                airportGroup.add(bEndFace);
+            }
             // Terminal-side face is OPEN (no face) so player can walk in
 
             // Interior floor (walkable surface)
@@ -816,10 +818,30 @@
                 bPillar.position.set(bridgeStartX + 3 + bp * 8, bridgeFloorY / 2, gate.z);
                 airportGroup.add(bPillar);
             }
-            // Accordion connector at plane end
-            var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(2.0, bridgeH, bridgeW + 0.4), accordionMat);
-            bAccordion.position.set(bridgeEndX + 1.0, bridgeCenterY, gate.z);
-            airportGroup.add(bAccordion);
+            // Accordion connector at plane end (open-ended for player gate)
+            if (isPlayerGate) {
+                // Open accordion — just top, bottom, sides (no front/back faces)
+                var accLen = 2.0;
+                var accCX = bridgeEndX + accLen / 2;
+                var accTop = new THREE.Mesh(new THREE.PlaneGeometry(accLen, bridgeW + 0.4), accordionMat);
+                accTop.rotation.x = -Math.PI / 2;
+                accTop.position.set(accCX, bridgeFloorY + bridgeH, gate.z);
+                airportGroup.add(accTop);
+                var accBot = new THREE.Mesh(new THREE.PlaneGeometry(accLen, bridgeW + 0.4), accordionMat);
+                accBot.rotation.x = Math.PI / 2;
+                accBot.position.set(accCX, bridgeFloorY, gate.z);
+                airportGroup.add(accBot);
+                for (var accS = -1; accS <= 1; accS += 2) {
+                    var accSide = new THREE.Mesh(new THREE.PlaneGeometry(accLen, bridgeH), accordionMat);
+                    accSide.position.set(accCX, bridgeCenterY, gate.z + accS * (bridgeW / 2 + 0.2));
+                    accSide.rotation.y = accS > 0 ? 0 : Math.PI;
+                    airportGroup.add(accSide);
+                }
+            } else {
+                var bAccordion = new THREE.Mesh(new THREE.BoxGeometry(2.0, bridgeH, bridgeW + 0.4), accordionMat);
+                bAccordion.position.set(bridgeEndX + 1.0, bridgeCenterY, gate.z);
+                airportGroup.add(bAccordion);
+            }
 
             // ── Parked mini-plane at non-player gates ──
             if (gate.hasPlane) {
@@ -1095,7 +1117,7 @@
 
     // Plane is built along Z-axis: nose = +Z, tail = -Z, wings along X, up = Y
     // All coordinates: (x=left/right, y=up/down, z=fore/aft)
-    var PLANE = { len: 38, radius: 2.0, wingSpan: 34, wingChord: 5 };
+    var PLANE = { len: 38, radius: 2.8, wingSpan: 34, wingChord: 5 };
 
     function buildMiniPlane() {
         var g = new THREE.Group();
@@ -1117,7 +1139,7 @@
         nose.position.z = 8;
         g.add(nose);
         // Tail cone
-        var tailC = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 1.2, 4, 10), MAT.white);
+        var tailC = new THREE.Mesh(new THREE.CylinderGeometry(1.2, 0.2, 4, 10), MAT.white);
         tailC.rotation.x = Math.PI / 2;
         tailC.position.z = -10;
         g.add(tailC);
@@ -1448,50 +1470,39 @@
         planeExtGroup.add(makeEngine(-6.0));
 
         // ── Vertical Stabilizer (swept tail fin) ──
-        // Build as a thin tapered shape lying in XY, then rotate to stand upright on the tail
-        // Shape drawn in a local 2D plane: X = fore/aft, Y = height
+        // Shape drawn in XY: X = fore/aft, Y = height
+        // Only rotation.y = PI/2 maps: X→-Z (toward tail), Y stays Y (upward), extrusion Z→+X (thickness)
         var vfinShape = new THREE.Shape();
-        // Base (on fuselage top): from tail end forward along fuselage
-        vfinShape.moveTo(0, 0);        // trailing edge base (tail tip)
-        vfinShape.lineTo(6, 0);        // leading edge base (forward on fuselage)
-        // Sweep up: leading edge rises steeply
-        vfinShape.lineTo(2.5, 6);      // tip - leading edge (swept back)
-        // Tip curves back
-        vfinShape.lineTo(0.5, 6);      // tip - trailing edge
-        // Trailing edge back down
-        vfinShape.lineTo(0, 0);        // close
-        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: 0.15, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 2 });
+        vfinShape.moveTo(0, 0);
+        vfinShape.lineTo(7, 0);
+        vfinShape.quadraticCurveTo(5, 3.5, 3, 5.5);
+        vfinShape.lineTo(1.5, 5.5);
+        vfinShape.quadraticCurveTo(0.8, 4, 0, 0);
+        var vfinDepth = 0.5;
+        var vfinGeo = new THREE.ExtrudeGeometry(vfinShape, { depth: vfinDepth, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1, bevelSegments: 3 });
         var vfin = new THREE.Mesh(vfinGeo, MAT.blue);
-        // Rotate so the shape stands upright: the local Y (height) becomes world Y, local X (fore/aft) aligns with Z
-        vfin.rotation.x = Math.PI / 2;   // stand up from XY-plane to XZ
-        vfin.rotation.y = Math.PI / 2;   // rotate so fore/aft aligns with Z
-        // Position: on top of fuselage, at the tail
-        vfin.position.set(-0.075, R, -halfLen + 2);
+        vfin.rotation.y = Math.PI / 2;  // only Y rotation — stands upright
+        vfin.position.set(-vfinDepth / 2, R, -halfLen + 2);
         planeExtGroup.add(vfin);
 
         // ── Tail livery accent (red swoosh on vertical fin) ──
         var liveryShape = new THREE.Shape();
         liveryShape.moveTo(0, 0);
-        liveryShape.lineTo(6, 0);
-        liveryShape.lineTo(2.5, 3);
+        liveryShape.lineTo(7, 0);
+        liveryShape.quadraticCurveTo(4.5, 1.5, 3, 3);
         liveryShape.lineTo(0, 0);
-        var liveryGeo = new THREE.ExtrudeGeometry(liveryShape, { depth: 0.18, bevelEnabled: false });
+        var liveryGeo = new THREE.ExtrudeGeometry(liveryShape, { depth: vfinDepth + 0.06, bevelEnabled: false });
         var livery = new THREE.Mesh(liveryGeo, MAT.fuselageAccent);
-        livery.rotation.x = Math.PI / 2;
-        livery.rotation.y = Math.PI / 2;
-        livery.position.set(-0.09, R, -halfLen + 2);
+        livery.rotation.y = Math.PI / 2;  // same as fin
+        livery.position.set(-(vfinDepth + 0.06) / 2, R, -halfLen + 2);
         planeExtGroup.add(livery);
 
-        // ── Horizontal Stabilizers (with taper) ──
+        // ── Horizontal Stabilizers ──
         for (var hs = -1; hs <= 1; hs += 2) {
             var hsGroup = new THREE.Group();
             var hsGeo = new THREE.BoxGeometry(6, 0.15, 3);
             var hStab = new THREE.Mesh(hsGeo, MAT.metal);
             hsGroup.add(hStab);
-            // Tip fairing
-            var hsTip = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.18, 1.5), MAT.metal);
-            hsTip.position.set(hs * 3.1, 0, -0.5);
-            hsGroup.add(hsTip);
             hsGroup.position.set(hs * 3.5, R + 0.2, -halfLen - 1);
             planeExtGroup.add(hsGroup);
         }
@@ -1568,7 +1579,7 @@
         // x=15 puts left side (-X) facing the terminal window wall at x=2
         // z=-10 so forward door (local z=halfLen-4=15) aligns with gate A7 at z=5
         // Forward door (-X side) world pos: (13, 3.9, 5)
-        planeExtGroup.position.set(15, R + 1.5, -10);
+        planeExtGroup.position.set(15, R + 2.0, -10);
     }
 
     // ═══════════════════════════════════════════════════
@@ -1578,8 +1589,8 @@
     // Real 737 cabin: ~3.54m wide, ~2.2m tall inside, ~24m passenger cabin length
     // Scale: 1 unit ≈ 1 meter
     function buildCabin() {
-        var CW = 3.54; // cabin width (meters)
-        var CH = 2.2;  // cabin height
+        var CW = 4.8;  // cabin width (meters)
+        var CH = 2.8;  // cabin height
         var CL = 22;   // cabin length (passenger section)
         var halfW = CW / 2;
         var halfL = CL / 2;
@@ -1598,7 +1609,7 @@
             var verts = new Float32Array([
                 x0, y0, -halfL,  x0, y0, halfL,  x1, y1, halfL,  x1, y1, -halfL
             ]);
-            var idx = [0, 2, 1, 0, 3, 2]; // inward-facing normals
+            var idx = [0, 1, 2, 0, 2, 3]; // inward-facing normals (CCW from inside)
             var geo = new THREE.BufferGeometry();
             geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
             geo.setIndex(idx);
@@ -1610,7 +1621,7 @@
         for (var wallSide = -1; wallSide <= 1; wallSide += 2) {
             var wallPanel = new THREE.Mesh(new THREE.PlaneGeometry(CL, CH * 0.3), MAT.plastic);
             wallPanel.position.set(wallSide * halfW, CH * 0.15, 0);
-            wallPanel.rotation.y = wallSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+            wallPanel.rotation.y = wallSide > 0 ? Math.PI / 2 : -Math.PI / 2;
             cabinGroup.add(wallPanel);
         }
 
@@ -1680,13 +1691,13 @@
         // ── Windows (interior, on walls) ──
         for (var wz = -halfL + 1.5; wz < halfL - 1; wz += rowPitch) {
             for (var wSide = -1; wSide <= 1; wSide += 2) {
-                // Rounded-rect window frame
-                var frame = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.28, 0.20), MAT.darkPlastic);
-                frame.position.set(wSide * (halfW - 0.02), 1.15, wz);
+                // Window frame
+                var frame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.30), MAT.darkPlastic);
+                frame.position.set(wSide * (halfW - 0.02), 1.2, wz);
                 cabinGroup.add(frame);
-                // Glass
-                var glass = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.16), MAT.windowInner);
-                glass.position.set(wSide * (halfW - 0.01), 1.15, wz);
+                // Glass — bright sky-blue to simulate outdoor view
+                var glass = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.26), MAT.windowInner);
+                glass.position.set(wSide * (halfW - 0.01), 1.2, wz);
                 glass.rotation.y = wSide > 0 ? -Math.PI / 2 : Math.PI / 2;
                 cabinGroup.add(glass);
             }
@@ -2309,9 +2320,9 @@
 
             pt(function() {
                 airportGroup.visible = false;
-                planeExtGroup.visible = false;
+                planeExtGroup.visible = true;  // keep exterior for window views
                 cabinGroup.visible = true;
-                cloudGroup.visible = false;
+                cloudGroup.visible = true;     // keep clouds/sky visible through windows
 
                 // Standing in aisle at rear of cabin, looking forward (+Z)
                 camera.position.set(0, 1.65, -9);
@@ -2921,9 +2932,8 @@
         G.mouseX = e.clientX;
         G.mouseY = e.clientY;
         if (G.phase === 'airport') {
-            // Wide range for walking: full screen = ±90° turn
-            // NEGATIVE because moving mouse right = positive clientX = look RIGHT = negative yaw
-            G.targetLookX = -(e.clientX / window.innerWidth - 0.5);
+            // Mouse position maps to look direction (right side of screen = look right)
+            G.targetLookX = (e.clientX / window.innerWidth - 0.5);
             G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.5;
         } else if (['boarding', 'seated', 'cruising'].indexOf(G.phase) !== -1) {
             G.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.8;
@@ -3041,9 +3051,9 @@
         }
         if (G.phase === 'seated' || G.phase === 'taxi' || G.phase === 'takeoff' ||
             G.phase === 'climbing') {
-            // Looking out left window (+X direction) = camera rotY ~ -PI/2
-            camera.rotation.y = -Math.PI / 2 + G.lookX * 0.5;
-            camera.rotation.x = G.lookY * 0.3;
+            // Free look around cabin — mouse position controls view direction
+            camera.rotation.y = G.lookX * Math.PI;  // full ±180° horizontal
+            camera.rotation.x = G.lookY * 0.5;      // ±30° vertical
         }
         if (['cruising', 'turbulence_light', 'storm', 'lightning_intense', 'emergency'].indexOf(G.phase) !== -1) {
             // Mostly looking out window with subtle drift
