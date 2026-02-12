@@ -640,9 +640,9 @@
 
         // ── Gate positions (defined early — needed for window wall openings) ──
         var gatePositions = [
-            { name: 'A5', z: -30, hasPlane: true },
-            { name: 'A7', z: 5, hasPlane: false },
-            { name: 'A9', z: 35, hasPlane: true }
+            { name: '83', z: -30, hasPlane: true },
+            { name: '84', z: 5, hasPlane: false },
+            { name: '85', z: 35, hasPlane: true }
         ];
 
         // ── Window wall (+X side) — floor-to-ceiling glass with openings for jet bridges ──
@@ -713,15 +713,32 @@
         for (var gi = 0; gi < gatePositions.length; gi++) {
             var gate = gatePositions[gi];
 
-            // ── Gate sign (hanging from ceiling) ──
+            // ── Gate sign (hanging from ceiling, with gate number) ──
             var signBg = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 0.1), MAT.signPanel);
             signBg.position.set(TCX + 2, TI.ceilY - 0.5, gate.z);
             airportGroup.add(signBg);
-            // Sign face (lighter)
+            // Sign face with gate number text (canvas texture)
+            var signCanvas = document.createElement('canvas');
+            signCanvas.width = 512; signCanvas.height = 128;
+            var sCtx = signCanvas.getContext('2d');
+            sCtx.fillStyle = '#ffffff';
+            sCtx.fillRect(0, 0, 512, 128);
+            sCtx.fillStyle = '#003322';
+            sCtx.font = 'bold 72px Arial, sans-serif';
+            sCtx.textAlign = 'center';
+            sCtx.textBaseline = 'middle';
+            sCtx.fillText('Gate ' + gate.name, 256, 64);
+            var signTex = new THREE.CanvasTexture(signCanvas);
             var signFace = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.6),
-                new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                new THREE.MeshBasicMaterial({ map: signTex }));
             signFace.position.set(TCX + 2, TI.ceilY - 0.5, gate.z + 0.06);
             airportGroup.add(signFace);
+            // Back face (visible from other side)
+            var signFaceBack = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.6),
+                new THREE.MeshBasicMaterial({ map: signTex }));
+            signFaceBack.position.set(TCX + 2, TI.ceilY - 0.5, gate.z - 0.06);
+            signFaceBack.rotation.y = Math.PI;
+            airportGroup.add(signFaceBack);
 
             // ── Gate desk / counter ──
             var gDesk = new THREE.Group();
@@ -756,7 +773,7 @@
             var bridgeEndX = bridgeStartX + bridgeLen;
             var bridgeCenterX = (bridgeStartX + bridgeEndX) / 2;
             var halfBW = bridgeW / 2;
-            var isPlayerGate = (gate.name === 'A7');
+            var isPlayerGate = (gate.name === '84');
 
             // Exterior shell — built from individual faces (not a box)
             // so the terminal-side face is open for walking through
@@ -2415,9 +2432,9 @@
             camera.position.set(-8, 5.7, 5);
             camera.lookAt(new THREE.Vector3(15, 5, 5));
             G.cameraBasePos.copy(camera.position);
-            showPrompt('Gate A7 — Now Boarding', 3500);
+            showPrompt('Gate 84 — Now Boarding', 3500);
             pt(function() {
-                showSub('WASD to walk — Board at Gate A7');
+                showSub('WASD to walk — Board at Gate 84');
                 G.canClick = false;
                 G.transitioning = false;
             }, 1500);
