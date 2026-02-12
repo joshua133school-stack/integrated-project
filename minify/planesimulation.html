@@ -454,6 +454,7 @@
     var cabinLights = [];
     var cabinLightMeshes = [];
     var emergencyLightMeshes = [];
+    var groundViewPlane = null;
     var engineFans = [];
     var seatMarker = null; // glowing marker above assigned seat
 
@@ -2010,6 +2011,14 @@
             cabinGroup.add(jumpSeat);
         }
 
+        // ── Ground plane visible through windows while on ground ──
+        var groundViewGeo = new THREE.PlaneGeometry(200, 200);
+        var groundViewMat = new THREE.MeshBasicMaterial({ color: 0x3d8c40 });
+        groundViewPlane = new THREE.Mesh(groundViewGeo, groundViewMat);
+        groundViewPlane.rotation.x = -Math.PI / 2;
+        groundViewPlane.position.y = -1.5; // below cabin floor
+        cabinGroup.add(groundViewPlane);
+
         cabinGroup.visible = false;
     }
 
@@ -2594,6 +2603,7 @@
             cloudGroup.visible = true;
             airportGroup.visible = false;
             planeExtGroup.visible = false;
+            if (groundViewPlane) groundViewPlane.visible = false;
 
             var climbInt = setInterval(function() {
                 G.altitude += 400;
@@ -2633,16 +2643,33 @@
             setWindVolume(0.15);
             setCabinVolume(0.2);
 
-
             pt(function() {
                 showPrompt('Smooth skies ahead...', 3000);
-            }, 12000);
+            }, 8000);
 
-            // Transition to turbulence
+            // Gradually darken to night
+            var nightStart = performance.now() + 10000; // start darkening after 10s
+            var nightDur = 12000; // over 12 seconds
+            var dayColor = new THREE.Color(0x1a3a6e); // cruising altitude sky
+            var nightColor = new THREE.Color(0x050510);
+            var nightInt = setInterval(function() {
+                var elapsed = performance.now() - nightStart;
+                if (elapsed < 0) return;
+                var t = Math.min(elapsed / nightDur, 1);
+                var col = new THREE.Color().lerpColors(dayColor, nightColor, t);
+                scene.background = col;
+                scene.fog.color = col;
+                renderer.toneMappingExposure = 0.7 - t * 0.4;
+                if (t >= 0.5) dimCabinLights(true);
+                if (t >= 1) clearInterval(nightInt);
+            }, 100);
+            phaseTimers.push(nightInt);
+
+            // Transition to turbulence after it's dark
             pt(function() {
                 G.transitioning = false;
                 goPhase('turbulence_light');
-            }, 18000);
+            }, 28000);
             break;
 
         // ─── LIGHT TURBULENCE ───
