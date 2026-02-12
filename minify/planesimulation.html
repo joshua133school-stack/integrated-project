@@ -1891,7 +1891,7 @@
                 // Frame group — tilted to match wall curvature
                 var frameGrp = new THREE.Group();
                 frameGrp.position.set(wx * 0.98, winY, wz);
-                frameGrp.rotation.z = -wSide * wallTilt; // tilt inward to match arch
+                frameGrp.rotation.z = wSide * wallTilt; // tilt outward to match arch lean
                 // Top trim
                 frameGrp.add(pm(new THREE.BoxGeometry(0.04, 0.025, winHalfZ * 2 + 0.04), trimMat, 0, winHalfH, 0));
                 // Bottom trim
@@ -1904,7 +1904,6 @@
                 var extView = new THREE.Mesh(new THREE.PlaneGeometry(winHalfZ * 2 - 0.02, winHalfH * 2 - 0.02), skyViewMat);
                 extView.position.set(wSide * (winWallX + 0.1), winY, wz);
                 extView.rotation.y = wSide > 0 ? -Math.PI / 2 : Math.PI / 2;
-                extView.rotation.z = -wSide * wallTilt;
                 cabinGroup.add(extView);
             }
         }
