@@ -1908,21 +1908,23 @@
             }
         }
 
-        // ── Ceiling light strips (LED strips along inner edge of overhead bins) ──
-        // In real aircraft, lights run along the underside of bins, not at the arch peak
-        var lightStripY = binY - binH / 2 - 0.03; // just below bins
-        var lightStripX = binWallX - binD - 0.02;  // inner edge of bins
+        // ── Ceiling light strips (LED panels along inner edge of overhead bins) ──
+        // In real aircraft, flat light panels run along the underside of bins
+        var lightStripY = binY - binH / 2 - 0.01; // flush with bin underside
+        var lightStripX = binWallX - binD / 2 - 0.03;  // centered under bin inner half
+        var lightStripGeo = new THREE.PlaneGeometry(0.22, 1.8); // wide panel, runs along cabin Z
         for (var lz = -halfL + 1; lz < halfL - 1; lz += 2) {
             for (var lSide = -1; lSide <= 1; lSide += 2) {
-                var lPanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.015, 1.8), MAT.lightEmit);
+                var lPanel = new THREE.Mesh(lightStripGeo, MAT.lightEmit);
                 lPanel.position.set(lSide * lightStripX, lightStripY, lz);
+                lPanel.rotation.x = -Math.PI / 2; // face downward
                 cabinGroup.add(lPanel);
                 cabinLightMeshes.push(lPanel);
             }
             // Actual point light every 4m (centered between the two strips)
             if (Math.abs(lz % 4) < 1) {
                 var pLight = new THREE.PointLight(0xffffee, 0.3, 5);
-                pLight.position.set(0, lightStripY - 0.1, lz);
+                pLight.position.set(0, lightStripY - 0.15, lz);
                 cabinGroup.add(pLight);
                 cabinLights.push(pLight);
             }
