@@ -56,23 +56,6 @@
         }
         #sub-prompt.visible { opacity: 1; }
 
-        /* Captain announcement */
-        #captain-box {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-            background: rgba(0,0,0,0.85); color: #fff;
-            padding: 30px 50px; border-radius: 12px;
-            font-size: 1.1rem; z-index: 35;
-            opacity: 0; transition: opacity 0.6s;
-            max-width: 600px; text-align: center; line-height: 1.8;
-            border: 1px solid rgba(255,255,255,0.1);
-            pointer-events: none;
-        }
-        #captain-box.visible { opacity: 1; }
-        #captain-box .captain-label {
-            font-size: 0.75rem; letter-spacing: 3px; text-transform: uppercase;
-            color: rgba(255,255,255,0.4); margin-bottom: 12px;
-        }
-
         /* Fade overlay */
         #fade {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -174,7 +157,6 @@
 
     <div id="prompt"></div>
     <div id="sub-prompt"></div>
-    <div id="captain-box"><div class="captain-label"></div><div id="captain-text"></div></div>
     <div id="warning"></div>
     <div id="fade"></div>
     <div id="flash"></div>
@@ -2388,8 +2370,6 @@
     var $hdgVal = document.getElementById('hdg-val');
     var $prompt = document.getElementById('prompt');
     var $sub = document.getElementById('sub-prompt');
-    var $captain = document.getElementById('captain-box');
-    var $captainText = document.getElementById('captain-text');
     var $warning = document.getElementById('warning');
     var $fade = document.getElementById('fade');
     var $flash = document.getElementById('flash');
@@ -2407,14 +2387,6 @@
     function showSub(text) { $sub.textContent = text; $sub.classList.add('visible'); }
     function hideSub() { $sub.classList.remove('visible'); }
 
-    function showCaptain(text, dur) {
-        $captain.querySelector('.captain-label').textContent = '— Captain Speaking —';
-        $captainText.textContent = text;
-        $captain.classList.add('visible');
-        playDing();
-        if (dur) setTimeout(function() { $captain.classList.remove('visible'); }, dur);
-    }
-    function hideCaptain() { $captain.classList.remove('visible'); }
 
     function showWarning(text) { $warning.textContent = text; $warning.classList.add('visible'); }
     function hideWarning() { $warning.classList.remove('visible'); }
@@ -2575,23 +2547,10 @@
             });
 
             pt(function() {
-                showCaptain(
-                    'Good afternoon, ladies and gentlemen. Welcome aboard. ' +
-                    'This is your captain speaking. We\'ll be cruising at 35,000 feet today. ' +
-                    'Flight time will be approximately three hours. ' +
-                    'Please fasten your seatbelts and ensure your tray tables are in the upright position.',
-                    9000
-                );
-            }, 4000);
-
-            pt(function() {
-            }, 4500);
-
-            pt(function() {
-                showSub('Click when ready for departure');
+                showSub('Press E to fasten seatbelt');
                 G.canClick = true;
                 G.transitioning = false;
-            }, 13500);
+            }, 4000);
             break;
 
         // ─── TAXI ───
@@ -2600,21 +2559,22 @@
             setPhaseLabel('Taxiing');
             hideSub();
 
-            showPrompt('Taxiing to runway...', 3000);
-            G.shakeAmount = 0.003;
+            showPrompt('Taxiing to runway...', 4000);
+            G.shakeAmount = 0.002;
             setEngineVolume(0.15);
 
             pt(function() {
-                showCaptain(
-                    'Cabin crew, please prepare for takeoff.',
-                    3500
-                );
-            }, 3500);
+                showPrompt('Holding short of runway...', 3000);
+            }, 8000);
+
+            pt(function() {
+                showPrompt('Cleared for takeoff.', 2500);
+            }, 13000);
 
             pt(function() {
                 G.transitioning = false;
                 goPhase('takeoff');
-            }, 8000);
+            }, 18000);
             break;
 
         // ─── TAKEOFF ───
@@ -2623,12 +2583,14 @@
             $alt.classList.add('visible');
             showPrompt('Prepare for takeoff...', 2500);
             G.speed = 0;
+            airportGroup.visible = false;
+            planeExtGroup.visible = false;
 
             setEngineVolume(0.5);
 
             var toAccel = setInterval(function() {
                 G.speed += 3;
-                G.shakeAmount = 0.004 + G.speed * 0.00015;
+                G.shakeAmount = 0.001 + G.speed * 0.00004;
                 setEngineVolume(Math.min(0.8, 0.3 + G.speed * 0.003));
                 setWindVolume(Math.min(0.3, G.speed * 0.002));
                 updateHUD();
@@ -2689,14 +2651,6 @@
             setWindVolume(0.15);
             setCabinVolume(0.2);
 
-            pt(function() {
-                showCaptain(
-                    'We\'ve reached our cruising altitude of 35,000 feet. ' +
-                    'The seatbelt sign has been turned off. ' +
-                    'Sit back and enjoy the flight.',
-                    6000
-                );
-            }, 4000);
 
             pt(function() {
                 showPrompt('Smooth skies ahead...', 3000);
@@ -2715,13 +2669,6 @@
 
             playDing();
 
-            pt(function() {
-                showCaptain(
-                    'Ladies and gentlemen, we\'re experiencing some light turbulence. ' +
-                    'Please return to your seats and fasten your seatbelts.',
-                    5000
-                );
-            }, 500);
 
             var ltLevel = 0;
             var ltInt = setInterval(function() {
@@ -2779,13 +2726,6 @@
             pt(function() { triggerLightning(); }, 8200);
             pt(function() { triggerLightning(); triggerLightning(); }, 9500);
 
-            pt(function() {
-                showCaptain(
-                    'We are passing through a severe storm cell. ' +
-                    'Please remain calm and keep your seatbelts tightly fastened.',
-                    5000
-                );
-            }, 4000);
 
             pt(function() {
                 clearInterval(stormInt);
@@ -2870,12 +2810,6 @@
             G.rainIntensity = 1.0;
             setWindVolume(1.0);
 
-            pt(function() {
-                showCaptain(
-                    'BRACE BRACE BRACE! Heads down, stay down!',
-                    4000
-                );
-            }, 2000);
 
             // Rapid descent
             var descInt = setInterval(function() {
@@ -3125,7 +3059,18 @@
         if (k === 's' || c === 'KeyS' || k === 'arrowdown' || c === 'ArrowDown') { keys.s = val; e.preventDefault(); }
         if (k === 'd' || c === 'KeyD' || k === 'arrowright' || c === 'ArrowRight') { keys.d = val; e.preventDefault(); }
     }
-    window.addEventListener('keydown', function(e) { handleKey(e, true); });
+    window.addEventListener('keydown', function(e) {
+        handleKey(e, true);
+        // Press E to fasten seatbelt when seated
+        if ((e.key === 'e' || e.key === 'E' || e.code === 'KeyE') && G.phase === 'seated' && G.canClick && !G.transitioning) {
+            G.canClick = false;
+            G.transitioning = true;
+            hideSub();
+            showPrompt('Seatbelt fastened.', 2000);
+            playDing();
+            pt(function() { goPhase('taxi'); }, 2500);
+        }
+    });
     window.addEventListener('keyup', function(e) { handleKey(e, false); });
 
     document.addEventListener('click', function() {
@@ -3155,7 +3100,6 @@
                 }
                 goPhase('seated');
                 break;
-            case 'seated': goPhase('taxi'); break;
         }
     });
 
