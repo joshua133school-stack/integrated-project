@@ -163,12 +163,25 @@
     <div class="emergency-strip" id="emergency-strip"></div>
     <canvas id="rain-canvas"></canvas>
     <div id="survival-text"></div>
-    <button id="continue-btn">Continue</button>
+    <button id="continue-btn" data-i18n="plane.continueBtn">Continue</button>
 
+    <script src="../i18n/translations.js"></script>
+    <script src="../i18n/i18n.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.min.js"></script>
     <script>
     (function() {
     'use strict';
+
+    // ═══════════════════════════════════════════════════
+    //  I18N HELPER
+    // ═══════════════════════════════════════════════════
+    function t(key) {
+        if (window.i18n && window.i18n.t) return window.i18n.t('plane.' + key);
+        // Fallback: read from global translations
+        var lang = (window.i18n && window.i18n.getLanguage) ? window.i18n.getLanguage() : 'en';
+        var obj = window.translations && window.translations[lang] && window.translations[lang].plane;
+        return (obj && obj[key]) || key;
+    }
 
     // ═══════════════════════════════════════════════════
     //  RENDERER & SCENE
@@ -2428,7 +2441,7 @@
 
         // ─── AIRPORT ───
         case 'airport':
-            setPhaseLabel('Airport Terminal');
+            setPhaseLabel(t('phaseAirport'));
             document.body.classList.add('fp-mode');
             airportGroup.visible = true;
             planeExtGroup.visible = true;
@@ -2442,9 +2455,9 @@
             camera.position.set(-8, 5.7, 5);
             cameraYaw = 0; cameraPitch = 0;
             G.cameraBasePos.copy(camera.position);
-            showPrompt('Gate 84 — Now Boarding', 3500);
+            showPrompt(t('gateBoarding'), 3500);
             pt(function() {
-                showSub('Click to look around — WASD to walk — Board at Gate 84');
+                showSub(t('subAirport'));
                 G.canClick = false;
                 G.transitioning = false;
             }, 1500);
@@ -2453,8 +2466,8 @@
         // ─── BOARDING ───
         case 'boarding':
             G.canClick = false;
-            setPhaseLabel('Boarding');
-            showPrompt('Boarding the aircraft...', 3000);
+            setPhaseLabel(t('phaseBoarding'));
+            showPrompt(t('boardingAircraft'), 3000);
             hideSub();
 
             pt(function() {
@@ -2509,12 +2522,12 @@
             }, 4000);
 
             pt(function() {
-                setPhaseLabel('Finding Your Seat');
-                showPrompt('Find your marked seat', 2500);
+                setPhaseLabel(t('phaseFindSeat'));
+                showPrompt(t('findSeat'), 2500);
             }, 5500);
 
             pt(function() {
-                showSub('Click to look around — WASD to walk — Click green marker to sit');
+                showSub(t('subBoarding'));
                 G.canClick = true;
                 G.transitioning = false;
             }, 7000);
@@ -2523,7 +2536,7 @@
         // ─── SEATED ───
         case 'seated':
             G.canClick = false;
-            setPhaseLabel('Seated');
+            setPhaseLabel(t('phaseSeated'));
             document.body.classList.add('fp-mode');
 
             // Animate to chosen seat (or default window seat)
@@ -2533,12 +2546,12 @@
                 G.cameraBasePos.copy(camera.position);
                 cameraYaw = -Math.PI / 2; cameraPitch = 0; // face window
 
-                showPrompt('Please fasten your seatbelt.', 2500);
+                showPrompt(t('fastenSeatbelt'), 2500);
                 playDing();
             });
 
             pt(function() {
-                showSub('Press E to fasten seatbelt');
+                showSub(t('subSeatbelt'));
                 G.canClick = true;
                 G.transitioning = false;
             }, 4000);
@@ -2547,19 +2560,19 @@
         // ─── TAXI ───
         case 'taxi':
             G.canClick = false;
-            setPhaseLabel('Taxiing');
+            setPhaseLabel(t('phaseTaxi'));
             hideSub();
 
-            showPrompt('Taxiing to runway...', 4000);
+            showPrompt(t('taxiing'), 4000);
             G.shakeAmount = 0.002;
             setEngineVolume(0.15);
 
             pt(function() {
-                showPrompt('Holding short of runway...', 3000);
+                showPrompt(t('holdingShort'), 3000);
             }, 8000);
 
             pt(function() {
-                showPrompt('Cleared for takeoff.', 2500);
+                showPrompt(t('clearedTakeoff'), 2500);
             }, 13000);
 
             pt(function() {
@@ -2570,9 +2583,9 @@
 
         // ─── TAKEOFF ───
         case 'takeoff':
-            setPhaseLabel('Takeoff');
+            setPhaseLabel(t('phaseTakeoff'));
             $alt.classList.add('visible');
-            showPrompt('Prepare for takeoff...', 2500);
+            showPrompt(t('prepareTakeoff'), 2500);
             G.speed = 0;
             airportGroup.visible = false;
             planeExtGroup.visible = false;
@@ -2588,7 +2601,7 @@
 
                 if (G.speed >= 165) {
                     clearInterval(toAccel);
-                    showPrompt('Rotate...', 1500);
+                    showPrompt(t('rotate'), 1500);
                     pt(function() { goPhase('climbing'); }, 1800);
                 }
             }, 80);
@@ -2597,8 +2610,8 @@
 
         // ─── CLIMBING ───
         case 'climbing':
-            setPhaseLabel('Climbing');
-            showPrompt('Climbing to cruising altitude...', 3000);
+            setPhaseLabel(t('phaseClimbing'));
+            showPrompt(t('climbing'), 3000);
             G.pitch = 5;
             cloudGroup.visible = true;
             airportGroup.visible = false;
@@ -2633,18 +2646,18 @@
 
         // ─── CRUISING ───
         case 'cruising':
-            setPhaseLabel('Cruising — 35,000 ft');
+            setPhaseLabel(t('phaseCruising'));
 
             G.shakeAmount = 0.0004;
             G.speed = 480;
 
-            showPrompt('You may now move about the cabin.', 3000);
+            showPrompt(t('moveAbout'), 3000);
             setEngineVolume(0.2);
             setWindVolume(0.15);
             setCabinVolume(0.2);
 
             pt(function() {
-                showPrompt('Smooth skies ahead...', 3000);
+                showPrompt(t('smoothSkies'), 3000);
             }, 8000);
 
             // Gradually darken to night
@@ -2674,7 +2687,7 @@
 
         // ─── LIGHT TURBULENCE ───
         case 'turbulence_light':
-            setPhaseLabel('Light Turbulence');
+            setPhaseLabel(t('phaseLightTurbulence'));
 
             playDing();
 
@@ -2695,7 +2708,7 @@
 
         // ─── STORM ───
         case 'storm':
-            setPhaseLabel('Severe Turbulence');
+            setPhaseLabel(t('phaseSevereTurbulence'));
 
             // Darken sky
             scene.background = new THREE.Color(0x0a0a15);
@@ -2715,7 +2728,7 @@
             setEngineVolume(0.6);
             setWindVolume(0.5);
 
-            showPrompt('Weather ahead...', 2000);
+            showPrompt(t('weatherAhead'), 2000);
 
             var stormLevel = 0;
             var stormInt = setInterval(function() {
@@ -2744,7 +2757,7 @@
 
         // ─── INTENSE LIGHTNING ───
         case 'lightning_intense':
-            setPhaseLabel('⚡ Electrical Storm');
+            setPhaseLabel(t('phaseStorm'));
 
             G.shakeAmount = 0.03;
             G.rainIntensity = 1.0;
@@ -2768,7 +2781,7 @@
 
             pt(function() {
                 showPrompt('', 100);
-                showWarning('SEVERE TURBULENCE');
+                showWarning(t('severeTurbulence'));
             }, 1000);
 
             pt(function() {
@@ -2781,7 +2794,7 @@
                 doFlash(1.0, 0.8);
                 playThunder();
                 G.shakeAmount = 0.08;
-                showWarning('⚡ LIGHTNING STRIKE');
+                showWarning(t('lightningStrike'));
 
                 // Brief power flicker
                 flickerCabinLights();
@@ -2795,12 +2808,12 @@
 
         // ─── EMERGENCY ───
         case 'emergency':
-            setPhaseLabel('🔴 EMERGENCY');
+            setPhaseLabel(t('phaseEmergency'));
             $phase.style.background = 'rgba(200,0,0,0.8)';
             playAlarm();
 
             // Systems failing
-            showWarning('BRACE FOR IMPACT');
+            showWarning(t('braceForImpact'));
 
             // Drop oxygen masks
             dropOxygenMasks();
@@ -2849,7 +2862,7 @@
         case 'crash':
             G.altitude = 0;
             G.speed = 0;
-            setPhaseLabel('IMPACT');
+            setPhaseLabel(t('phaseImpact'));
 
             playImpact();
             doFlash(1.0, 0.3);
@@ -2908,7 +2921,7 @@
             fadeOut(3);
 
             pt(function() {
-                $survival.innerHTML = 'You survived.';
+                $survival.innerHTML = t('youSurvived');
                 $survival.classList.add('visible');
             }, 3000);
 
@@ -2917,10 +2930,7 @@
             }, 6000);
 
             pt(function() {
-                $survival.innerHTML =
-                    'In reality, 95.7% of passengers survive plane crashes.<br><br>' +
-                    'Flying remains the safest form of long-distance travel.<br><br>' +
-                    'Your chances of being in a fatal crash are<br><b style="font-size:2rem">1 in 13,700,000</b>';
+                $survival.innerHTML = t('survivalStats');
                 $survival.classList.add('visible');
             }, 7500);
 
@@ -3075,7 +3085,7 @@
             G.canClick = false;
             G.transitioning = true;
             hideSub();
-            showPrompt('Seatbelt fastened.', 2000);
+            showPrompt(t('seatbeltFastened'), 2000);
             playDing();
             pt(function() { goPhase('taxi'); }, 2500);
         }
