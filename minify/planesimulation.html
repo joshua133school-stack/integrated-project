@@ -2674,6 +2674,8 @@
             showPrompt('Climbing to cruising altitude...', 3000);
             G.pitch = 5;
             cloudGroup.visible = true;
+            airportGroup.visible = false;
+            planeExtGroup.visible = false;
 
             var climbInt = setInterval(function() {
                 G.altitude += 400;
