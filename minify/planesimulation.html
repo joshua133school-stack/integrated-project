@@ -56,40 +56,6 @@
         }
         #sub-prompt.visible { opacity: 1; }
 
-        /* Seatbelt sign */
-        #seatbelt-sign {
-            position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
-            background: linear-gradient(145deg, #ff4444, #cc0000);
-            color: #fff; padding: 10px 22px; border-radius: 6px;
-            font-size: 0.95rem; z-index: 25;
-            opacity: 0; transition: opacity 0.4s;
-            box-shadow: 0 0 25px rgba(255,0,0,0.4);
-            letter-spacing: 2px; text-transform: uppercase;
-            pointer-events: none;
-        }
-        #seatbelt-sign.visible { opacity: 1; animation: pulse-sign 1.2s infinite; }
-        @keyframes pulse-sign {
-            0%,100% { box-shadow: 0 0 25px rgba(255,0,0,0.4); }
-            50% { box-shadow: 0 0 45px rgba(255,0,0,0.8); }
-        }
-
-        /* Captain announcement */
-        #captain-box {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
-            background: rgba(0,0,0,0.85); color: #fff;
-            padding: 30px 50px; border-radius: 12px;
-            font-size: 1.1rem; z-index: 35;
-            opacity: 0; transition: opacity 0.6s;
-            max-width: 600px; text-align: center; line-height: 1.8;
-            border: 1px solid rgba(255,255,255,0.1);
-            pointer-events: none;
-        }
-        #captain-box.visible { opacity: 1; }
-        #captain-box .captain-label {
-            font-size: 0.75rem; letter-spacing: 3px; text-transform: uppercase;
-            color: rgba(255,255,255,0.4); margin-bottom: 12px;
-        }
-
         /* Fade overlay */
         #fade {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -187,12 +153,10 @@
             SPD <span id="spd-val">0</span> kts<br>
             HDG <span id="hdg-val">270</span>°
         </div>
-        <div id="seatbelt-sign">⚠ Fasten Seatbelt</div>
     </div>
 
     <div id="prompt"></div>
     <div id="sub-prompt"></div>
-    <div id="captain-box"><div class="captain-label"></div><div id="captain-text"></div></div>
     <div id="warning"></div>
     <div id="fade"></div>
     <div id="flash"></div>
@@ -490,6 +454,7 @@
     var cabinLights = [];
     var cabinLightMeshes = [];
     var emergencyLightMeshes = [];
+    var groundViewPlane = null;
     var engineFans = [];
     var seatMarker = null; // glowing marker above assigned seat
 
@@ -1863,19 +1828,6 @@
         // ── Window trim and exterior view planes ──
         var winWallX = archXatY(winY); // arch X at window height
         var trimMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5 });
-        // Sky gradient for exterior view behind each window
-        var skyViewCanvas = document.createElement('canvas');
-        skyViewCanvas.width = 64; skyViewCanvas.height = 64;
-        var svCtx = skyViewCanvas.getContext('2d');
-        var grad = svCtx.createLinearGradient(0, 0, 0, 64);
-        grad.addColorStop(0, '#5599dd');
-        grad.addColorStop(0.55, '#88ccff');
-        grad.addColorStop(0.55, '#44aa55');
-        grad.addColorStop(1, '#337733');
-        svCtx.fillStyle = grad;
-        svCtx.fillRect(0, 0, 64, 64);
-        var skyViewTex = new THREE.CanvasTexture(skyViewCanvas);
-        var skyViewMat = new THREE.MeshBasicMaterial({ map: skyViewTex });
 
         // Calculate wall tilt angle at window height for frame rotation
         // The arch tangent at angle a: (-Rh*sin(a), Rv*cos(a))
@@ -1900,11 +1852,6 @@
                 frameGrp.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, 0, 0, -winHalfZ));
                 frameGrp.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, 0, 0, winHalfZ));
                 cabinGroup.add(frameGrp);
-                // Exterior view plane (sky/ground gradient behind the hole)
-                var extView = new THREE.Mesh(new THREE.PlaneGeometry(winHalfZ * 2 - 0.02, winHalfH * 2 - 0.02), skyViewMat);
-                extView.position.set(wSide * (winWallX + 0.1), winY, wz);
-                extView.rotation.y = wSide > 0 ? -Math.PI / 2 : Math.PI / 2;
-                cabinGroup.add(extView);
             }
         }
 
@@ -1934,14 +1881,6 @@
             cabinLights.push(pLight);
         }
 
-        // ── Reading light nozzles (under overhead bins) ──
-        for (var rlz = -halfL + 1.5; rlz < halfL - 1; rlz += rowPitch) {
-            for (var rlSide = -1; rlSide <= 1; rlSide += 2) {
-                var nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.06, 8), MAT.darkPlastic);
-                nozzle.position.set(rlSide * (binWallX - binD - 0.05), binY - binH / 2 - 0.06, rlz);
-                cabinGroup.add(nozzle);
-            }
-        }
 
         // ── Cockpit door (front, centered) ──
         var cDoor = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.9, 0.08), MAT.metal);
@@ -2072,6 +2011,14 @@
             cabinGroup.add(jumpSeat);
         }
 
+        // ── Ground plane visible through windows while on ground ──
+        var groundViewGeo = new THREE.PlaneGeometry(200, 200);
+        var groundViewMat = new THREE.MeshBasicMaterial({ color: 0x3d8c40 });
+        groundViewPlane = new THREE.Mesh(groundViewGeo, groundViewMat);
+        groundViewPlane.rotation.x = -Math.PI / 2;
+        groundViewPlane.position.y = -1.5; // below cabin floor
+        cabinGroup.add(groundViewPlane);
+
         cabinGroup.visible = false;
     }
 
@@ -2105,35 +2052,6 @@
 
         // Seat pocket (fabric on back)
         sg.add(pm(new THREE.BoxGeometry(W*0.8, 0.18, 0.008), MAT.darkPlastic, 0, seatY + 0.12, -D/2 + backT + 0.005));
-
-        // Tray table (folded, on back of seat in front)
-        var tray = pm(new THREE.BoxGeometry(W*0.75, 0.015, 0.25), MAT.trayTable, 0, seatY + cushionH + backH * 0.35, -D/2 + backT + 0.01);
-        sg.add(tray);
-        // Tray latch
-        sg.add(pm(new THREE.BoxGeometry(0.06, 0.03, 0.03), MAT.darkPlastic, 0, seatY + cushionH + backH * 0.35 + 0.02, -D/2 + backT + 0.02));
-
-        // Seatbelt (connected belt + buckle, hanging from seat back)
-        var beltBackZ = -D / 2 + backT + 0.01; // just in front of seat back
-        var beltTopY = seatY + cushionH + 0.04; // emerges from back-cushion gap
-        var beltHangY = seatY + cushionH - 0.02; // hangs slightly below cushion top
-        // Left strap — from back left, angling toward center
-        var beltStrapL = new THREE.Group();
-        var strapL = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
-        beltStrapL.add(strapL);
-        beltStrapL.position.set(-W * 0.12, beltHangY, beltBackZ + 0.09);
-        beltStrapL.rotation.x = 0.15; // slight drape angle
-        sg.add(beltStrapL);
-        // Right strap — from back right, angling toward center
-        var beltStrapR = new THREE.Group();
-        var strapR = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
-        beltStrapR.add(strapR);
-        beltStrapR.position.set(W * 0.12, beltHangY, beltBackZ + 0.09);
-        beltStrapR.rotation.x = 0.15;
-        sg.add(beltStrapR);
-        // Buckle — connects both straps at center, at the seat back
-        sg.add(pm(new THREE.BoxGeometry(0.05, 0.02, 0.035), MAT.metal, 0, beltHangY, beltBackZ + 0.04));
-        // Short connector straps from buckle to each strap
-        sg.add(pm(new THREE.BoxGeometry(0.08, 0.008, 0.025), MAT.seatbeltOrange, 0, beltHangY, beltBackZ + 0.06));
 
         sg.position.set(x, 0, z);
         return sg;
@@ -2443,9 +2361,6 @@
     var $hdgVal = document.getElementById('hdg-val');
     var $prompt = document.getElementById('prompt');
     var $sub = document.getElementById('sub-prompt');
-    var $seatbelt = document.getElementById('seatbelt-sign');
-    var $captain = document.getElementById('captain-box');
-    var $captainText = document.getElementById('captain-text');
     var $warning = document.getElementById('warning');
     var $fade = document.getElementById('fade');
     var $flash = document.getElementById('flash');
@@ -2463,14 +2378,6 @@
     function showSub(text) { $sub.textContent = text; $sub.classList.add('visible'); }
     function hideSub() { $sub.classList.remove('visible'); }
 
-    function showCaptain(text, dur) {
-        $captain.querySelector('.captain-label').textContent = '— Captain Speaking —';
-        $captainText.textContent = text;
-        $captain.classList.add('visible');
-        playDing();
-        if (dur) setTimeout(function() { $captain.classList.remove('visible'); }, dur);
-    }
-    function hideCaptain() { $captain.classList.remove('visible'); }
 
     function showWarning(text) { $warning.textContent = text; $warning.classList.add('visible'); }
     function hideWarning() { $warning.classList.remove('visible'); }
@@ -2631,24 +2538,10 @@
             });
 
             pt(function() {
-                showCaptain(
-                    'Good afternoon, ladies and gentlemen. Welcome aboard. ' +
-                    'This is your captain speaking. We\'ll be cruising at 35,000 feet today. ' +
-                    'Flight time will be approximately three hours. ' +
-                    'Please fasten your seatbelts and ensure your tray tables are in the upright position.',
-                    9000
-                );
-            }, 4000);
-
-            pt(function() {
-                $seatbelt.classList.add('visible');
-            }, 4500);
-
-            pt(function() {
-                showSub('Click when ready for departure');
+                showSub('Press E to fasten seatbelt');
                 G.canClick = true;
                 G.transitioning = false;
-            }, 13500);
+            }, 4000);
             break;
 
         // ─── TAXI ───
@@ -2657,21 +2550,22 @@
             setPhaseLabel('Taxiing');
             hideSub();
 
-            showPrompt('Taxiing to runway...', 3000);
-            G.shakeAmount = 0.003;
+            showPrompt('Taxiing to runway...', 4000);
+            G.shakeAmount = 0.002;
             setEngineVolume(0.15);
 
             pt(function() {
-                showCaptain(
-                    'Cabin crew, please prepare for takeoff.',
-                    3500
-                );
-            }, 3500);
+                showPrompt('Holding short of runway...', 3000);
+            }, 8000);
+
+            pt(function() {
+                showPrompt('Cleared for takeoff.', 2500);
+            }, 13000);
 
             pt(function() {
                 G.transitioning = false;
                 goPhase('takeoff');
-            }, 8000);
+            }, 18000);
             break;
 
         // ─── TAKEOFF ───
@@ -2680,12 +2574,14 @@
             $alt.classList.add('visible');
             showPrompt('Prepare for takeoff...', 2500);
             G.speed = 0;
+            airportGroup.visible = false;
+            planeExtGroup.visible = false;
 
             setEngineVolume(0.5);
 
             var toAccel = setInterval(function() {
                 G.speed += 3;
-                G.shakeAmount = 0.004 + G.speed * 0.00015;
+                G.shakeAmount = 0.001 + G.speed * 0.00004;
                 setEngineVolume(Math.min(0.8, 0.3 + G.speed * 0.003));
                 setWindVolume(Math.min(0.3, G.speed * 0.002));
                 updateHUD();
@@ -2705,6 +2601,9 @@
             showPrompt('Climbing to cruising altitude...', 3000);
             G.pitch = 5;
             cloudGroup.visible = true;
+            airportGroup.visible = false;
+            planeExtGroup.visible = false;
+            if (groundViewPlane) groundViewPlane.visible = false;
 
             var climbInt = setInterval(function() {
                 G.altitude += 400;
@@ -2735,7 +2634,7 @@
         // ─── CRUISING ───
         case 'cruising':
             setPhaseLabel('Cruising — 35,000 ft');
-            $seatbelt.classList.remove('visible');
+
             G.shakeAmount = 0.0004;
             G.speed = 480;
 
@@ -2745,38 +2644,40 @@
             setCabinVolume(0.2);
 
             pt(function() {
-                showCaptain(
-                    'We\'ve reached our cruising altitude of 35,000 feet. ' +
-                    'The seatbelt sign has been turned off. ' +
-                    'Sit back and enjoy the flight.',
-                    6000
-                );
-            }, 4000);
-
-            pt(function() {
                 showPrompt('Smooth skies ahead...', 3000);
-            }, 12000);
+            }, 8000);
 
-            // Transition to turbulence
+            // Gradually darken to night
+            var nightStart = performance.now() + 10000; // start darkening after 10s
+            var nightDur = 12000; // over 12 seconds
+            var dayColor = new THREE.Color(0x1a3a6e); // cruising altitude sky
+            var nightColor = new THREE.Color(0x050510);
+            var nightInt = setInterval(function() {
+                var elapsed = performance.now() - nightStart;
+                if (elapsed < 0) return;
+                var t = Math.min(elapsed / nightDur, 1);
+                var col = new THREE.Color().lerpColors(dayColor, nightColor, t);
+                scene.background = col;
+                scene.fog.color = col;
+                renderer.toneMappingExposure = 0.7 - t * 0.4;
+                if (t >= 0.5) dimCabinLights(true);
+                if (t >= 1) clearInterval(nightInt);
+            }, 100);
+            phaseTimers.push(nightInt);
+
+            // Transition to turbulence after it's dark
             pt(function() {
                 G.transitioning = false;
                 goPhase('turbulence_light');
-            }, 18000);
+            }, 28000);
             break;
 
         // ─── LIGHT TURBULENCE ───
         case 'turbulence_light':
             setPhaseLabel('Light Turbulence');
-            $seatbelt.classList.add('visible');
+
             playDing();
 
-            pt(function() {
-                showCaptain(
-                    'Ladies and gentlemen, we\'re experiencing some light turbulence. ' +
-                    'Please return to your seats and fasten your seatbelts.',
-                    5000
-                );
-            }, 500);
 
             var ltLevel = 0;
             var ltInt = setInterval(function() {
@@ -2834,13 +2735,6 @@
             pt(function() { triggerLightning(); }, 8200);
             pt(function() { triggerLightning(); triggerLightning(); }, 9500);
 
-            pt(function() {
-                showCaptain(
-                    'We are passing through a severe storm cell. ' +
-                    'Please remain calm and keep your seatbelts tightly fastened.',
-                    5000
-                );
-            }, 4000);
 
             pt(function() {
                 clearInterval(stormInt);
@@ -2925,12 +2819,6 @@
             G.rainIntensity = 1.0;
             setWindVolume(1.0);
 
-            pt(function() {
-                showCaptain(
-                    'BRACE BRACE BRACE! Heads down, stay down!',
-                    4000
-                );
-            }, 2000);
 
             // Rapid descent
             var descInt = setInterval(function() {
@@ -2994,7 +2882,7 @@
         case 'survival':
             setPhaseLabel('');
             $alt.classList.remove('visible');
-            $seatbelt.classList.remove('visible');
+
             $eStrip.classList.remove('visible');
             hideWarning();
             hideSub();
@@ -3180,7 +3068,18 @@
         if (k === 's' || c === 'KeyS' || k === 'arrowdown' || c === 'ArrowDown') { keys.s = val; e.preventDefault(); }
         if (k === 'd' || c === 'KeyD' || k === 'arrowright' || c === 'ArrowRight') { keys.d = val; e.preventDefault(); }
     }
-    window.addEventListener('keydown', function(e) { handleKey(e, true); });
+    window.addEventListener('keydown', function(e) {
+        handleKey(e, true);
+        // Press E to fasten seatbelt when seated
+        if ((e.key === 'e' || e.key === 'E' || e.code === 'KeyE') && G.phase === 'seated' && G.canClick && !G.transitioning) {
+            G.canClick = false;
+            G.transitioning = true;
+            hideSub();
+            showPrompt('Seatbelt fastened.', 2000);
+            playDing();
+            pt(function() { goPhase('taxi'); }, 2500);
+        }
+    });
     window.addEventListener('keyup', function(e) { handleKey(e, false); });
 
     document.addEventListener('click', function() {
@@ -3210,7 +3109,6 @@
                 }
                 goPhase('seated');
                 break;
-            case 'seated': goPhase('taxi'); break;
         }
     });
 
