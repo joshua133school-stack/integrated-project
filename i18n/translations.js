@@ -319,6 +319,51 @@ const translations = {
                 heights: "Fear of Heights",
                 ocean: "Fear of Water"
             }
+        },
+
+        // Plane simulation (3D flight experience)
+        plane: {
+            continueBtn: "Continue",
+            // Phase labels
+            phaseAirport: "Airport Terminal",
+            phaseBoarding: "Boarding",
+            phaseFindSeat: "Finding Your Seat",
+            phaseSeated: "Seated",
+            phaseTaxi: "Taxiing",
+            phaseTakeoff: "Takeoff",
+            phaseClimbing: "Climbing",
+            phaseCruising: "Cruising — 35,000 ft",
+            phaseLightTurbulence: "Light Turbulence",
+            phaseSevereTurbulence: "Severe Turbulence",
+            phaseStorm: "⚡ Electrical Storm",
+            phaseEmergency: "🔴 EMERGENCY",
+            phaseImpact: "IMPACT",
+            // Prompts
+            gateBoarding: "Gate 84 — Now Boarding",
+            boardingAircraft: "Boarding the aircraft...",
+            findSeat: "Find your marked seat",
+            fastenSeatbelt: "Please fasten your seatbelt.",
+            seatbeltFastened: "Seatbelt fastened.",
+            taxiing: "Taxiing to runway...",
+            holdingShort: "Holding short of runway...",
+            clearedTakeoff: "Cleared for takeoff.",
+            prepareTakeoff: "Prepare for takeoff...",
+            rotate: "Rotate...",
+            climbing: "Climbing to cruising altitude...",
+            moveAbout: "You may now move about the cabin.",
+            smoothSkies: "Smooth skies ahead...",
+            weatherAhead: "Weather ahead...",
+            // Sub-prompts
+            subAirport: "Click to look around — WASD to walk — Board at Gate 84",
+            subBoarding: "Click to look around — WASD to walk — Click green marker to sit",
+            subSeatbelt: "Press E to fasten seatbelt",
+            // Warnings
+            severeTurbulence: "SEVERE TURBULENCE",
+            lightningStrike: "⚡ LIGHTNING STRIKE",
+            braceForImpact: "BRACE FOR IMPACT",
+            // Survival
+            youSurvived: "You survived.",
+            survivalStats: 'In reality, 95.7% of passengers survive plane crashes.<br><br>Flying remains the safest form of long-distance travel.<br><br>Your chances of being in a fatal crash are<br><b style="font-size:2rem">1 in 13,700,000</b>'
         }
     },
 
@@ -641,6 +686,51 @@ const translations = {
                 heights: "고소 공포증",
                 ocean: "물 공포증"
             }
+        },
+
+        // 비행 시뮬레이션 (3D 비행 체험)
+        plane: {
+            continueBtn: "계속하기",
+            // 단계 라벨
+            phaseAirport: "공항 터미널",
+            phaseBoarding: "탑승 중",
+            phaseFindSeat: "좌석 찾기",
+            phaseSeated: "착석 완료",
+            phaseTaxi: "지상 이동 중",
+            phaseTakeoff: "이륙",
+            phaseClimbing: "상승 중",
+            phaseCruising: "순항 중 — 35,000 ft",
+            phaseLightTurbulence: "가벼운 난기류",
+            phaseSevereTurbulence: "심한 난기류",
+            phaseStorm: "⚡ 뇌우",
+            phaseEmergency: "🔴 비상",
+            phaseImpact: "충돌",
+            // 안내 문구
+            gateBoarding: "84번 게이트 — 탑승 시작",
+            boardingAircraft: "항공기에 탑승 중...",
+            findSeat: "표시된 좌석을 찾으세요",
+            fastenSeatbelt: "안전벨트를 매주세요.",
+            seatbeltFastened: "안전벨트 착용 완료.",
+            taxiing: "활주로로 이동 중...",
+            holdingShort: "활주로 대기 중...",
+            clearedTakeoff: "이륙 허가.",
+            prepareTakeoff: "이륙 준비...",
+            rotate: "기수 들기...",
+            climbing: "순항 고도로 상승 중...",
+            moveAbout: "기내를 자유롭게 이동하실 수 있습니다.",
+            smoothSkies: "맑은 하늘이 이어집니다...",
+            weatherAhead: "전방에 기상 이변...",
+            // 하위 안내
+            subAirport: "클릭하여 주위를 둘러보세요 — WASD로 이동 — 84번 게이트에서 탑승",
+            subBoarding: "클릭하여 주위를 둘러보세요 — WASD로 이동 — 초록색 표시를 클릭하여 착석",
+            subSeatbelt: "E를 눌러 안전벨트 착용",
+            // 경고
+            severeTurbulence: "심한 난기류",
+            lightningStrike: "⚡ 낙뢰",
+            braceForImpact: "충격에 대비하세요",
+            // 생존
+            youSurvived: "당신은 생존했습니다.",
+            survivalStats: '실제로 항공기 사고 승객의 95.7%가 생존합니다.<br><br>비행은 여전히 가장 안전한 장거리 이동 수단입니다.<br><br>치명적인 사고를 당할 확률은<br><b style="font-size:2rem">1,370만분의 1</b>'
         }
     }
 };
