@@ -1908,26 +1908,30 @@
             }
         }
 
-        // ── Ceiling light strips (LED panels along inner edge of overhead bins) ──
-        // In real aircraft, flat light panels run along the underside of bins
-        var lightStripY = binY - binH / 2 - 0.01; // flush with bin underside
-        var lightStripX = binWallX - binD / 2 - 0.03;  // centered under bin inner half
-        var lightStripGeo = new THREE.PlaneGeometry(0.22, 1.8); // wide panel, runs along cabin Z
-        for (var lz = -halfL + 1; lz < halfL - 1; lz += 2) {
-            for (var lSide = -1; lSide <= 1; lSide += 2) {
-                var lPanel = new THREE.Mesh(lightStripGeo, MAT.lightEmit);
-                lPanel.position.set(lSide * lightStripX, lightStripY, lz);
-                lPanel.rotation.x = -Math.PI / 2; // face downward
-                cabinGroup.add(lPanel);
-                cabinLightMeshes.push(lPanel);
+        // ── Individual ceiling lights above each seat, every 2 rows ──
+        var ceilLightY = binY - binH / 2 - 0.04; // just below overhead bins
+        var ceilLightGeo = new THREE.BoxGeometry(0.10, 0.02, 0.10);
+        var ceilLightLensGeo = new THREE.CircleGeometry(0.04, 12);
+        for (var lr = 0; lr < numRows; lr += 2) {
+            var lrZ = firstRowZ + lr * rowPitch;
+            for (var lsi = 0; lsi < seatPositionsX.length; lsi++) {
+                var lsx = seatPositionsX[lsi];
+                // Light housing
+                var lHouse = new THREE.Mesh(ceilLightGeo, MAT.darkPlastic);
+                lHouse.position.set(lsx, ceilLightY, lrZ);
+                cabinGroup.add(lHouse);
+                // Light lens (glowing face pointing down)
+                var lLens = new THREE.Mesh(ceilLightLensGeo, MAT.lightEmit);
+                lLens.position.set(lsx, ceilLightY - 0.011, lrZ);
+                lLens.rotation.x = -Math.PI / 2;
+                cabinGroup.add(lLens);
+                cabinLightMeshes.push(lLens);
             }
-            // Actual point light every 4m (centered between the two strips)
-            if (Math.abs(lz % 4) < 1) {
-                var pLight = new THREE.PointLight(0xffffee, 0.3, 5);
-                pLight.position.set(0, lightStripY - 0.15, lz);
-                cabinGroup.add(pLight);
-                cabinLights.push(pLight);
-            }
+            // One point light per row (centered in aisle) for actual illumination
+            var pLight = new THREE.PointLight(0xffffee, 0.4, 4);
+            pLight.position.set(0, ceilLightY - 0.1, lrZ);
+            cabinGroup.add(pLight);
+            cabinLights.push(pLight);
         }
 
         // ── Reading light nozzles (under overhead bins) ──
@@ -1953,14 +1957,19 @@
         ex2.position.set(0, CH - 0.1, -halfL + 0.5);
         cabinGroup.add(ex2);
 
-        // ── Emergency floor LEDs (hidden initially, along aisle edges) ──
-        for (var elz = -halfL + 1; elz < halfL - 1; elz += 1.2) {
+        // ── Emergency floor light strips (flush with floor, along aisle edges) ──
+        // Continuous LED strips that guide passengers down the aisle
+        var aisleEdgeX = 0.35; // just outside the aisle walkway
+        var floorStripMat = new THREE.MeshBasicMaterial({ color: 0x88cc66, transparent: true, opacity: 0.5 });
+        var floorStripLen = 0.7;
+        var floorStripGeo = new THREE.PlaneGeometry(0.04, floorStripLen);
+        for (var elz = -halfL + 1; elz < halfL - 1; elz += floorStripLen + 0.1) {
             for (var elSide = -1; elSide <= 1; elSide += 2) {
-                var eled = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.015, 0.06), MAT.emergencyGreen);
-                eled.position.set(elSide * 0.3, 0.01, elz);
-                eled.visible = false;
-                cabinGroup.add(eled);
-                emergencyLightMeshes.push(eled);
+                var fStrip = new THREE.Mesh(floorStripGeo, floorStripMat);
+                fStrip.position.set(elSide * aisleEdgeX, 0.005, elz);
+                fStrip.rotation.x = -Math.PI / 2; // lay flat on floor
+                cabinGroup.add(fStrip);
+                emergencyLightMeshes.push(fStrip);
             }
         }
 
@@ -2103,13 +2112,28 @@
         // Tray latch
         sg.add(pm(new THREE.BoxGeometry(0.06, 0.03, 0.03), MAT.darkPlastic, 0, seatY + cushionH + backH * 0.35 + 0.02, -D/2 + backT + 0.02));
 
-        // Seatbelt (draped on cushion)
-        var beltL = pm(new THREE.BoxGeometry(0.025, 0.008, D*0.4), MAT.seatbeltOrange, -W*0.15, seatY + cushionH + 0.01, 0.05);
-        sg.add(beltL);
-        var beltR = pm(new THREE.BoxGeometry(0.025, 0.008, D*0.4), MAT.seatbeltOrange, W*0.15, seatY + cushionH + 0.01, 0.05);
-        sg.add(beltR);
-        // Belt buckle (center)
-        sg.add(pm(new THREE.BoxGeometry(0.05, 0.015, 0.03), MAT.metal, 0, seatY + cushionH + 0.015, 0.1));
+        // Seatbelt (connected belt + buckle, hanging from seat back)
+        var beltBackZ = -D / 2 + backT + 0.01; // just in front of seat back
+        var beltTopY = seatY + cushionH + 0.04; // emerges from back-cushion gap
+        var beltHangY = seatY + cushionH - 0.02; // hangs slightly below cushion top
+        // Left strap — from back left, angling toward center
+        var beltStrapL = new THREE.Group();
+        var strapL = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
+        beltStrapL.add(strapL);
+        beltStrapL.position.set(-W * 0.12, beltHangY, beltBackZ + 0.09);
+        beltStrapL.rotation.x = 0.15; // slight drape angle
+        sg.add(beltStrapL);
+        // Right strap — from back right, angling toward center
+        var beltStrapR = new THREE.Group();
+        var strapR = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
+        beltStrapR.add(strapR);
+        beltStrapR.position.set(W * 0.12, beltHangY, beltBackZ + 0.09);
+        beltStrapR.rotation.x = 0.15;
+        sg.add(beltStrapR);
+        // Buckle — connects both straps at center, at the seat back
+        sg.add(pm(new THREE.BoxGeometry(0.05, 0.02, 0.035), MAT.metal, 0, beltHangY, beltBackZ + 0.04));
+        // Short connector straps from buckle to each strap
+        sg.add(pm(new THREE.BoxGeometry(0.08, 0.008, 0.025), MAT.seatbeltOrange, 0, beltHangY, beltBackZ + 0.06));
 
         sg.position.set(x, 0, z);
         return sg;
@@ -2507,14 +2531,13 @@
             survivalGroup.visible = false;
             scene.background = new THREE.Color(0x87CEEB);
             scene.fog = new THREE.FogExp2(0x87CEEB, 0.0008);
-            // Camera inside terminal 2nd floor at gate A7, looking +X through windows
-            // 2nd floor is at y=4, eye height = 4 + 1.7 = 5.7
+            // Camera inside terminal 2nd floor at gate 84, looking +X through windows
             camera.position.set(-8, 5.7, 5);
-            camera.lookAt(new THREE.Vector3(15, 5, 5));
+            cameraYaw = 0; cameraPitch = 0;
             G.cameraBasePos.copy(camera.position);
             showPrompt('Gate 84 — Now Boarding', 3500);
             pt(function() {
-                showSub('WASD to walk — Board at Gate 84');
+                showSub('Click to look around — WASD to walk — Board at Gate 84');
                 G.canClick = false;
                 G.transitioning = false;
             }, 1500);
@@ -2542,8 +2565,9 @@
                 camera.position.set(0, 1.65, -9);
                 camera.rotation.set(0, 0, 0);
                 G.cameraBasePos.copy(camera.position);
-                G.lookX = 0; G.lookY = 0;
-                G.targetLookX = 0; G.targetLookY = 0;
+                cameraYaw = 0; cameraPitch = 0;
+                // Re-request pointer lock for cabin walking
+                document.body.requestPointerLock();
 
                 // Assign a specific seat and create a glowing marker
                 var assignedRow = -11 + 1.5 + 12 * 0.80; // row 12
@@ -2583,7 +2607,7 @@
             }, 5500);
 
             pt(function() {
-                showSub('WASD to walk — Click the green marker to sit');
+                showSub('Click to look around — WASD to walk — Click green marker to sit');
                 G.canClick = true;
                 G.transitioning = false;
             }, 7000);
@@ -2593,14 +2617,14 @@
         case 'seated':
             G.canClick = false;
             setPhaseLabel('Seated');
-            document.body.classList.remove('fp-mode');
+            document.body.classList.add('fp-mode');
 
             // Animate to chosen seat (or default window seat)
             var seatTarget = G.seatTarget || new THREE.Vector3(1.35, 1.15, -2);
             animateCamera(seatTarget, 1500, function() {
                 camera.position.copy(seatTarget);
                 G.cameraBasePos.copy(camera.position);
-                G.lookX = 0; G.lookY = 0;
+                cameraYaw = -Math.PI / 2; cameraPitch = 0; // face window
 
                 showPrompt('Please fasten your seatbelt.', 2500);
                 playDing();
@@ -3135,9 +3159,16 @@
     }
 
     // ═══════════════════════════════════════════════════
-    //  INPUT
+    //  INPUT — Pointer-lock camera (darkness-style)
     // ═══════════════════════════════════════════════════
     var audioStarted = false;
+    var cameraYaw = 0;
+    var cameraPitch = 0;
+    var pointerLocked = false;
+
+    document.addEventListener('pointerlockchange', function() {
+        pointerLocked = document.pointerLockElement !== null;
+    });
 
     // ── Keyboard state for WASD walking ──
     var keys = { w: false, a: false, s: false, d: false };
@@ -3160,6 +3191,12 @@
             audioStarted = true;
         }
 
+        // Request pointer lock for FPS-style mouselook
+        if (!pointerLocked && (G.phase === 'airport' || G.phase === 'boarding')) {
+            document.body.requestPointerLock();
+            return;
+        }
+
         if (G.transitioning) return;
         if (!G.canClick) return;
 
@@ -3180,13 +3217,17 @@
     document.addEventListener('mousemove', function(e) {
         G.mouseX = e.clientX;
         G.mouseY = e.clientY;
+        if (!pointerLocked) return;
         if (G.phase === 'airport' || G.phase === 'boarding') {
-            // Mouse position maps to look direction (right side of screen = look right)
-            G.targetLookX = (e.clientX / window.innerWidth - 0.5);
-            G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.5;
-        } else if (['seated', 'cruising'].indexOf(G.phase) !== -1) {
-            G.targetLookX = (e.clientX / window.innerWidth - 0.5) * 0.8;
-            G.targetLookY = (e.clientY / window.innerHeight - 0.5) * 0.4;
+            // Pointer-lock delta-based FPS mouselook
+            cameraYaw -= e.movementX * 0.002;
+            cameraPitch -= e.movementY * 0.002;
+            cameraPitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, cameraPitch));
+        } else if (['seated', 'taxi', 'takeoff', 'climbing', 'cruising'].indexOf(G.phase) !== -1) {
+            // Still allow mouse look when seated (limited range)
+            cameraYaw -= e.movementX * 0.002;
+            cameraPitch -= e.movementY * 0.002;
+            cameraPitch = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, cameraPitch));
         }
     });
 
@@ -3207,11 +3248,6 @@
         G.delta = Math.min(clock.getDelta(), 0.1);
         G.time += G.delta;
 
-        // ── Smooth look ──
-        var lookSmooth = G.phase === 'airport' ? 0.12 : 0.04;
-        G.lookX += (G.targetLookX - G.lookX) * lookSmooth;
-        G.lookY += (G.targetLookY - G.lookY) * lookSmooth;
-
         // ── Camera shake ──
         if (G.shakeAmount > 0.0001) {
             camera.position.x = G.cameraBasePos.x + (Math.random() - 0.5) * G.shakeAmount * 2;
@@ -3220,39 +3256,33 @@
             camera.rotation.z = (Math.random() - 0.5) * G.shakeAmount * 0.4;
         }
 
-        // ── Phase-specific camera ──
-        if (G.phase === 'airport') {
-            // ── WASD Walking ──
-            var walkSpeed = 5.0 * G.delta; // ~5 m/s
-            // Yaw from mouse: full screen width = ±PI/2 (±90°)
-            var yaw = G.lookX * Math.PI;
-            // Forward direction based on where player is looking
-            var fwdX = Math.cos(yaw);
-            var fwdZ = -Math.sin(yaw);
-            // Right direction (perpendicular)
-            var rightX = -fwdZ;
-            var rightZ = fwdX;
+        // ── Phase-specific camera (pointer-lock FPS style) ──
+        camera.rotation.order = 'YXZ';
 
-            var moveX = 0, moveZ = 0;
-            if (keys.w) { moveX += fwdX; moveZ += fwdZ; }
-            if (keys.s) { moveX -= fwdX; moveZ -= fwdZ; }
-            if (keys.a) { moveX -= rightX; moveZ -= rightZ; }
-            if (keys.d) { moveX += rightX; moveZ += rightZ; }
-            // Normalize diagonal movement
-            var moveLen = Math.sqrt(moveX * moveX + moveZ * moveZ);
-            if (moveLen > 0) {
-                moveX = moveX / moveLen * walkSpeed;
-                moveZ = moveZ / moveLen * walkSpeed;
-                camera.position.x += moveX;
-                camera.position.z += moveZ;
+        if (G.phase === 'airport') {
+            // ── WASD Walking (quaternion-based like darkness experience) ──
+            var walkSpeed = 5.0 * G.delta;
+            if (pointerLocked) {
+                var dir = new THREE.Vector3();
+                if (keys.w) dir.z -= 1;
+                if (keys.s) dir.z += 1;
+                if (keys.a) dir.x -= 1;
+                if (keys.d) dir.x += 1;
+                dir.normalize();
+                if (dir.length() > 0) {
+                    var fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    fwd.y = 0; fwd.normalize();
+                    var right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    right.y = 0; right.normalize();
+                    camera.position.addScaledVector(fwd, -dir.z * walkSpeed);
+                    camera.position.addScaledVector(right, dir.x * walkSpeed);
+                }
             }
 
             // Keep Y at eye height on 2nd floor
             camera.position.y = 5.7;
 
-            // ── Bounds: terminal interior OR gate A7 jet bridge ──
-            // Terminal: x in [-20, 2], z in [-50, 50]
-            // Bridge A7: x in [2, 16], z in [5-1.5, 5+1.5] = [3.5, 6.5]
+            // ── Bounds: terminal interior OR gate 84 jet bridge ──
             var px = camera.position.x;
             var pz = camera.position.z;
             var inTerminal = (px >= -20 && px <= 2 && pz >= -50 && pz <= 50);
@@ -3260,11 +3290,9 @@
 
             if (!inTerminal && !inBridge) {
                 if (px > 2) {
-                    // Trying to enter bridge area — only allow if Z is in range
                     if (pz >= 3.5 && pz <= 6.5) {
                         camera.position.x = Math.min(16, px);
                     } else {
-                        // Push back into terminal
                         camera.position.x = 2;
                         camera.position.z = Math.max(-50, Math.min(50, pz));
                     }
@@ -3273,7 +3301,6 @@
                     camera.position.z = Math.max(-50, Math.min(50, pz));
                 }
             }
-            // Clamp Z inside bridge corridor
             if (camera.position.x > 2) {
                 camera.position.z = Math.max(3.5, Math.min(6.5, camera.position.z));
             }
@@ -3286,55 +3313,49 @@
 
             G.cameraBasePos.copy(camera.position);
 
-            // ── Look direction ──
-            camera.lookAt(
-                camera.position.x + Math.cos(yaw) * 10,
-                camera.position.y - 0.3 + G.lookY * 4,
-                camera.position.z - Math.sin(yaw) * 10
-            );
+            // ── Look direction from pointer lock ──
+            camera.rotation.y = cameraYaw;
+            camera.rotation.x = cameraPitch;
         }
         if (G.phase === 'boarding') {
-            // ── WASD Walking inside cabin ──
+            // ── WASD Walking inside cabin (quaternion-based) ──
             var cabinWalkSpeed = 3.0 * G.delta;
-            var cabinYaw = G.lookX * Math.PI;
-            var cabFwdX = Math.cos(cabinYaw);
-            var cabFwdZ = -Math.sin(cabinYaw);
-            var cabRightX = -cabFwdZ;
-            var cabRightZ = cabFwdX;
-            var cmx = 0, cmz = 0;
-            if (keys.w) { cmx += cabFwdX; cmz += cabFwdZ; }
-            if (keys.s) { cmx -= cabFwdX; cmz -= cabFwdZ; }
-            if (keys.a) { cmx -= cabRightX; cmz -= cabRightZ; }
-            if (keys.d) { cmx += cabRightX; cmz += cabRightZ; }
-            var cmLen = Math.sqrt(cmx * cmx + cmz * cmz);
-            if (cmLen > 0) {
-                cmx = cmx / cmLen * cabinWalkSpeed;
-                cmz = cmz / cmLen * cabinWalkSpeed;
-                camera.position.x += cmx;
-                camera.position.z += cmz;
+            if (pointerLocked) {
+                var cDir = new THREE.Vector3();
+                if (keys.w) cDir.z -= 1;
+                if (keys.s) cDir.z += 1;
+                if (keys.a) cDir.x -= 1;
+                if (keys.d) cDir.x += 1;
+                cDir.normalize();
+                if (cDir.length() > 0) {
+                    var cFwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+                    cFwd.y = 0; cFwd.normalize();
+                    var cRight = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+                    cRight.y = 0; cRight.normalize();
+                    camera.position.addScaledVector(cFwd, -cDir.z * cabinWalkSpeed);
+                    camera.position.addScaledVector(cRight, cDir.x * cabinWalkSpeed);
+                }
             }
-            // Cabin bounds: wide enough to walk between seat rows
+            // Cabin bounds
             camera.position.x = Math.max(-1.8, Math.min(1.8, camera.position.x));
             camera.position.z = Math.max(-10, Math.min(10, camera.position.z));
             camera.position.y = 1.65;
             G.cameraBasePos.copy(camera.position);
-            // Look direction
-            camera.lookAt(
-                camera.position.x + Math.cos(cabinYaw) * 10,
-                camera.position.y - 0.1 + G.lookY * 3,
-                camera.position.z - Math.sin(cabinYaw) * 10
-            );
+
+            // Look direction from pointer lock
+            camera.rotation.y = cameraYaw;
+            camera.rotation.x = cameraPitch;
         }
         if (G.phase === 'seated' || G.phase === 'taxi' || G.phase === 'takeoff' ||
             G.phase === 'climbing') {
-            // Free look around cabin — mouse position controls view direction
-            camera.rotation.y = G.lookX * Math.PI;  // full ±180° horizontal
-            camera.rotation.x = G.lookY * 0.5;      // ±30° vertical
+            // Free look around cabin via pointer lock
+            camera.rotation.y = cameraYaw;
+            camera.rotation.x = cameraPitch;
         }
         if (['cruising', 'turbulence_light', 'storm', 'lightning_intense', 'emergency'].indexOf(G.phase) !== -1) {
-            // Mostly looking out window with subtle drift
-            camera.rotation.y = -Math.PI / 2 + Math.sin(G.time * 0.15) * 0.02 + G.lookX * 0.4;
-            camera.rotation.x = G.lookY * 0.2 + G.pitch * 0.01;
+            // Looking out window with subtle drift + pointer lock adjustment
+            camera.rotation.y = -Math.PI / 2 + Math.sin(G.time * 0.15) * 0.02 + (cameraYaw + Math.PI / 2) * 0.4;
+            camera.rotation.x = cameraPitch * 0.3 + G.pitch * 0.01;
             camera.rotation.z += G.roll * 0.005;
         }
         if (G.phase === 'crash') {
@@ -3342,9 +3363,8 @@
             camera.rotation.x = G.pitch * 0.015;
         }
         if (G.phase === 'survival') {
-            // Looking at wreckage/fire
-            camera.rotation.y = Math.PI * 0.05 + Math.sin(G.time * 0.1) * 0.02 + G.lookX * 0.2;
-            camera.rotation.x = -0.05 + G.lookY * 0.1;
+            camera.rotation.y = Math.PI * 0.05 + Math.sin(G.time * 0.1) * 0.02 + cameraYaw * 0.2;
+            camera.rotation.x = -0.05 + cameraPitch * 0.15;
         }
 
         // ── Animate seat marker (pulsing) ──
