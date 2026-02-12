@@ -1908,21 +1908,19 @@
             }
         }
 
-        // ── Ceiling light strips (LED panels along inner edge of overhead bins) ──
-        // In real aircraft, flat light panels run along the underside of bins
+        // ── Ceiling light panels (perpendicular to aisle, spanning between overhead bins) ──
         var lightStripY = binY - binH / 2 - 0.01; // flush with bin underside
-        var lightStripX = binWallX - binD / 2 - 0.03;  // centered under bin inner half
-        var lightStripGeo = new THREE.PlaneGeometry(0.22, 1.8); // wide panel, runs along cabin Z
-        for (var lz = -halfL + 1; lz < halfL - 1; lz += 2) {
-            for (var lSide = -1; lSide <= 1; lSide += 2) {
-                var lPanel = new THREE.Mesh(lightStripGeo, MAT.lightEmit);
-                lPanel.position.set(lSide * lightStripX, lightStripY, lz);
-                lPanel.rotation.x = -Math.PI / 2; // face downward
-                cabinGroup.add(lPanel);
-                cabinLightMeshes.push(lPanel);
-            }
-            // Actual point light every 4m (centered between the two strips)
-            if (Math.abs(lz % 4) < 1) {
+        var lightStripInnerX = binWallX - binD - 0.02; // inner edge of bins
+        var lightPanelWidth = lightStripInnerX * 2 - 0.1; // span between bins with small gap
+        var lightPanelGeo = new THREE.PlaneGeometry(lightPanelWidth, 0.12); // wide across cabin, narrow along Z
+        for (var lz = -halfL + 1.5; lz < halfL - 1; lz += rowPitch) {
+            var lPanel = new THREE.Mesh(lightPanelGeo, MAT.lightEmit);
+            lPanel.position.set(0, lightStripY, lz);
+            lPanel.rotation.x = -Math.PI / 2; // face downward
+            cabinGroup.add(lPanel);
+            cabinLightMeshes.push(lPanel);
+            // Point light every 4 rows
+            if (Math.round((lz - (-halfL + 1.5)) / rowPitch) % 4 === 0) {
                 var pLight = new THREE.PointLight(0xffffee, 0.3, 5);
                 pLight.position.set(0, lightStripY - 0.15, lz);
                 cabinGroup.add(pLight);
@@ -1953,14 +1951,19 @@
         ex2.position.set(0, CH - 0.1, -halfL + 0.5);
         cabinGroup.add(ex2);
 
-        // ── Emergency floor LEDs (hidden initially, along aisle edges) ──
-        for (var elz = -halfL + 1; elz < halfL - 1; elz += 1.2) {
+        // ── Emergency floor light strips (flush with floor, along aisle edges) ──
+        // Continuous LED strips that guide passengers down the aisle
+        var aisleEdgeX = 0.35; // just outside the aisle walkway
+        var floorStripMat = new THREE.MeshBasicMaterial({ color: 0x88cc66, transparent: true, opacity: 0.5 });
+        var floorStripLen = 0.7;
+        var floorStripGeo = new THREE.PlaneGeometry(0.04, floorStripLen);
+        for (var elz = -halfL + 1; elz < halfL - 1; elz += floorStripLen + 0.1) {
             for (var elSide = -1; elSide <= 1; elSide += 2) {
-                var eled = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.015, 0.06), MAT.emergencyGreen);
-                eled.position.set(elSide * 0.3, 0.01, elz);
-                eled.visible = false;
-                cabinGroup.add(eled);
-                emergencyLightMeshes.push(eled);
+                var fStrip = new THREE.Mesh(floorStripGeo, floorStripMat);
+                fStrip.position.set(elSide * aisleEdgeX, 0.005, elz);
+                fStrip.rotation.x = -Math.PI / 2; // lay flat on floor
+                cabinGroup.add(fStrip);
+                emergencyLightMeshes.push(fStrip);
             }
         }
 
@@ -2593,7 +2596,7 @@
         case 'seated':
             G.canClick = false;
             setPhaseLabel('Seated');
-            document.body.classList.remove('fp-mode');
+            document.body.classList.add('fp-mode');
 
             // Animate to chosen seat (or default window seat)
             var seatTarget = G.seatTarget || new THREE.Vector3(1.35, 1.15, -2);
