@@ -1934,14 +1934,6 @@
             cabinLights.push(pLight);
         }
 
-        // ── Reading light nozzles (under overhead bins) ──
-        for (var rlz = -halfL + 1.5; rlz < halfL - 1; rlz += rowPitch) {
-            for (var rlSide = -1; rlSide <= 1; rlSide += 2) {
-                var nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.03, 0.06, 8), MAT.darkPlastic);
-                nozzle.position.set(rlSide * (binWallX - binD - 0.05), binY - binH / 2 - 0.06, rlz);
-                cabinGroup.add(nozzle);
-            }
-        }
 
         // ── Cockpit door (front, centered) ──
         var cDoor = new THREE.Mesh(new THREE.BoxGeometry(0.9, 1.9, 0.08), MAT.metal);
@@ -2111,29 +2103,6 @@
         sg.add(tray);
         // Tray latch
         sg.add(pm(new THREE.BoxGeometry(0.06, 0.03, 0.03), MAT.darkPlastic, 0, seatY + cushionH + backH * 0.35 + 0.02, -D/2 + backT + 0.02));
-
-        // Seatbelt (connected belt + buckle, hanging from seat back)
-        var beltBackZ = -D / 2 + backT + 0.01; // just in front of seat back
-        var beltTopY = seatY + cushionH + 0.04; // emerges from back-cushion gap
-        var beltHangY = seatY + cushionH - 0.02; // hangs slightly below cushion top
-        // Left strap — from back left, angling toward center
-        var beltStrapL = new THREE.Group();
-        var strapL = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
-        beltStrapL.add(strapL);
-        beltStrapL.position.set(-W * 0.12, beltHangY, beltBackZ + 0.09);
-        beltStrapL.rotation.x = 0.15; // slight drape angle
-        sg.add(beltStrapL);
-        // Right strap — from back right, angling toward center
-        var beltStrapR = new THREE.Group();
-        var strapR = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
-        beltStrapR.add(strapR);
-        beltStrapR.position.set(W * 0.12, beltHangY, beltBackZ + 0.09);
-        beltStrapR.rotation.x = 0.15;
-        sg.add(beltStrapR);
-        // Buckle — connects both straps at center, at the seat back
-        sg.add(pm(new THREE.BoxGeometry(0.05, 0.02, 0.035), MAT.metal, 0, beltHangY, beltBackZ + 0.04));
-        // Short connector straps from buckle to each strap
-        sg.add(pm(new THREE.BoxGeometry(0.08, 0.008, 0.025), MAT.seatbeltOrange, 0, beltHangY, beltBackZ + 0.06));
 
         sg.position.set(x, 0, z);
         return sg;
