@@ -56,23 +56,6 @@
         }
         #sub-prompt.visible { opacity: 1; }
 
-        /* Seatbelt sign */
-        #seatbelt-sign {
-            position: fixed; top: 75px; left: 50%; transform: translateX(-50%);
-            background: linear-gradient(145deg, #ff4444, #cc0000);
-            color: #fff; padding: 10px 22px; border-radius: 6px;
-            font-size: 0.95rem; z-index: 25;
-            opacity: 0; transition: opacity 0.4s;
-            box-shadow: 0 0 25px rgba(255,0,0,0.4);
-            letter-spacing: 2px; text-transform: uppercase;
-            pointer-events: none;
-        }
-        #seatbelt-sign.visible { opacity: 1; animation: pulse-sign 1.2s infinite; }
-        @keyframes pulse-sign {
-            0%,100% { box-shadow: 0 0 25px rgba(255,0,0,0.4); }
-            50% { box-shadow: 0 0 45px rgba(255,0,0,0.8); }
-        }
-
         /* Captain announcement */
         #captain-box {
             position: fixed; top: 50%; left: 50%; transform: translate(-50%,-50%);
@@ -187,7 +170,6 @@
             SPD <span id="spd-val">0</span> kts<br>
             HDG <span id="hdg-val">270</span>°
         </div>
-        <div id="seatbelt-sign">⚠ Fasten Seatbelt</div>
     </div>
 
     <div id="prompt"></div>
@@ -2098,12 +2080,6 @@
         // Seat pocket (fabric on back)
         sg.add(pm(new THREE.BoxGeometry(W*0.8, 0.18, 0.008), MAT.darkPlastic, 0, seatY + 0.12, -D/2 + backT + 0.005));
 
-        // Tray table (folded, on back of seat in front)
-        var tray = pm(new THREE.BoxGeometry(W*0.75, 0.015, 0.25), MAT.trayTable, 0, seatY + cushionH + backH * 0.35, -D/2 + backT + 0.01);
-        sg.add(tray);
-        // Tray latch
-        sg.add(pm(new THREE.BoxGeometry(0.06, 0.03, 0.03), MAT.darkPlastic, 0, seatY + cushionH + backH * 0.35 + 0.02, -D/2 + backT + 0.02));
-
         sg.position.set(x, 0, z);
         return sg;
     }
@@ -2412,7 +2388,6 @@
     var $hdgVal = document.getElementById('hdg-val');
     var $prompt = document.getElementById('prompt');
     var $sub = document.getElementById('sub-prompt');
-    var $seatbelt = document.getElementById('seatbelt-sign');
     var $captain = document.getElementById('captain-box');
     var $captainText = document.getElementById('captain-text');
     var $warning = document.getElementById('warning');
@@ -2610,7 +2585,6 @@
             }, 4000);
 
             pt(function() {
-                $seatbelt.classList.add('visible');
             }, 4500);
 
             pt(function() {
@@ -2706,7 +2680,7 @@
         // ─── CRUISING ───
         case 'cruising':
             setPhaseLabel('Cruising — 35,000 ft');
-            $seatbelt.classList.remove('visible');
+
             G.shakeAmount = 0.0004;
             G.speed = 480;
 
@@ -2738,7 +2712,7 @@
         // ─── LIGHT TURBULENCE ───
         case 'turbulence_light':
             setPhaseLabel('Light Turbulence');
-            $seatbelt.classList.add('visible');
+
             playDing();
 
             pt(function() {
@@ -2965,7 +2939,7 @@
         case 'survival':
             setPhaseLabel('');
             $alt.classList.remove('visible');
-            $seatbelt.classList.remove('visible');
+
             $eStrip.classList.remove('visible');
             hideWarning();
             hideSub();
