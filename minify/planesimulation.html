@@ -739,8 +739,9 @@
                 new THREE.MeshBasicMaterial({ color: 0x3388cc }));
             gScr.position.set(0, 1.5, -0.216);
             gDesk.add(gScr);
-            // Position desk off to the side of the gate (not blocking the bridge entrance)
-            gDesk.position.set(TI.x2 - 2.5, TI.floorY, gate.z - 5);
+            // Position desk next to gate, rotated parallel to window wall so it doesn't block entry
+            gDesk.rotation.y = Math.PI / 2;
+            gDesk.position.set(TI.x2 - 1.2, TI.floorY, gate.z - 3.5);
             airportGroup.add(gDesk);
 
             // ── Jet bridge (connects 2nd floor to plane) ──
@@ -1559,13 +1560,13 @@
             eGroup.add(fanGroup);
             engineFans.push(fanGroup);
             // Pylon (connects engine to wing)
-            var pylonGeo = new THREE.BoxGeometry(0.15, 0.7, 2.5);
+            var pylonGeo = new THREE.BoxGeometry(0.15, 1.2, 2.5);
             var pylon = new THREE.Mesh(pylonGeo, MAT.metal);
-            pylon.position.y = 0.7;
+            pylon.position.y = 1.35;
             pylon.position.z = -0.2;
             eGroup.add(pylon);
 
-            eGroup.position.set(xPos, -R - 0.6, 0);
+            eGroup.position.set(xPos, -R * 0.35 - 1.3, 0);
             return eGroup;
         }
         planeExtGroup.add(makeEngine(6.0));
