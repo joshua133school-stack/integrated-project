@@ -320,8 +320,10 @@
         if (cabinGain) cabinGain.gain.linearRampToValueAtTime(v, audioCtx.currentTime + 0.3);
     }
 
+    var thunderPlaying = false;
     function playThunder() {
-        if (!audioCtx) return;
+        if (!audioCtx || thunderPlaying) return;
+        thunderPlaying = true;
         var osc = audioCtx.createOscillator();
         var g = audioCtx.createGain();
         var filter = audioCtx.createBiquadFilter();
@@ -342,6 +344,7 @@
         g.connect(masterGain);
         noise.start();
         noise.stop(audioCtx.currentTime + 2.5);
+        noise.onended = function() { thunderPlaying = false; };
     }
 
     function playDing() {
