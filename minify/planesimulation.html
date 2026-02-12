@@ -1908,23 +1908,28 @@
             }
         }
 
-        // ── Ceiling light panels (perpendicular to bins, crossing the aisle) ──
-        // Each panel runs across the cabin (X), clearly below and separate from the bins
-        var lightPanelY = binY - binH / 2 - 0.08; // well below bin underside
-        var lightInnerX = binWallX - binD - 0.02; // inner edge of bins
-        var lightPanelW = lightInnerX * 2 - 0.06; // span gap between bins
-        var lightPanelD = 0.30; // 30cm deep in Z — clearly visible panels
-        var lightPanelGeo = new THREE.PlaneGeometry(lightPanelW, lightPanelD);
-        // Place one panel between every 2 seat rows for spaced, prominent look
-        for (var lz = -halfL + 2; lz < halfL - 1; lz += rowPitch * 2) {
-            var lPanel = new THREE.Mesh(lightPanelGeo, MAT.lightEmit);
-            lPanel.position.set(0, lightPanelY, lz);
-            lPanel.rotation.x = -Math.PI / 2; // face downward
-            cabinGroup.add(lPanel);
-            cabinLightMeshes.push(lPanel);
-            // Point light at each panel
-            var pLight = new THREE.PointLight(0xffffee, 0.35, 5);
-            pLight.position.set(0, lightPanelY - 0.1, lz);
+        // ── Individual ceiling lights above each seat, every 2 rows ──
+        var ceilLightY = binY - binH / 2 - 0.04; // just below overhead bins
+        var ceilLightGeo = new THREE.BoxGeometry(0.10, 0.02, 0.10);
+        var ceilLightLensGeo = new THREE.CircleGeometry(0.04, 12);
+        for (var lr = 0; lr < numRows; lr += 2) {
+            var lrZ = firstRowZ + lr * rowPitch;
+            for (var lsi = 0; lsi < seatPositionsX.length; lsi++) {
+                var lsx = seatPositionsX[lsi];
+                // Light housing
+                var lHouse = new THREE.Mesh(ceilLightGeo, MAT.darkPlastic);
+                lHouse.position.set(lsx, ceilLightY, lrZ);
+                cabinGroup.add(lHouse);
+                // Light lens (glowing face pointing down)
+                var lLens = new THREE.Mesh(ceilLightLensGeo, MAT.lightEmit);
+                lLens.position.set(lsx, ceilLightY - 0.011, lrZ);
+                lLens.rotation.x = -Math.PI / 2;
+                cabinGroup.add(lLens);
+                cabinLightMeshes.push(lLens);
+            }
+            // One point light per row (centered in aisle) for actual illumination
+            var pLight = new THREE.PointLight(0xffffee, 0.4, 4);
+            pLight.position.set(0, ceilLightY - 0.1, lrZ);
             cabinGroup.add(pLight);
             cabinLights.push(pLight);
         }
@@ -2107,13 +2112,28 @@
         // Tray latch
         sg.add(pm(new THREE.BoxGeometry(0.06, 0.03, 0.03), MAT.darkPlastic, 0, seatY + cushionH + backH * 0.35 + 0.02, -D/2 + backT + 0.02));
 
-        // Seatbelt (draped on cushion)
-        var beltL = pm(new THREE.BoxGeometry(0.025, 0.008, D*0.4), MAT.seatbeltOrange, -W*0.15, seatY + cushionH + 0.01, 0.05);
-        sg.add(beltL);
-        var beltR = pm(new THREE.BoxGeometry(0.025, 0.008, D*0.4), MAT.seatbeltOrange, W*0.15, seatY + cushionH + 0.01, 0.05);
-        sg.add(beltR);
-        // Belt buckle (center)
-        sg.add(pm(new THREE.BoxGeometry(0.05, 0.015, 0.03), MAT.metal, 0, seatY + cushionH + 0.015, 0.1));
+        // Seatbelt (connected belt + buckle, hanging from seat back)
+        var beltBackZ = -D / 2 + backT + 0.01; // just in front of seat back
+        var beltTopY = seatY + cushionH + 0.04; // emerges from back-cushion gap
+        var beltHangY = seatY + cushionH - 0.02; // hangs slightly below cushion top
+        // Left strap — from back left, angling toward center
+        var beltStrapL = new THREE.Group();
+        var strapL = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
+        beltStrapL.add(strapL);
+        beltStrapL.position.set(-W * 0.12, beltHangY, beltBackZ + 0.09);
+        beltStrapL.rotation.x = 0.15; // slight drape angle
+        sg.add(beltStrapL);
+        // Right strap — from back right, angling toward center
+        var beltStrapR = new THREE.Group();
+        var strapR = pm(new THREE.BoxGeometry(0.025, 0.008, 0.18), MAT.seatbeltOrange, 0, 0, 0);
+        beltStrapR.add(strapR);
+        beltStrapR.position.set(W * 0.12, beltHangY, beltBackZ + 0.09);
+        beltStrapR.rotation.x = 0.15;
+        sg.add(beltStrapR);
+        // Buckle — connects both straps at center, at the seat back
+        sg.add(pm(new THREE.BoxGeometry(0.05, 0.02, 0.035), MAT.metal, 0, beltHangY, beltBackZ + 0.04));
+        // Short connector straps from buckle to each strap
+        sg.add(pm(new THREE.BoxGeometry(0.08, 0.008, 0.025), MAT.seatbeltOrange, 0, beltHangY, beltBackZ + 0.06));
 
         sg.position.set(x, 0, z);
         return sg;
