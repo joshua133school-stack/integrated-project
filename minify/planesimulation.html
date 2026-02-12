@@ -1877,37 +1877,53 @@
         var skyViewTex = new THREE.CanvasTexture(skyViewCanvas);
         var skyViewMat = new THREE.MeshBasicMaterial({ map: skyViewTex });
 
+        // Calculate wall tilt angle at window height for frame rotation
+        // The arch tangent at angle a: (-Rh*sin(a), Rv*cos(a))
+        // Wall tilt from vertical = atan2(Rh*sin(a), Rv*cos(a))
+        var winSinA = (winY - archCenterY) / Rv; // sin(a) at window height
+        var winCosA = Math.sqrt(1 - winSinA * winSinA);
+        var wallTilt = Math.atan2(Rh * winSinA, Rv * winCosA); // ~0.24 rad (~14°)
+
         for (var wfz = 0; wfz < windowZList.length; wfz++) {
             var wz = windowZList[wfz];
             for (var wSide = -1; wSide <= 1; wSide += 2) {
                 var wx = wSide * winWallX;
-                // Thin trim bars around the window opening
+                // Frame group — tilted to match wall curvature
+                var frameGrp = new THREE.Group();
+                frameGrp.position.set(wx * 0.98, winY, wz);
+                frameGrp.rotation.z = -wSide * wallTilt; // tilt inward to match arch
                 // Top trim
-                cabinGroup.add(pm(new THREE.BoxGeometry(0.04, 0.025, winHalfZ * 2 + 0.04), trimMat, wx * 0.98, winY + winHalfH, wz));
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, 0.025, winHalfZ * 2 + 0.04), trimMat, 0, winHalfH, 0));
                 // Bottom trim
-                cabinGroup.add(pm(new THREE.BoxGeometry(0.04, 0.025, winHalfZ * 2 + 0.04), trimMat, wx * 0.98, winY - winHalfH, wz));
-                // Side trims (z edges)
-                cabinGroup.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, wx * 0.98, winY, wz - winHalfZ));
-                cabinGroup.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, wx * 0.98, winY, wz + winHalfZ));
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, 0.025, winHalfZ * 2 + 0.04), trimMat, 0, -winHalfH, 0));
+                // Side trims
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, 0, 0, -winHalfZ));
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, 0, 0, winHalfZ));
+                cabinGroup.add(frameGrp);
                 // Exterior view plane (sky/ground gradient behind the hole)
                 var extView = new THREE.Mesh(new THREE.PlaneGeometry(winHalfZ * 2 - 0.02, winHalfH * 2 - 0.02), skyViewMat);
                 extView.position.set(wSide * (winWallX + 0.1), winY, wz);
                 extView.rotation.y = wSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+                extView.rotation.z = -wSide * wallTilt;
                 cabinGroup.add(extView);
             }
         }
 
-        // ── Ceiling light panels (along center) ──
+        // ── Ceiling light strips (LED strips along inner edge of overhead bins) ──
+        // In real aircraft, lights run along the underside of bins, not at the arch peak
+        var lightStripY = binY - binH / 2 - 0.03; // just below bins
+        var lightStripX = binWallX - binD - 0.02;  // inner edge of bins
         for (var lz = -halfL + 1; lz < halfL - 1; lz += 2) {
-            var lPanel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 1.8), MAT.lightEmit);
-            lPanel.position.set(0, CH - 0.02, lz);
-            cabinGroup.add(lPanel);
-            cabinLightMeshes.push(lPanel);
-
-            // Actual point light every 4m
+            for (var lSide = -1; lSide <= 1; lSide += 2) {
+                var lPanel = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.015, 1.8), MAT.lightEmit);
+                lPanel.position.set(lSide * lightStripX, lightStripY, lz);
+                cabinGroup.add(lPanel);
+                cabinLightMeshes.push(lPanel);
+            }
+            // Actual point light every 4m (centered between the two strips)
             if (Math.abs(lz % 4) < 1) {
-                var pLight = new THREE.PointLight(0xffffee, 0.4, 6);
-                pLight.position.set(0, CH - 0.1, lz);
+                var pLight = new THREE.PointLight(0xffffee, 0.3, 5);
+                pLight.position.set(0, lightStripY - 0.1, lz);
                 cabinGroup.add(pLight);
                 cabinLights.push(pLight);
             }
