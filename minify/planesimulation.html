@@ -491,6 +491,7 @@
     var cabinLightMeshes = [];
     var emergencyLightMeshes = [];
     var engineFans = [];
+    var seatMarker = null; // glowing marker above assigned seat
 
     // ═══════════════════════════════════════════════════
     //  LIGHTING
@@ -640,9 +641,9 @@
 
         // ── Gate positions (defined early — needed for window wall openings) ──
         var gatePositions = [
-            { name: 'A5', z: -30, hasPlane: true },
-            { name: 'A7', z: 5, hasPlane: false },
-            { name: 'A9', z: 35, hasPlane: true }
+            { name: '83', z: -30, hasPlane: true },
+            { name: '84', z: 5, hasPlane: false },
+            { name: '85', z: 35, hasPlane: true }
         ];
 
         // ── Window wall (+X side) — floor-to-ceiling glass with openings for jet bridges ──
@@ -713,15 +714,32 @@
         for (var gi = 0; gi < gatePositions.length; gi++) {
             var gate = gatePositions[gi];
 
-            // ── Gate sign (hanging from ceiling) ──
+            // ── Gate sign (hanging from ceiling, with gate number) ──
             var signBg = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.8, 0.1), MAT.signPanel);
             signBg.position.set(TCX + 2, TI.ceilY - 0.5, gate.z);
             airportGroup.add(signBg);
-            // Sign face (lighter)
+            // Sign face with gate number text (canvas texture)
+            var signCanvas = document.createElement('canvas');
+            signCanvas.width = 512; signCanvas.height = 128;
+            var sCtx = signCanvas.getContext('2d');
+            sCtx.fillStyle = '#ffffff';
+            sCtx.fillRect(0, 0, 512, 128);
+            sCtx.fillStyle = '#003322';
+            sCtx.font = 'bold 72px Arial, sans-serif';
+            sCtx.textAlign = 'center';
+            sCtx.textBaseline = 'middle';
+            sCtx.fillText('Gate ' + gate.name, 256, 64);
+            var signTex = new THREE.CanvasTexture(signCanvas);
             var signFace = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.6),
-                new THREE.MeshBasicMaterial({ color: 0xffffff }));
+                new THREE.MeshBasicMaterial({ map: signTex }));
             signFace.position.set(TCX + 2, TI.ceilY - 0.5, gate.z + 0.06);
             airportGroup.add(signFace);
+            // Back face (visible from other side)
+            var signFaceBack = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 0.6),
+                new THREE.MeshBasicMaterial({ map: signTex }));
+            signFaceBack.position.set(TCX + 2, TI.ceilY - 0.5, gate.z - 0.06);
+            signFaceBack.rotation.y = Math.PI;
+            airportGroup.add(signFaceBack);
 
             // ── Gate desk / counter ──
             var gDesk = new THREE.Group();
@@ -739,8 +757,9 @@
                 new THREE.MeshBasicMaterial({ color: 0x3388cc }));
             gScr.position.set(0, 1.5, -0.216);
             gDesk.add(gScr);
-            // Position desk off to the side of the gate (not blocking the bridge entrance)
-            gDesk.position.set(TI.x2 - 2.5, TI.floorY, gate.z - 5);
+            // Position desk next to gate, rotated parallel to window wall so it doesn't block entry
+            gDesk.rotation.y = Math.PI / 2;
+            gDesk.position.set(TI.x2 - 1.2, TI.floorY, gate.z - 3.5);
             airportGroup.add(gDesk);
 
             // ── Jet bridge (connects 2nd floor to plane) ──
@@ -755,7 +774,7 @@
             var bridgeEndX = bridgeStartX + bridgeLen;
             var bridgeCenterX = (bridgeStartX + bridgeEndX) / 2;
             var halfBW = bridgeW / 2;
-            var isPlayerGate = (gate.name === 'A7');
+            var isPlayerGate = (gate.name === '84');
 
             // Exterior shell — built from individual faces (not a box)
             // so the terminal-side face is open for walking through
@@ -1559,13 +1578,13 @@
             eGroup.add(fanGroup);
             engineFans.push(fanGroup);
             // Pylon (connects engine to wing)
-            var pylonGeo = new THREE.BoxGeometry(0.15, 0.7, 2.5);
+            var pylonGeo = new THREE.BoxGeometry(0.15, 1.2, 2.5);
             var pylon = new THREE.Mesh(pylonGeo, MAT.metal);
-            pylon.position.y = 0.7;
+            pylon.position.y = 1.35;
             pylon.position.z = -0.2;
             eGroup.add(pylon);
 
-            eGroup.position.set(xPos, -R - 0.6, 0);
+            eGroup.position.set(xPos, -R * 0.35 - 1.3, 0);
             return eGroup;
         }
         planeExtGroup.add(makeEngine(6.0));
@@ -1715,6 +1734,38 @@
         var archStart = archFloorA;
         var archEnd = Math.PI - archFloorA;             // ~PI+0.412 (left floor)
         var archRange = archEnd - archStart;
+        // Window cutout parameters
+        var winY = 1.2;
+        var winHalfH = 0.21;  // half of 0.42 (frame height)
+        var winHalfZ = 0.15;  // half of 0.30 (frame width in Z)
+        var winYBot = winY - winHalfH; // 0.99
+        var winYTop = winY + winHalfH; // 1.41
+        var rowPitch = 0.80;
+        // Pre-compute window Z positions
+        var windowZList = [];
+        for (var wzi = -halfL + 1.5; wzi < halfL - 1; wzi += rowPitch) {
+            windowZList.push(wzi);
+        }
+        // Pre-compute Z breakpoints for window segments
+        var zBreaks = [-halfL];
+        for (var wb = 0; wb < windowZList.length; wb++) {
+            zBreaks.push(windowZList[wb] - winHalfZ);
+            zBreaks.push(windowZList[wb] + winHalfZ);
+        }
+        zBreaks.push(halfL);
+
+        // Helper: build one arch quad panel from z0 to z1
+        function addArchPanel(ax0, ay0, ax1, ay1, az0, az1) {
+            var v = new Float32Array([
+                ax0, ay0, az0,  ax0, ay0, az1,  ax1, ay1, az1,  ax1, ay1, az0
+            ]);
+            var g = new THREE.BufferGeometry();
+            g.setAttribute('position', new THREE.BufferAttribute(v, 3));
+            g.setIndex([0, 1, 2, 0, 2, 3]);
+            g.computeVertexNormals();
+            cabinGroup.add(new THREE.Mesh(g, MAT.plastic));
+        }
+
         var archSegs = 32;
         for (var wp = 0; wp < archSegs; wp++) {
             var a0 = archStart + (wp / archSegs) * archRange;
@@ -1724,15 +1775,25 @@
             var x1 = Rh * Math.cos(a1);
             var y1 = Math.max(0, archCenterY + Rv * Math.sin(a1));
 
-            var verts = new Float32Array([
-                x0, y0, -halfL,  x0, y0, halfL,  x1, y1, halfL,  x1, y1, -halfL
-            ]);
-            var idx = [0, 1, 2, 0, 2, 3]; // inward-facing normals (CCW from inside)
-            var geo = new THREE.BufferGeometry();
-            geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
-            geo.setIndex(idx);
-            geo.computeVertexNormals();
-            cabinGroup.add(new THREE.Mesh(geo, MAT.plastic));
+            // Check if this segment overlaps with window height
+            var segYmin = Math.min(y0, y1);
+            var segYmax = Math.max(y0, y1);
+            var isWindowSeg = segYmax > winYBot && segYmin < winYTop;
+
+            if (isWindowSeg) {
+                // Build Z-segmented panels with gaps at window positions
+                // Wall sections are at even indices: [0,1], [2,3], [4,5], ...
+                // Window gaps (skipped) are at odd indices: [1,2], [3,4], ...
+                for (var zb = 0; zb < zBreaks.length - 1; zb += 2) {
+                    var z0 = zBreaks[zb];
+                    var z1 = zBreaks[zb + 1];
+                    if (z1 <= z0 + 0.01) continue;
+                    addArchPanel(x0, y0, x1, y1, z0, z1);
+                }
+            } else {
+                // Full-length panel (no windows at this height)
+                addArchPanel(x0, y0, x1, y1, -halfL, halfL);
+            }
         }
 
         // ── Front bulkhead wall (seals cabin at +Z end) ──
@@ -1761,7 +1822,7 @@
         // ── Seats: 3-3 layout (A B C | aisle | D E F) ──
         // Real economy seat: ~44cm wide, ~80cm pitch (row spacing)
         var seatWidth = 0.44;
-        var rowPitch = 0.80;
+        // rowPitch already defined above (0.80) for window Z positions
         var aisleHalfW = 0.25;
         // Left group: seats at x = aisleHalfW + seatWidth*0.5, +seatWidth, +seatWidth*2
         // Right group: mirrored
@@ -1799,34 +1860,71 @@
             }
         }
 
-        // ── Windows (interior, positioned on curved arch wall) ──
-        var winY = 1.2;
+        // ── Window trim and exterior view planes ──
         var winWallX = archXatY(winY); // arch X at window height
-        for (var wz = -halfL + 1.5; wz < halfL - 1; wz += rowPitch) {
+        var trimMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.5 });
+        // Sky gradient for exterior view behind each window
+        var skyViewCanvas = document.createElement('canvas');
+        skyViewCanvas.width = 64; skyViewCanvas.height = 64;
+        var svCtx = skyViewCanvas.getContext('2d');
+        var grad = svCtx.createLinearGradient(0, 0, 0, 64);
+        grad.addColorStop(0, '#5599dd');
+        grad.addColorStop(0.55, '#88ccff');
+        grad.addColorStop(0.55, '#44aa55');
+        grad.addColorStop(1, '#337733');
+        svCtx.fillStyle = grad;
+        svCtx.fillRect(0, 0, 64, 64);
+        var skyViewTex = new THREE.CanvasTexture(skyViewCanvas);
+        var skyViewMat = new THREE.MeshBasicMaterial({ map: skyViewTex });
+
+        // Calculate wall tilt angle at window height for frame rotation
+        // The arch tangent at angle a: (-Rh*sin(a), Rv*cos(a))
+        // Wall tilt from vertical = atan2(Rh*sin(a), Rv*cos(a))
+        var winSinA = (winY - archCenterY) / Rv; // sin(a) at window height
+        var winCosA = Math.sqrt(1 - winSinA * winSinA);
+        var wallTilt = Math.atan2(Rh * winSinA, Rv * winCosA); // ~0.24 rad (~14°)
+
+        for (var wfz = 0; wfz < windowZList.length; wfz++) {
+            var wz = windowZList[wfz];
             for (var wSide = -1; wSide <= 1; wSide += 2) {
-                // Window frame — sits just inside the arch wall
-                var frame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.30), MAT.darkPlastic);
-                frame.position.set(wSide * (winWallX - 0.04), winY, wz);
-                cabinGroup.add(frame);
-                // Glass — bright sky-blue to simulate outdoor view
-                var glass = new THREE.Mesh(new THREE.PlaneGeometry(0.36, 0.26), MAT.windowInner);
-                glass.position.set(wSide * (winWallX - 0.02), winY, wz);
-                glass.rotation.y = wSide > 0 ? -Math.PI / 2 : Math.PI / 2;
-                cabinGroup.add(glass);
+                var wx = wSide * winWallX;
+                // Frame group — tilted to match wall curvature
+                var frameGrp = new THREE.Group();
+                frameGrp.position.set(wx * 0.98, winY, wz);
+                frameGrp.rotation.z = wSide * wallTilt; // tilt outward to match arch lean
+                // Top trim
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, 0.025, winHalfZ * 2 + 0.04), trimMat, 0, winHalfH, 0));
+                // Bottom trim
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, 0.025, winHalfZ * 2 + 0.04), trimMat, 0, -winHalfH, 0));
+                // Side trims
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, 0, 0, -winHalfZ));
+                frameGrp.add(pm(new THREE.BoxGeometry(0.04, winHalfH * 2, 0.025), trimMat, 0, 0, winHalfZ));
+                cabinGroup.add(frameGrp);
+                // Exterior view plane (sky/ground gradient behind the hole)
+                var extView = new THREE.Mesh(new THREE.PlaneGeometry(winHalfZ * 2 - 0.02, winHalfH * 2 - 0.02), skyViewMat);
+                extView.position.set(wSide * (winWallX + 0.1), winY, wz);
+                extView.rotation.y = wSide > 0 ? -Math.PI / 2 : Math.PI / 2;
+                cabinGroup.add(extView);
             }
         }
 
-        // ── Ceiling light panels (along center) ──
+        // ── Ceiling light strips (LED panels along inner edge of overhead bins) ──
+        // In real aircraft, flat light panels run along the underside of bins
+        var lightStripY = binY - binH / 2 - 0.01; // flush with bin underside
+        var lightStripX = binWallX - binD / 2 - 0.03;  // centered under bin inner half
+        var lightStripGeo = new THREE.PlaneGeometry(0.22, 1.8); // wide panel, runs along cabin Z
         for (var lz = -halfL + 1; lz < halfL - 1; lz += 2) {
-            var lPanel = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.03, 1.8), MAT.lightEmit);
-            lPanel.position.set(0, CH - 0.02, lz);
-            cabinGroup.add(lPanel);
-            cabinLightMeshes.push(lPanel);
-
-            // Actual point light every 4m
+            for (var lSide = -1; lSide <= 1; lSide += 2) {
+                var lPanel = new THREE.Mesh(lightStripGeo, MAT.lightEmit);
+                lPanel.position.set(lSide * lightStripX, lightStripY, lz);
+                lPanel.rotation.x = -Math.PI / 2; // face downward
+                cabinGroup.add(lPanel);
+                cabinLightMeshes.push(lPanel);
+            }
+            // Actual point light every 4m (centered between the two strips)
             if (Math.abs(lz % 4) < 1) {
-                var pLight = new THREE.PointLight(0xffffee, 0.4, 6);
-                pLight.position.set(0, CH - 0.1, lz);
+                var pLight = new THREE.PointLight(0xffffee, 0.3, 5);
+                pLight.position.set(0, lightStripY - 0.15, lz);
                 cabinGroup.add(pLight);
                 cabinLights.push(pLight);
             }
@@ -2414,9 +2512,9 @@
             camera.position.set(-8, 5.7, 5);
             camera.lookAt(new THREE.Vector3(15, 5, 5));
             G.cameraBasePos.copy(camera.position);
-            showPrompt('Gate A7 — Now Boarding', 3500);
+            showPrompt('Gate 84 — Now Boarding', 3500);
             pt(function() {
-                showSub('WASD to walk — Board at Gate A7');
+                showSub('WASD to walk — Board at Gate 84');
                 G.canClick = false;
                 G.transitioning = false;
             }, 1500);
@@ -2447,17 +2545,45 @@
                 G.lookX = 0; G.lookY = 0;
                 G.targetLookX = 0; G.targetLookY = 0;
 
+                // Assign a specific seat and create a glowing marker
+                var assignedRow = -11 + 1.5 + 12 * 0.80; // row 12
+                G.seatTarget = new THREE.Vector3(1.35, 1.15, assignedRow);
+                // Create pulsing seat marker
+                if (seatMarker) cabinGroup.remove(seatMarker);
+                seatMarker = new THREE.Group();
+                // Floating arrow/diamond above the seat
+                var markerGeo = new THREE.ConeGeometry(0.15, 0.3, 4);
+                var markerMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.85 });
+                var markerMesh = new THREE.Mesh(markerGeo, markerMat);
+                markerMesh.rotation.x = Math.PI; // point downward
+                markerMesh.position.y = 1.4;
+                seatMarker.add(markerMesh);
+                // Glowing ring on the seat cushion
+                var ringGeo = new THREE.RingGeometry(0.18, 0.25, 16);
+                var ringMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.7, side: THREE.DoubleSide });
+                var ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                ringMesh.rotation.x = -Math.PI / 2;
+                ringMesh.position.y = 0.52;
+                seatMarker.add(ringMesh);
+                // Vertical glow line
+                var lineGeo = new THREE.BoxGeometry(0.02, 0.8, 0.02);
+                var lineMesh = new THREE.Mesh(lineGeo, markerMat);
+                lineMesh.position.y = 1.0;
+                seatMarker.add(lineMesh);
+                seatMarker.position.set(1.35, 0, assignedRow);
+                cabinGroup.add(seatMarker);
+
                 setCabinVolume(0.15);
                 fadeOut(1.5);
             }, 4000);
 
             pt(function() {
                 setPhaseLabel('Finding Your Seat');
-                showPrompt('Walk to find your seat', 2500);
+                showPrompt('Find your marked seat', 2500);
             }, 5500);
 
             pt(function() {
-                showSub('WASD to walk — Click a seat to sit');
+                showSub('WASD to walk — Click the green marker to sit');
                 G.canClick = true;
                 G.transitioning = false;
             }, 7000);
@@ -3039,22 +3165,12 @@
 
         switch (G.phase) {
             case 'boarding':
-                // Sit at nearest window seat to player's current Z position
-                var cabHL = 11; // cabin halfL
-                var cabRowPitch = 0.80;
-                var cabFirstRow = -cabHL + 1.5;
-                var bestRowZ = cabFirstRow;
-                var bestDist = 9999;
-                var camZ = camera.position.z;
-                for (var sr = 0; sr < Math.floor(20 / cabRowPitch); sr++) {
-                    var rz = cabFirstRow + sr * cabRowPitch;
-                    if (Math.abs(rz - camZ) < bestDist) {
-                        bestDist = Math.abs(rz - camZ);
-                        bestRowZ = rz;
-                    }
+                // Sit at the pre-assigned marked seat
+                // Remove seat marker
+                if (seatMarker) {
+                    cabinGroup.remove(seatMarker);
+                    seatMarker = null;
                 }
-                // Window seat: leftmost (+X side)
-                G.seatTarget = new THREE.Vector3(1.35, 1.15, bestRowZ);
                 goPhase('seated');
                 break;
             case 'seated': goPhase('taxi'); break;
@@ -3197,8 +3313,8 @@
                 camera.position.x += cmx;
                 camera.position.z += cmz;
             }
-            // Cabin aisle bounds: x in [-0.5, 0.5], z in [-10, 10]
-            camera.position.x = Math.max(-0.5, Math.min(0.5, camera.position.x));
+            // Cabin bounds: wide enough to walk between seat rows
+            camera.position.x = Math.max(-1.8, Math.min(1.8, camera.position.x));
             camera.position.z = Math.max(-10, Math.min(10, camera.position.z));
             camera.position.y = 1.65;
             G.cameraBasePos.copy(camera.position);
@@ -3229,6 +3345,15 @@
             // Looking at wreckage/fire
             camera.rotation.y = Math.PI * 0.05 + Math.sin(G.time * 0.1) * 0.02 + G.lookX * 0.2;
             camera.rotation.x = -0.05 + G.lookY * 0.1;
+        }
+
+        // ── Animate seat marker (pulsing) ──
+        if (seatMarker && G.phase === 'boarding') {
+            var pulse = 0.6 + 0.4 * Math.sin(G.time * 4);
+            seatMarker.children[0].position.y = 1.3 + Math.sin(G.time * 3) * 0.1; // bob up/down
+            seatMarker.children[0].material.opacity = pulse;
+            seatMarker.children[1].material.opacity = pulse * 0.8;
+            seatMarker.children[2].material.opacity = pulse * 0.6;
         }
 
         // ── Animate engine fans ──
