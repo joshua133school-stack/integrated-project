@@ -739,7 +739,8 @@
                 new THREE.MeshBasicMaterial({ color: 0x3388cc }));
             gScr.position.set(0, 1.5, -0.216);
             gDesk.add(gScr);
-            gDesk.position.set(TI.x2 - 2, TI.floorY, gate.z);
+            // Position desk off to the side of the gate (not blocking the bridge entrance)
+            gDesk.position.set(TI.x2 - 2.5, TI.floorY, gate.z - 5);
             airportGroup.add(gDesk);
 
             // ── Jet bridge (connects 2nd floor to plane) ──
@@ -1215,10 +1216,9 @@
         );
         mStripe.rotation.x = Math.PI / 2;
         g.add(mStripe);
-        // Nose
-        var nose = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), MAT.white);
-        nose.rotation.x = -Math.PI / 2;
-        nose.scale.z = 1.5;
+        // Nose — full sphere, back half hidden inside fuselage (same approach as large plane)
+        var nose = new THREE.Mesh(new THREE.SphereGeometry(1.2, 10, 8), MAT.white);
+        nose.scale.set(1, 1, 1.5);
         nose.position.z = 8;
         g.add(nose);
         // Tail cone
@@ -1282,15 +1282,34 @@
         nose.position.z = halfLen;       // centered at fuselage front end
         planeExtGroup.add(nose);
 
-        // ── Cockpit windows (on nose dome, angled) ──
-        var cwGeo = new THREE.PlaneGeometry(0.9, 0.5);
+        // ── Cockpit windows (dark patches on nose surface) ──
+        // Nose is a full sphere at z=halfLen, radius R, scaled (1,1,2.5) in Z
+        // Must position windows ON or slightly outside the scaled sphere surface
+        var cockpitGlassMat = new THREE.MeshBasicMaterial({ color: 0x112233 });
+        var cwGeo = new THREE.PlaneGeometry(0.85, 0.48);
         for (var cw = -1; cw <= 1; cw += 2) {
-            var cWin = new THREE.Mesh(cwGeo, MAT.glass);
-            cWin.position.set(cw * 0.55, R * 0.5, halfLen + R * 1.5);
-            cWin.rotation.x = -0.3;
-            cWin.rotation.y = cw * 0.25;
+            var cWin = new THREE.Mesh(cwGeo, cockpitGlassMat);
+            // Calculate surface position on scaled ellipsoid
+            var cwX = cw * 0.6;
+            var cwY = R * 0.42;
+            // Solve for z on ellipsoid: x²+y²+((z-halfLen)/2.5)²=R²
+            var zUnscaled = Math.sqrt(Math.max(0, R * R - cwX * cwX - cwY * cwY));
+            var cwZ = halfLen + zUnscaled * 2.5 + 0.05; // +0.05 to sit just outside surface
+            cWin.position.set(cwX, cwY, cwZ);
+            // Angle to match nose curvature
+            var nz = zUnscaled / (2.5 * 2.5); // ellipsoid normal z component
+            var ny = cwY;
+            var tiltX = -Math.atan2(ny, nz * 2.5) * 0.6;
+            cWin.rotation.x = tiltX;
+            cWin.rotation.y = cw * 0.2;
             planeExtGroup.add(cWin);
         }
+        // Center windshield strip
+        var cwCenter = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.42), cockpitGlassMat);
+        var czUnscaled = Math.sqrt(R * R - (R * 0.42) * (R * 0.42));
+        cwCenter.position.set(0, R * 0.42, halfLen + czUnscaled * 2.5 + 0.05);
+        cwCenter.rotation.x = -Math.atan2(R * 0.42, czUnscaled) * 0.5;
+        planeExtGroup.add(cwCenter);
 
         // ── Tail cone (wide end connects to fuselage, narrows toward tail tip) ──
         // After rotation.x=PI/2: radiusTop→+Z end, radiusBottom→-Z end
